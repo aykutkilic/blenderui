@@ -178,8 +178,10 @@ The corresponding local source references are:
   asset-library polling remain outside the package.
 - `space_userpref/userpref_asset_libraries_list.cc` for the Preferences asset
   library list: built-in/custom rows, local/remote icons, enabled/error
-  indicators, add/remove controls, and selected-library path/import settings.
-  Runtime preference storage and library polling remain caller-owned.
+  indicators, add/remove controls, and selected-library path, URL, default
+  import-method, and relative-path settings. The package follows Blender's
+  remote import filtering and vertical property layout; runtime preference
+  storage and library polling remain caller-owned.
 - `space_buttons/buttons_texture.cc` for texture-user context selection and
   the adjacent jump-to-Texture-Properties button. The package now covers the
   source/category selector, grouped menu headers, and disabled jump state;

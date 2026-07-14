@@ -3224,9 +3224,8 @@ class _BlenderAssetLibrariesPreferencesPanelState
           BlenderPropertyRow(
             label: 'Default Import Method',
             editor: BlenderDropdown<String>(
-              value: importItems.any(
-                (item) => item.value == library.importMethod,
-              )
+              value:
+                  importItems.any((item) => item.value == library.importMethod)
                   ? library.importMethod
                   : importItems.first.value,
               items: importItems,
@@ -3243,8 +3242,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
                 label: '',
                 onChanged: widget.onRelativePathChanged == null
                     ? null
-                    : (value) =>
-                          widget.onRelativePathChanged!(library, value),
+                    : (value) => widget.onRelativePathChanged!(library, value),
               ),
             ),
         ],

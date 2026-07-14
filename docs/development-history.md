@@ -1,5 +1,18 @@
 # Development history
 
+## 2026-07-15 — Matched Preferences asset-library settings
+
+- Re-read `userpref_asset_libraries_list.cc` and its RNA definitions. The
+  source uses disk-drive/internet icons, the `URL` and `Default Import Method`
+  labels, vertical property rows, remote-library import filtering, and the
+  fixed `All`/`Essentials` built-in entries.
+- Added source SVG-backed `internet` and `diskDrive` glyphs, corrected the
+  asset-library row identity, added the invalid URL field affordance, expanded
+  the import choices, filtered out `Link` for remote libraries, and changed
+  the settings layout to match Blender's vertical rows.
+- Updated the example and focused regression data to use Blender's built-in
+  labels. The state and preference persistence remain caller-owned.
+
 ## 2026-07-15 — Matched selector and Properties-tab states
 
 - Reduced pane-section chevrons to 11px after comparing their rendered bounds

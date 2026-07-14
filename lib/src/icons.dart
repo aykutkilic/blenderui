@@ -395,11 +395,7 @@ class _BlenderIconPainter extends CustomPainter {
       case BlenderGlyph.internet:
         canvas.drawCircle(center, w * .34, paint);
         canvas.drawOval(
-          Rect.fromCenter(
-            center: center,
-            width: w * .34,
-            height: h * .68,
-          ),
+          Rect.fromCenter(center: center, width: w * .34, height: h * .68),
           paint,
         );
         canvas.drawLine(

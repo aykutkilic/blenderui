@@ -2183,7 +2183,7 @@ void main() {
             libraries: const <BlenderAssetLibraryPreference>[
               BlenderAssetLibraryPreference(
                 id: 'all',
-                name: 'All Libraries',
+                name: 'All',
                 builtIn: true,
               ),
               BlenderAssetLibraryPreference(
@@ -2219,6 +2219,7 @@ void main() {
     expect(find.byType(BlenderCheckbox), findsNWidgets(3));
     expect(find.bySemanticsLabel('Path'), findsOneWidget);
     expect(find.text('Link'), findsOneWidget);
+    expect(find.text('Default Import Method'), findsOneWidget);
     expect(find.text('Relative Path'), findsOneWidget);
     expect(
       find.byWidgetPredicate(

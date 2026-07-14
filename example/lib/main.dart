@@ -3093,7 +3093,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   libraries: const <BlenderAssetLibraryPreference>[
                     BlenderAssetLibraryPreference(
                       id: 'all',
-                      name: 'All Libraries',
+                      name: 'All',
                       builtIn: true,
                     ),
                     BlenderAssetLibraryPreference(
@@ -3115,6 +3115,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       name: 'Remote Repository',
                       isRemote: true,
                       remoteUrl: 'https://assets.example.test',
+                      importMethod: 'Append',
                       invalid: true,
                     ),
                   ],
