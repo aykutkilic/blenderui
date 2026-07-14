@@ -1,5 +1,108 @@
 # Development history
 
+## 2026-07-15 — Added Action mode and richer Timeline example data
+
+- Re-read `space_dopesheet.py`, `space_time.py`, and the `space_action`
+  sources. Blender treats Timeline as a special Dope Sheet subtype, while
+  Action mode adds its mode/data-block selector, channel and key menus, and
+  detailed animation channels.
+- Added Action as a selectable bottom-editor mode alongside Timeline. Its
+  header exposes a `CubeAction` data-block selector plus Channel and Key menus,
+  and its body shows summary, location, and rotation channels with example
+  keyframes.
+- Expanded the Timeline example from Cube/Camera-only data to include the
+  scene Light track. The models remain caller-owned, so the added detail does
+  not couple the reusable editor widgets to the showcase scene.
+- Added an example interaction test that switches from Timeline to Action and
+  verifies the scene tracks, Action selector, mode controls, and channel model.
+
+## 2026-07-15 — Connected Blender-style Properties search
+
+- Re-read `space_properties.py`, `space_buttons.cc`, and the block-search path
+  in `interface_layout.cc`. Blender places a normal string property between
+  flexible header spacers, matches panel and button labels case-insensitively,
+  and temporarily opens matching panels without overwriting their stored
+  collapsed state.
+- Standardized the example search field at six 20px widget units and connected
+  its controller to `BlenderPropertiesEditor`. Searches now retain whole
+  panels when their title matches, otherwise show only matching property rows
+  and hide empty panels.
+- Added controlled expansion support to `BlenderPanel` so search results can be
+  forced open while the user's stable-ID expansion state remains untouched.
+  Filtered reordering also maps visible group IDs back into the complete order
+  rather than treating filtered indexes as global indexes.
+- Added package and example interaction coverage for filtering, clearing,
+  collapsed-state restoration, and the exact 120x20 header-field geometry.
+  The in-app preview connection was unavailable in this session, so the
+  repository's deterministic 720x700 visual baseline was used instead.
+
+## 2026-07-15 — Matched selection, section, and outline disclosure arrows
+
+- Reused the local Blender `select_*` SVG glyphs for the Tool Properties
+  selection-operation controls and kept the group fluid up to Blender's
+  compact 190px maximum.
+- Standardized section-selection dropdowns and tree-view branch controls on
+  Blender's thin `panelDisclosureDown`/`panelDisclosureRight` glyphs instead
+  of the larger filled chevrons. Tree disclosures now use stable keys so the
+  visual contract can be regression-tested directly.
+- Matched the compact editor-type dropdown's down-arrow size to the 9px
+  collapsed tree disclosure, removing the larger 11px trigger arrow.
+- Applied the same 9px thin disclosure treatment to the Scene and View Layer
+  data-block selectors in the top header.
+- Reduced the Tool Properties reorder-grip visuals from 13px to the shared 9px
+  compact handle size while retaining their full header drag targets.
+- Added focused widget coverage for the selection controls and tree disclosure
+  anatomy. The implementation intentionally keeps the glyph mapping in the
+  shared controls and icon registry so future editors inherit the correction.
+- The package suite had already passed before this focused assertion was added;
+  a later full rerun reached all arrow tests but stopped in the concurrently
+  changing template-controls test because `Location X` was not rendered.
+  Focused dropdown and tree regressions pass independently, and the example
+  suite passes after its intentional golden refresh.
+
+## 2026-07-15 — Kept expanded panel drag previews at their live height
+
+- Rechecked Blender's panel drag path in `interface_panel.cc`. It moves the
+  existing `Panel` object and derives alignment gaps from
+  `get_panel_real_size_y()`, so the carried panel and reorder preview always
+  share the same live open/closed state and measured height.
+- Fixed the Flutter divergence where a panel opened after initial construction
+  was measured as expanded in the list, but rebuilt from stale
+  `initiallyExpanded` data inside the drag overlay. `BlenderPanel` now reports
+  expansion changes, and `BlenderPropertiesEditor` retains that state by group
+  ID for both the list item and overlay proxy.
+- Corrected descriptor reconciliation so ordinary parent rebuilds no longer
+  reopen panels the user collapsed; only newly introduced groups apply their
+  initial expansion value.
+- Added an expanded, tall-content pointer-drag regression that checks the
+  visible proxy height before and after crossing another panel. Analysis also
+  exposed a concurrent `BlenderTemplateList` edit missing its local
+  `layout.dart` import; the import was restored before verification.
+
+## 2026-07-15 — Added Blender-style Properties panel reordering
+
+- Re-read `interface_panel.cc`: Blender renders `ICON_GRIP` as a compact,
+  half-alpha header affordance; during `PANEL_IS_DRAG_DROP`, it moves the
+  panel's vertical offset, sorts by the live position, updates
+  `Panel.sortorder`, and aligns the panel into its committed slot on release.
+- Reduced Properties panel disclosure arrows and reorder grips to 9px. Added a
+  dedicated header-handle slot so the generic panel owns only header anatomy,
+  while the Properties editor owns ordering and drag behavior.
+- Properties groups now reorder from the grip with a moving whole-panel proxy
+  and animated insertion gap. The editor retains order by stable group ID
+  across descriptor rebuilds and exposes `onGroupOrderChanged` for optional
+  caller persistence.
+- Kept standalone editor embedding working by supplying a local overlay and
+  default widget localization only when the host does not already provide
+  them. The first verification exposed both Flutter prerequisites; handling
+  them locally avoided imposing a `Navigator` or app shell on package users.
+- Added a real pointer-drag regression and refreshed the focused Properties
+  visual baseline. During verification, a concurrent `internetOffline` glyph
+  lacked its exhaustive fallback-painter switch case; the matching internet
+  fallback was added to restore compilation. The full example gate also found
+  its new file-browser hint overflowing in short hosts; its card body now
+  scrolls within the available height instead of clipping or overflowing.
+
 ## 2026-07-15 — Matched Preferences asset-library settings
 
 - Re-read `userpref_asset_libraries_list.cc` and its RNA definitions. The
@@ -12,6 +115,86 @@
   the settings layout to match Blender's vertical rows.
 - Updated the example and focused regression data to use Blender's built-in
   labels. The state and preference persistence remain caller-owned.
+
+## 2026-07-15 — Matched texture-user closed selector label
+
+- Rechecked `uiTemplateTextureUser` in `buttons_texture.cc`: the closed menu
+  button displays the user name, while the pulldown entries append the current
+  texture datablock name after `" - "`.
+- Added an optional selected-label override to `BlenderDropdown` and used the
+  current user name for `BlenderTextureUserSelector`; menu entries retain their
+  source-derived texture names and category headers.
+- Package analysis and all 64 package tests pass; the example analysis and all
+  5 smoke/visual-baseline tests pass. Existing non-fatal SVG parser warnings
+  remain unchanged.
+
+## 2026-07-15 — Matched filled 3D-view status warning
+
+- The local `interface_template_status.cc` source uses
+  `ICON_STATUS_WARNING_FILLED` for negative and non-uniform active-object
+  scale warnings, distinct from the larger general warning icon.
+- Added the source SVG-backed `warningFilled` glyph and switched the
+  viewport-warning context variant to it; the existing warning glyph remains
+  available for general notices.
+- The first parallel example verification reported a transient duplicate
+  `ids` declaration from the incremental compiler; the current source had one
+  declaration and package analysis was clean. A serial `--update-goldens`
+  rerun passed all five example tests and recorded the intended 0.45% warning
+  glyph pixel delta.
+
+## 2026-07-15 — Added asset-browser availability hint cards
+
+- Audited `file_draw.cc` and found centered round-box states for missing online
+  access and failed remote asset-library downloads. These are distinct from
+  the file selector's operator panels and use multiline explanatory text plus
+  optional action buttons.
+- Added `BlenderFileBrowserHint` and `BlenderFileBrowserHintAction`, with
+  source-backed `internetOffline` and `errorFilled` glyphs. The showcase now
+  displays the exact “Internet Access Required” state with caller-owned
+  “Continue Offline” and “Allow Online Access” actions; remote failure cards
+  use the same component without actions.
+- Added `BlenderFileBrowserLibraryPathHint` for the source's top-left
+  “Path to asset library does not exist” state, including the info message and
+  Preferences action.
+- Added focused widget regressions for both centered availability cards and
+  invalid local-library paths. Package analysis and all 66 package tests
+  pass; the example analysis and all 5 smoke/visual-baseline tests pass.
+- The initial 220px showcase slot overflowed by 38px because the source
+  message wraps with two action buttons; increasing that demo slot to 270px
+  removed the overflow, and the example golden was regenerated successfully.
+
+## 2026-07-15 — Matched template-list filter anatomy
+
+- Compared `interface_template_list.cc` with the reusable list surfaces. The
+  default Blender list includes a bordered list box, a filter disclosure row,
+  a resize grip, and—when expanded—a search field plus invert, alphabetical,
+  and ascending/descending sort toggles. Sort controls disappear when sorting
+  is locked.
+- Added `BlenderTemplateList` and expanded `BlenderFilterBar` with the source
+  glyphs and toggle states. Filtering and sorting remain caller-owned, while
+  the widget preserves the complete visual composition.
+- Added a focused regression. Package analysis and all 68 package tests pass;
+  the example analysis and all 5 smoke/visual-baseline tests remain clean.
+- The showcase selector assertion now checks the keyed operation group and its
+  fixed-height responsive bounds instead of requiring a width that can exceed
+  a narrow Properties region.
+- Its icon assertions are scoped to that keyed group as well, avoiding
+  collisions with the same selection glyphs in the neighboring tool shelf.
+
+## 2026-07-15 — Matched matrix transform decomposition
+
+- Re-read `interface_template_matrix.cc` and found that Blender's matrix
+  template decomposes a 4x4 matrix into boxed Location, Rotation, Mode, and
+  Scale rows; it is not the raw editable matrix grid represented by the
+  existing generic `BlenderMatrixField`.
+- Added `BlenderMatrixTransformValues` and `BlenderMatrixTransformPanel` with
+  Euler, Quaternion, and Axis Angle row variants, a rotation-mode dropdown,
+  fixed-precision decomposition labels, and the source `Matrix has a shear`
+  warning. The existing raw matrix field remains available for generic data.
+- Added the decomposition to the showcase and focused regression coverage;
+  caller-owned matrix decomposition and mode changes remain non-functional.
+  Package analysis and all 71 package tests pass; the example analysis and all
+  6 smoke/visual-baseline tests pass.
 
 ## 2026-07-15 — Matched selector and Properties-tab states
 

@@ -1697,6 +1697,7 @@ class BlenderDropdown<T> extends StatefulWidget {
     required this.onChanged,
     this.enabled = true,
     this.compact = false,
+    this.selectedLabel,
   });
 
   final T? value;
@@ -1704,6 +1705,7 @@ class BlenderDropdown<T> extends StatefulWidget {
   final ValueChanged<T>? onChanged;
   final bool enabled;
   final bool compact;
+  final String? selectedLabel;
 
   @override
   State<BlenderDropdown<T>> createState() => _BlenderDropdownState<T>();
@@ -1758,12 +1760,17 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
         width: double.infinity,
         height: BlenderTheme.of(context).density.controlHeight,
         child: BlenderButton(
-          label: widget.compact ? '' : item?.label ?? 'Select',
+          label: widget.compact
+              ? ''
+              : widget.selectedLabel ?? item?.label ?? 'Select',
           leading: item?.icon,
           enabled: widget.enabled,
           onPressed: widget.enabled && widget.onChanged != null ? _open : null,
           padding: widget.compact ? EdgeInsets.zero : null,
-          trailing: const BlenderIcon(BlenderGlyph.chevronDown, size: 13),
+          trailing: const BlenderIcon(
+            BlenderGlyph.panelDisclosureDown,
+            size: 9,
+          ),
         ),
       ),
     );

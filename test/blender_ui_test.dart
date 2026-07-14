@@ -230,6 +230,220 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Properties search filters labels and preserves collapsed state',
+    (tester) async {
+      final search = TextEditingController();
+      addTearDown(search.dispose);
+      await tester.pumpWidget(
+        _harness(
+          SizedBox(
+            width: 400,
+            height: 260,
+            child: BlenderPropertiesEditor(
+              searchController: search,
+              groups: <BlenderPropertyGroup>[
+                BlenderPropertyGroup(
+                  id: 'format',
+                  title: 'Format',
+                  initiallyExpanded: false,
+                  properties: <BlenderPropertyDescriptor<dynamic>>[
+                    BlenderPropertyDescriptor<int>(
+                      id: 'resolution-x',
+                      label: 'Resolution X',
+                      value: 1920,
+                      editorBuilder: (context, value, onChanged) =>
+                          const SizedBox(height: 20),
+                    ),
+                    BlenderPropertyDescriptor<int>(
+                      id: 'frame-rate',
+                      label: 'Frame Rate',
+                      value: 24,
+                      editorBuilder: (context, value, onChanged) =>
+                          const SizedBox(height: 20),
+                    ),
+                  ],
+                ),
+                BlenderPropertyGroup(
+                  id: 'output',
+                  title: 'Output',
+                  initiallyExpanded: false,
+                  properties: <BlenderPropertyDescriptor<dynamic>>[
+                    BlenderPropertyDescriptor<String>(
+                      id: 'file-format',
+                      label: 'File Format',
+                      value: 'PNG',
+                      editorBuilder: (context, value, onChanged) =>
+                          const SizedBox(height: 20),
+                    ),
+                    BlenderPropertyDescriptor<String>(
+                      id: 'color',
+                      label: 'Color',
+                      value: 'RGBA',
+                      editorBuilder: (context, value, onChanged) =>
+                          const SizedBox(height: 20),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      search.text = 'frame';
+      await tester.pumpAndSettle();
+      expect(find.text('Format'), findsOneWidget);
+      expect(find.text('Frame Rate'), findsOneWidget);
+      expect(find.text('Resolution X'), findsNothing);
+      expect(find.text('Output'), findsNothing);
+
+      search.text = 'output';
+      await tester.pumpAndSettle();
+      expect(find.text('Format'), findsNothing);
+      expect(find.text('Output'), findsOneWidget);
+      expect(find.text('File Format'), findsOneWidget);
+      expect(find.text('Color'), findsOneWidget);
+
+      search.clear();
+      await tester.pumpAndSettle();
+      expect(find.text('Format'), findsOneWidget);
+      expect(find.text('Output'), findsOneWidget);
+      expect(find.text('Frame Rate'), findsNothing);
+      expect(find.text('File Format'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('property panel grips move and commit stable group order', (
+    tester,
+  ) async {
+    List<String>? committedOrder;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 400,
+          height: 260,
+          child: BlenderPropertiesEditor(
+            groups: const <BlenderPropertyGroup>[
+              BlenderPropertyGroup(
+                id: 'first',
+                title: 'First',
+                initiallyExpanded: false,
+                properties: <BlenderPropertyDescriptor<dynamic>>[],
+              ),
+              BlenderPropertyGroup(
+                id: 'second',
+                title: 'Second',
+                initiallyExpanded: false,
+                properties: <BlenderPropertyDescriptor<dynamic>>[],
+              ),
+              BlenderPropertyGroup(
+                id: 'third',
+                title: 'Third',
+                initiallyExpanded: false,
+                properties: <BlenderPropertyDescriptor<dynamic>>[],
+              ),
+            ],
+            onGroupOrderChanged: (order) => committedOrder = order,
+          ),
+        ),
+      ),
+    );
+
+    final firstHandle = find.byKey(
+      const ValueKey<String>('property-group-handle-first'),
+    );
+    final thirdHandle = find.byKey(
+      const ValueKey<String>('property-group-handle-third'),
+    );
+    final gesture = await tester.startGesture(tester.getCenter(firstHandle));
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(thirdHandle) + const Offset(0, 12));
+    await tester.pump(const Duration(milliseconds: 500));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(committedOrder, <String>['second', 'first', 'third']);
+    expect(
+      tester.getTopLeft(find.text('Second')).dy,
+      lessThan(tester.getTopLeft(find.text('First')).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expanded property panel proxy retains its measured height', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 400,
+          height: 300,
+          child: BlenderPropertiesEditor(
+            groups: <BlenderPropertyGroup>[
+              BlenderPropertyGroup(
+                id: 'first',
+                title: 'First',
+                initiallyExpanded: false,
+                properties: <BlenderPropertyDescriptor<dynamic>>[
+                  BlenderPropertyDescriptor<int>(
+                    id: 'tall-control',
+                    label: 'Tall Control',
+                    value: 1,
+                    editorBuilder: (context, value, onChanged) =>
+                        const SizedBox(height: 56),
+                  ),
+                ],
+              ),
+              const BlenderPropertyGroup(
+                id: 'second',
+                title: 'Second',
+                initiallyExpanded: false,
+                properties: <BlenderPropertyDescriptor<dynamic>>[],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('First'));
+    await tester.pumpAndSettle();
+
+    const panelKey = ValueKey<String>('property-group-first');
+    const handleKey = ValueKey<String>('property-group-handle-first');
+    final measuredHeight = tester.getRect(find.byKey(panelKey)).height;
+    expect(measuredHeight, greaterThan(80));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(handleKey)),
+    );
+    await tester.pump();
+
+    expect(find.byKey(panelKey), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(panelKey)).height,
+      closeTo(measuredHeight, 0.01),
+    );
+
+    await gesture.moveTo(
+      tester.getCenter(
+            find.byKey(const ValueKey<String>('property-group-handle-second')),
+          ) +
+          const Offset(0, 12),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      tester.getRect(find.byKey(panelKey)).height,
+      closeTo(measuredHeight, 0.01),
+    );
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   test('docking controller splits, collapses, and replaces area content', () {
     final controller = BlenderDockingController<String>(
       root: const BlenderDockAreaNode<String>(id: 'main', value: 'viewport'),
@@ -421,6 +635,15 @@ void main() {
       ),
     );
 
+    final dropdownArrow = tester.widget<BlenderIcon>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon &&
+            widget.glyph == BlenderGlyph.panelDisclosureDown,
+      ),
+    );
+    expect(dropdownArrow.size, 9);
+
     await tester.tap(find.text('Solid'));
     await tester.pump();
     expect(find.text('Wire'), findsOneWidget);
@@ -512,6 +735,34 @@ void main() {
     expect(selected?.id, 'cube');
   });
 
+  testWidgets('tree disclosures use Blender thin arrow glyphs', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          height: 100,
+          child: BlenderTree<String>(
+            roots: <BlenderTreeNode<String>>[
+              BlenderTreeNode<String>(
+                id: 'collection',
+                label: 'Collection',
+                initiallyExpanded: true,
+                children: <BlenderTreeNode<String>>[
+                  BlenderTreeNode<String>(id: 'cube', label: 'Cube'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final disclosure = tester.widget<BlenderIcon>(
+      find.byKey(const ValueKey<String>('tree-disclosure-collection')),
+    );
+    expect(disclosure.glyph, BlenderGlyph.panelDisclosureDown);
+    expect(disclosure.size, 9);
+  });
+
   testWidgets('timeline and node editor render with generic models', (
     tester,
   ) async {
@@ -595,6 +846,41 @@ void main() {
     await secondTap.up();
     await tester.pump(const Duration(milliseconds: 400));
     expect(activated?.id, 'scene');
+  });
+
+  testWidgets('template list preserves filter disclosure and sort controls', (
+    tester,
+  ) async {
+    final filter = TextEditingController();
+    addTearDown(filter.dispose);
+    var inverted = false;
+    var sorted = false;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 420,
+          height: 260,
+          child: BlenderTemplateList<String>(
+            items: const <BlenderListItem<String>>[
+              BlenderListItem<String>(id: 'one', label: 'First Item'),
+              BlenderListItem<String>(id: 'two', label: 'Second Item'),
+            ],
+            filterController: filter,
+            initiallyFilterExpanded: true,
+            onInvertFilter: () => inverted = true,
+            onSortAlphabetically: () => sorted = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('First Item'), findsOneWidget);
+    expect(find.bySemanticsLabel('Invert Filter'), findsOneWidget);
+    expect(find.bySemanticsLabel('Sort Alphabetically'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Invert Filter'));
+    await tester.tap(find.bySemanticsLabel('Sort Alphabetically'));
+    expect(inverted, isTrue);
+    expect(sorted, isTrue);
   });
 
   testWidgets('file browser filters and restores entries', (tester) async {
@@ -712,6 +998,34 @@ void main() {
     await tester.tapAt(const Offset(300, 350));
     await tester.pump();
     expect(curve, isNotEmpty);
+  });
+
+  testWidgets('matrix transform panel preserves decomposition rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 360,
+          height: 500,
+          child: BlenderMatrixTransformPanel(
+            values: const BlenderMatrixTransformValues(
+              location: <double>[1, 2, 3],
+              rotation: <double>[0, 45, 90],
+              scale: <double>[1, 1, 1],
+              hasShear: true,
+            ),
+            onRotationModeChanged: _ignoreString,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Matrix has a shear'), findsOneWidget);
+    expect(find.text('Location X'), findsOneWidget);
+    expect(find.text('Rotation X'), findsOneWidget);
+    expect(find.text('Scale X'), findsOneWidget);
+    expect(find.text('XYZ Euler'), findsOneWidget);
   });
 
   testWidgets('search menu filters operator entries', (tester) async {
@@ -1287,6 +1601,7 @@ void main() {
       (button.trailing! as BlenderIcon).glyph,
       BlenderGlyph.panelDisclosureDown,
     );
+    expect((button.trailing! as BlenderIcon).size, 9);
 
     await tester.tapAt(tester.getCenter(buttonFinder));
     await tester.pump();
@@ -2170,6 +2485,69 @@ void main() {
     },
   );
 
+  testWidgets('file browser hints preserve asset availability cards', (
+    tester,
+  ) async {
+    var allowed = false;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 520,
+          height: 280,
+          child: BlenderFileBrowserHint(
+            title: 'Internet Access Required',
+            icon: BlenderGlyph.internetOffline,
+            message: 'Allow Online Access to browse online assets.',
+            actions: <BlenderFileBrowserHintAction>[
+              const BlenderFileBrowserHintAction(
+                label: 'Continue Offline',
+                icon: BlenderGlyph.close,
+              ),
+              BlenderFileBrowserHintAction(
+                label: 'Allow Online Access',
+                icon: BlenderGlyph.check,
+                onPressed: () => allowed = true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Internet Access Required'), findsOneWidget);
+    expect(find.text('Continue Offline'), findsOneWidget);
+    await tester.tap(find.text('Allow Online Access'));
+    expect(allowed, isTrue);
+  });
+
+  testWidgets('invalid asset library path hint preserves Preferences action', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 520,
+          height: 280,
+          child: BlenderFileBrowserLibraryPathHint(
+            title: 'Path to asset library does not exist:',
+            path: '/assets/missing',
+            message: 'Manage Asset Libraries from Preferences.',
+            onOpenPreferences: () => opened = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('/assets/missing'), findsOneWidget);
+    expect(
+      find.text('Manage Asset Libraries from Preferences.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Open Preferences'));
+    expect(opened, isTrue);
+  });
+
   testWidgets('asset-library preferences preserve built-in and remote states', (
     tester,
   ) async {
@@ -2261,12 +2639,13 @@ void main() {
         ),
       );
 
-      expect(find.text('Base Color - Noise Texture'), findsOneWidget);
+      expect(find.text('Base Color'), findsOneWidget);
       final dropdown = tester.widget<BlenderDropdown<String>>(
         find.byType(BlenderDropdown<String>),
       );
       expect(dropdown.items.first.label, 'Material');
       expect(dropdown.items.first.enabled, isFalse);
+      expect(dropdown.items[1].label, 'Base Color - Noise Texture');
       expect(
         find.bySemanticsLabel('Show texture in Texture tab'),
         findsOneWidget,

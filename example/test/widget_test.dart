@@ -18,6 +18,14 @@ void main() {
     expect(find.text('Select Box'), findsWidgets);
     expect(find.text('Timeline'), findsWidgets);
 
+    for (final value in <String>['Scene', 'ViewLayer']) {
+      final arrow = tester.widget<BlenderIcon>(
+        find.byKey(ValueKey<String>('data-block-selector-disclosure-$value')),
+      );
+      expect(arrow.glyph, BlenderGlyph.panelDisclosureDown);
+      expect(arrow.size, 9);
+    }
+
     final firstTool = find.descendant(
       of: find.byType(BlenderToolShelf),
       matching: find.byType(BlenderIconButton),
@@ -85,6 +93,72 @@ void main() {
     );
   });
 
+  testWidgets('Tool Properties uses Blender selection controls', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final selectionModes = find.byKey(
+      const ValueKey<String>('tool-selection-operation-group'),
+    );
+    final selectionModeSize = tester.getSize(selectionModes);
+    expect(selectionModeSize.height, 20);
+    expect(selectionModeSize.width, greaterThan(180));
+    expect(selectionModeSize.width, lessThanOrEqualTo(190));
+    for (final glyph in <BlenderGlyph>[
+      BlenderGlyph.selectBox,
+      BlenderGlyph.selectExtend,
+      BlenderGlyph.selectSubtract,
+      BlenderGlyph.selectDifference,
+      BlenderGlyph.selectIntersect,
+    ]) {
+      expect(
+        find.descendant(
+          of: selectionModes,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is BlenderIcon && widget.glyph == glyph,
+          ),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    final optionsDisclosure = tester.widget<BlenderIcon>(
+      find.byKey(
+        const ValueKey<String>('tool-settings-panel-disclosure-Options'),
+      ),
+    );
+    expect(optionsDisclosure.glyph, BlenderGlyph.panelDisclosureDown);
+    expect(optionsDisclosure.size, 9);
+    final optionsHandle = tester.widget<BlenderIcon>(
+      find.byKey(const ValueKey<String>('tool-settings-drag-handle-Options')),
+    );
+    expect(optionsHandle.glyph, BlenderGlyph.dragHandle);
+    expect(optionsHandle.size, 9);
+
+    final transformDisclosure = tester.widget<BlenderIcon>(
+      find.byKey(
+        const ValueKey<String>('tool-settings-nested-disclosure-Transform'),
+      ),
+    );
+    expect(transformDisclosure.glyph, BlenderGlyph.panelDisclosureDown);
+    expect(transformDisclosure.size, 9);
+
+    final workspaceDisclosure = tester.widget<BlenderIcon>(
+      find.byKey(
+        const ValueKey<String>('tool-settings-panel-disclosure-Workspace'),
+      ),
+    );
+    expect(workspaceDisclosure.glyph, BlenderGlyph.panelDisclosureRight);
+    expect(workspaceDisclosure.size, 9);
+  });
+
   testWidgets('Output Properties matches Blender panel anatomy', (
     tester,
   ) async {
@@ -100,6 +174,11 @@ void main() {
       find.byKey(const ValueKey<String>('properties-area-header')),
     );
     expect(propertiesHeader.showBottomBorder, isFalse);
+    final propertiesSearch = find.descendant(
+      of: find.byKey(const ValueKey<String>('properties-area-header')),
+      matching: find.byType(BlenderSearchField),
+    );
+    expect(tester.getSize(propertiesSearch), const Size(120, 20));
 
     final outputTab = find.bySemanticsLabel('Output');
     expect(outputTab, findsOneWidget);
@@ -111,6 +190,25 @@ void main() {
     expect(find.text('Frame Range'), findsOneWidget);
     expect(find.text('Stereoscopy'), findsOneWidget);
     expect(find.bySemanticsLabel('Format presets'), findsOneWidget);
+
+    await tester.enterText(propertiesSearch, 'Frame Rate');
+    await tester.pumpAndSettle();
+    expect(find.text('Format'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BlenderPropertiesEditor),
+        matching: find.text('Frame Rate'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Resolution X'), findsNothing);
+    expect(find.text('Frame Range'), findsNothing);
+    expect(find.text('Stereoscopy'), findsNothing);
+
+    await tester.enterText(propertiesSearch, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Frame Range'), findsOneWidget);
+    expect(find.text('Stereoscopy'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Format presets'));
     await tester.pumpAndSettle();
@@ -127,6 +225,50 @@ void main() {
     await expectLater(
       find.byType(ShowcaseApp),
       matchesGoldenFile('goldens/showcase_output_properties.png'),
+    );
+  });
+
+  testWidgets('bottom animation editor exposes Timeline and Action details', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final timeline = tester.widget<BlenderTimeline>(
+      find.byType(BlenderTimeline),
+    );
+    expect(
+      timeline.model.tracks.map((track) => track.label),
+      containsAll(<String>['Cube', 'Camera', 'Light']),
+    );
+
+    await tester.tap(
+      find.ancestor(
+        of: find.text('Timeline'),
+        matching: find.byType(BlenderButton),
+      ),
+      warnIfMissed: false,
+    );
+    await tester.pump();
+    await tester.tap(find.text('Action'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BlenderDopeSheetEditor), findsOneWidget);
+    expect(find.text('Select'), findsWidgets);
+    expect(find.text('Channel'), findsOneWidget);
+    expect(find.text('Key'), findsOneWidget);
+    expect(find.text('CubeAction'), findsWidgets);
+    final action = tester.widget<BlenderDopeSheetEditor>(
+      find.byType(BlenderDopeSheetEditor),
+    );
+    expect(
+      action.model.tracks.map((track) => track.label),
+      containsAll(<String>[
+        'CubeAction Summary',
+        'X Location',
+        'Y Location',
+        'Z Euler Rotation',
+      ]),
     );
   });
 

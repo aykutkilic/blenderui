@@ -17,6 +17,8 @@ enum BlenderGlyph {
   minus,
   search,
   settings,
+  preferences,
+  arrowLeftRight,
   preset,
   folder,
   play,
@@ -25,6 +27,7 @@ enum BlenderGlyph {
   lock,
   link,
   internet,
+  internetOffline,
   diskDrive,
   mouseLeft,
   mouseRight,
@@ -34,6 +37,10 @@ enum BlenderGlyph {
   mouseMiddleDrag,
   pointer,
   selectBox,
+  selectExtend,
+  selectSubtract,
+  selectDifference,
+  selectIntersect,
   check,
   radio,
   dragHandle,
@@ -76,6 +83,9 @@ enum BlenderGlyph {
   pin,
   filter,
   sort,
+  sortDescending,
+  sortAlphabetically,
+  grip,
   refresh,
   maximize,
   minimize,
@@ -86,8 +96,11 @@ enum BlenderGlyph {
   linkBroken,
   keyframe,
   warning,
+  warningFilled,
   info,
+  statusInfo,
   error,
+  errorFilled,
   checkCircle,
   home,
   file,
@@ -110,6 +123,8 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.minus: 'remove.svg',
   BlenderGlyph.search: 'viewzoom.svg',
   BlenderGlyph.settings: 'settings.svg',
+  BlenderGlyph.preferences: 'preferences.svg',
+  BlenderGlyph.arrowLeftRight: 'arrow_leftright.svg',
   BlenderGlyph.preset: 'preset.svg',
   BlenderGlyph.folder: 'file_folder.svg',
   BlenderGlyph.play: 'play.svg',
@@ -118,6 +133,7 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.lock: 'locked.svg',
   BlenderGlyph.link: 'linked.svg',
   BlenderGlyph.internet: 'internet.svg',
+  BlenderGlyph.internetOffline: 'internet_offline.svg',
   BlenderGlyph.diskDrive: 'disk_drive.svg',
   BlenderGlyph.mouseLeft: 'mouse_lmb.svg',
   BlenderGlyph.mouseRight: 'mouse_rmb.svg',
@@ -127,6 +143,10 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.mouseMiddleDrag: 'mouse_mmb_drag.svg',
   BlenderGlyph.pointer: 'action_tweak.svg',
   BlenderGlyph.selectBox: 'select_set.svg',
+  BlenderGlyph.selectExtend: 'select_extend.svg',
+  BlenderGlyph.selectSubtract: 'select_subtract.svg',
+  BlenderGlyph.selectDifference: 'select_difference.svg',
+  BlenderGlyph.selectIntersect: 'select_intersect.svg',
   BlenderGlyph.check: 'checkmark.svg',
   BlenderGlyph.radio: 'radiobut_on.svg',
   BlenderGlyph.dragHandle: 'grip.svg',
@@ -169,6 +189,9 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.pin: 'pinned.svg',
   BlenderGlyph.filter: 'filter.svg',
   BlenderGlyph.sort: 'sort_asc.svg',
+  BlenderGlyph.sortDescending: 'sort_desc.svg',
+  BlenderGlyph.sortAlphabetically: 'sortalpha.svg',
+  BlenderGlyph.grip: 'grip.svg',
   BlenderGlyph.refresh: 'file_refresh.svg',
   BlenderGlyph.maximize: 'fullscreen_enter.svg',
   BlenderGlyph.minimize: 'fullscreen_exit.svg',
@@ -179,8 +202,11 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.linkBroken: 'unlinked.svg',
   BlenderGlyph.keyframe: 'keyframe.svg',
   BlenderGlyph.warning: 'warning_large.svg',
+  BlenderGlyph.warningFilled: 'status_warning_filled.svg',
   BlenderGlyph.info: 'info.svg',
+  BlenderGlyph.statusInfo: 'status_info.svg',
   BlenderGlyph.error: 'error.svg',
+  BlenderGlyph.errorFilled: 'status_error_filled.svg',
   BlenderGlyph.home: 'home.svg',
   BlenderGlyph.file: 'file_blank.svg',
   BlenderGlyph.save: 'file_tick.svg',
@@ -316,6 +342,7 @@ class _BlenderIconPainter extends CustomPainter {
           paint,
         );
       case BlenderGlyph.settings:
+      case BlenderGlyph.preferences:
         canvas.drawCircle(center, w * .22, paint);
         for (var i = 0; i < 8; i++) {
           final angle = i * math.pi / 4;
@@ -329,6 +356,37 @@ class _BlenderIconPainter extends CustomPainter {
           );
           canvas.drawLine(from, to, paint);
         }
+      case BlenderGlyph.arrowLeftRight:
+        canvas.drawLine(
+          Offset(w * .18, h * .35),
+          Offset(w * .82, h * .35),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .18, h * .35),
+          Offset(w * .32, h * .2),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .18, h * .35),
+          Offset(w * .32, h * .5),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .82, h * .65),
+          Offset(w * .18, h * .65),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .82, h * .65),
+          Offset(w * .68, h * .5),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .82, h * .65),
+          Offset(w * .68, h * .8),
+          paint,
+        );
       case BlenderGlyph.preset:
         for (final entry
             in <({double y, double start, double end, double knob})>[
@@ -393,6 +451,7 @@ class _BlenderIconPainter extends CustomPainter {
           paint,
         );
       case BlenderGlyph.internet:
+      case BlenderGlyph.internetOffline:
         canvas.drawCircle(center, w * .34, paint);
         canvas.drawOval(
           Rect.fromCenter(center: center, width: w * .34, height: h * .68),
@@ -468,6 +527,7 @@ class _BlenderIconPainter extends CustomPainter {
         canvas.drawCircle(center, w * .34, paint);
         canvas.drawCircle(center, w * .14, paint);
       case BlenderGlyph.dragHandle:
+      case BlenderGlyph.grip:
         for (final y in <double>[.3, .5, .7]) {
           canvas.drawCircle(Offset(w * .35, h * y), w * .06, paint);
           canvas.drawCircle(Offset(w * .65, h * y), w * .06, paint);
@@ -638,6 +698,59 @@ class _BlenderIconPainter extends CustomPainter {
         path.lineTo(w * .68, h * .58);
         path.close();
         canvas.drawPath(path, paint);
+      case BlenderGlyph.selectExtend:
+        canvas.drawRect(
+          Rect.fromLTWH(w * .2, h * .34, w * .42, h * .48),
+          paint,
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(w * .42, h * .16, w * .42, h * .48),
+          paint,
+        );
+      case BlenderGlyph.selectSubtract:
+        canvas.drawRect(
+          Rect.fromLTWH(w * .38, h * .16, w * .46, h * .48),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .2, h * .34),
+          Offset(w * .62, h * .34),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .2, h * .34),
+          Offset(w * .2, h * .82),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .2, h * .82),
+          Offset(w * .62, h * .82),
+          paint,
+        );
+      case BlenderGlyph.selectDifference:
+        canvas.drawRect(
+          Rect.fromLTWH(w * .16, h * .34, w * .46, h * .48),
+          paint,
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(w * .38, h * .16, w * .46, h * .48),
+          paint,
+        );
+      case BlenderGlyph.selectIntersect:
+        canvas.drawRect(
+          Rect.fromLTWH(w * .34, h * .34, w * .32, h * .32),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .2, h * .16),
+          Offset(w * .8, h * .16),
+          paint,
+        );
+        canvas.drawLine(
+          Offset(w * .2, h * .84),
+          Offset(w * .8, h * .84),
+          paint,
+        );
       case BlenderGlyph.outliner:
         for (var i = 0; i < 3; i++) {
           final y = h * (.25 + i * .25);
@@ -980,6 +1093,35 @@ class _BlenderIconPainter extends CustomPainter {
           Offset(w * .5, h * .75),
           paint,
         );
+      case BlenderGlyph.sortDescending:
+        canvas.drawLine(
+          Offset(w * .2, h * .25),
+          Offset(w * .5, h * .25),
+          paint,
+        );
+        canvas.drawLine(Offset(w * .2, h * .5), Offset(w * .65, h * .5), paint);
+        canvas.drawLine(
+          Offset(w * .2, h * .75),
+          Offset(w * .8, h * .75),
+          paint,
+        );
+      case BlenderGlyph.sortAlphabetically:
+        final sortTextPainter = TextPainter(
+          text: TextSpan(
+            text: 'A',
+            style: TextStyle(color: color, fontSize: h * .48),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        sortTextPainter.paint(canvas, Offset(w * .08, h * .02));
+        final sortZPainter = TextPainter(
+          text: TextSpan(
+            text: 'Z',
+            style: TextStyle(color: color, fontSize: h * .42),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        sortZPainter.paint(canvas, Offset(w * .5, h * .5));
       case BlenderGlyph.refresh:
         canvas.drawArc(
           Rect.fromLTWH(w * .18, h * .18, w * .64, h * .64),
@@ -1090,6 +1232,7 @@ class _BlenderIconPainter extends CustomPainter {
         path.close();
         canvas.drawPath(path, paint);
       case BlenderGlyph.warning:
+      case BlenderGlyph.warningFilled:
         path.moveTo(center.dx, h * .14);
         path.lineTo(w * .86, h * .82);
         path.lineTo(w * .14, h * .82);
@@ -1102,6 +1245,7 @@ class _BlenderIconPainter extends CustomPainter {
         );
         canvas.drawCircle(Offset(center.dx, h * .7), w * .03, paint);
       case BlenderGlyph.info:
+      case BlenderGlyph.statusInfo:
         canvas.drawCircle(center, w * .34, paint);
         canvas.drawLine(
           Offset(center.dx, h * .42),
@@ -1110,6 +1254,7 @@ class _BlenderIconPainter extends CustomPainter {
         );
         canvas.drawCircle(Offset(center.dx, h * .3), w * .03, paint);
       case BlenderGlyph.error:
+      case BlenderGlyph.errorFilled:
         canvas.drawCircle(center, w * .34, paint);
         canvas.drawLine(
           Offset(w * .34, h * .34),

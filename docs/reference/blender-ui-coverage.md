@@ -41,9 +41,9 @@ appearance, and composition.
 | `interface_template_icon.cc` | `BlenderIcon`, `BlenderIconView`, `BlenderPreviewTile` | Implemented |
 | `interface_template_layers.cc` | `BlenderLayerSelector` | Implemented |
 | `interface_template_keymap.cc` | `BlenderKeymapItemProperties` | Implemented |
-| `interface_template_matrix.cc` | `BlenderMatrixField` | Implemented |
+| `interface_template_matrix.cc` | `BlenderMatrixTransformPanel`, `BlenderMatrixField` | Implemented |
 | `interface_template_modifiers.cc` | `BlenderModifierStack` | Implemented |
-| `interface_template_list.cc` | `BlenderListView`, `BlenderCompactList` | Implemented |
+| `interface_template_list.cc` | `BlenderTemplateList`, `BlenderListView`, `BlenderCompactList` | Implemented |
 | `interface_template_preview.cc` | `BlenderPreviewPanel` plus `BlenderPreviewTile` | Implemented |
 | `interface_template_recent_files.cc` | `BlenderRecentFiles` | Implemented |
 | `interface_template_running_jobs.cc` | `BlenderJobProgress` | Implemented |
@@ -59,8 +59,11 @@ appearance, and composition.
 | `space_file/file_panels.cc` execution panel | `BlenderFileExecutionPanel` | Implemented |
 | `space_file/file_panels.cc` operator panel | `BlenderFileOperatorPanel` | Implemented |
 | `space_file/file_panels.cc` asset-catalog panel | `BlenderFileAssetCatalogPanel` | Partial |
+| `space_file/file_draw.cc` asset-browser availability hints | `BlenderFileBrowserHint`, `BlenderFileBrowserLibraryPathHint` | Implemented |
 | `space_userpref/userpref_asset_libraries_list.cc` | `BlenderAssetLibrariesPreferencesPanel` | Partial |
 | `space_buttons/buttons_texture.cc` | `BlenderTextureUserSelector` | Partial |
+| `space_buttons/space_buttons.cc`, `space_properties.py`, `interface_layout.cc` | `BlenderPropertiesEditor` panel/property filtering and search-state expansion | Implemented |
+| `space_action`, `space_dopesheet.py`, `space_time.py` | `BlenderTimeline`, `BlenderDopeSheetEditor`, example Timeline/Action mode composition | Partial |
 
 ## Editor and pane surfaces
 
@@ -149,8 +152,9 @@ The corresponding local source references are:
   extension states, report editor, severity-colored transient report banner,
   notice banners, and descriptor-driven context-sensitive input-status rows.
   `BlenderStatusContextBar` includes source-defined split/dock, resize,
-  header, viewport-warning, and editor-border variants; Blender's runtime
-  area/region selection still remains caller-owned.
+  header, viewport-warning (including the filled warning glyph), and
+  editor-border variants; Blender's runtime area/region selection still
+  remains caller-owned.
 - `interface_template_icon.cc` for icon-backed enum choices; `BlenderIconView`
   preserves the selected icon trigger, eight-column popup grid, optional
   labels, and selected/disabled tile states.
@@ -184,7 +188,8 @@ The corresponding local source references are:
   storage and library polling remain caller-owned.
 - `space_buttons/buttons_texture.cc` for texture-user context selection and
   the adjacent jump-to-Texture-Properties button. The package now covers the
-  source/category selector, grouped menu headers, and disabled jump state;
+  source/category selector, closed-button user label, grouped menu headers,
+  texture-name menu entries, and disabled jump state;
   Blender's texture-user discovery and Properties context switching remain
   outside the visual layer.
 
@@ -195,8 +200,8 @@ without coupling the package to Blender source or data structures.
 ## Verification notes
 
 - `flutter analyze` passes for the package and example.
-- Package widget suite passes with 64 tests; the example smoke suite passes
-  with 4 tests.
+- Package widget suite passes with 71 tests; the example smoke suite passes
+  with 6 tests.
 - The Flutter SDK can emit non-fatal SVG parser warnings for the existing
   custom glyph test fixtures.
 - The configured Flutter/Dart tools may need permission to update SDK cache

@@ -44,7 +44,11 @@ export 'src/controls.dart'
         BlenderToggle,
         BlenderTooltip;
 export 'src/collections.dart'
-    show BlenderFilterBar, BlenderListItem, BlenderListView;
+    show
+        BlenderFilterBar,
+        BlenderListItem,
+        BlenderListView,
+        BlenderTemplateList;
 export 'src/docking.dart' show BlenderDockAreaBuilder, BlenderDockingWorkspace;
 export 'src/docking_model.dart'
     show
@@ -204,6 +208,9 @@ export 'src/specialized_templates.dart'
         BlenderTextureUserSelector,
         BlenderFileAssetCatalogPanel,
         BlenderFileExecutionPanel,
+        BlenderFileBrowserHint,
+        BlenderFileBrowserHintAction,
+        BlenderFileBrowserLibraryPathHint,
         BlenderFileOperatorPanel,
         BlenderShaderEffectDescriptor,
         BlenderShaderEffectStack,
@@ -227,6 +234,8 @@ export 'src/templates.dart'
         BlenderJobProgress,
         BlenderLinkLabel,
         BlenderMatrixField,
+        BlenderMatrixTransformPanel,
+        BlenderMatrixTransformValues,
         BlenderNoticeBanner,
         BlenderNoticeLevel,
         BlenderOperatorButton,

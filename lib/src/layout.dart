@@ -16,9 +16,12 @@ class BlenderPanel extends StatelessWidget {
     this.backgroundColor,
     this.headerLeading,
     this.headerTitleStyle,
+    this.headerHandle,
     this.showHandle = false,
     this.collapsible = false,
     this.initiallyExpanded = true,
+    this.expanded,
+    this.onExpansionChanged,
   });
 
   final String? title;
@@ -28,9 +31,12 @@ class BlenderPanel extends StatelessWidget {
   final Color? backgroundColor;
   final Widget? headerLeading;
   final TextStyle? headerTitleStyle;
+  final Widget? headerHandle;
   final bool showHandle;
   final bool collapsible;
   final bool initiallyExpanded;
+  final bool? expanded;
+  final ValueChanged<bool>? onExpansionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +68,7 @@ class BlenderPanel extends StatelessWidget {
                   actions: headerActions,
                   leading: headerLeading,
                   titleStyle: headerTitleStyle,
+                  handle: headerHandle,
                   showHandle: showHandle,
                 ),
                 body,
@@ -76,10 +83,13 @@ class BlenderPanel extends StatelessWidget {
       actions: headerActions,
       content: content,
       initiallyExpanded: initiallyExpanded,
+      expanded: expanded,
       backgroundColor: backgroundColor,
       leading: headerLeading,
       titleStyle: headerTitleStyle,
+      handle: headerHandle,
       showHandle: showHandle,
+      onExpansionChanged: onExpansionChanged,
     );
   }
 }
@@ -93,6 +103,7 @@ class BlenderPanelHeader extends StatelessWidget {
     this.expanded = true,
     this.leading,
     this.titleStyle,
+    this.handle,
     this.showHandle = false,
   });
 
@@ -102,6 +113,7 @@ class BlenderPanelHeader extends StatelessWidget {
   final bool expanded;
   final Widget? leading;
   final TextStyle? titleStyle;
+  final Widget? handle;
   final bool showHandle;
 
   @override
@@ -120,7 +132,7 @@ class BlenderPanelHeader extends StatelessWidget {
                 expanded
                     ? BlenderGlyph.panelDisclosureDown
                     : BlenderGlyph.panelDisclosureRight,
-                size: 11,
+                size: 9,
                 color: theme.colors.foregroundMuted,
               ),
             if (onTap != null) SizedBox(width: theme.density.spacing / 2),
@@ -135,13 +147,15 @@ class BlenderPanelHeader extends StatelessWidget {
               ),
             ),
             ...?actions,
-            if (showHandle)
+            if (handle != null)
+              handle!
+            else if (showHandle)
               Padding(
                 padding: EdgeInsets.only(left: theme.density.spacing / 2),
                 child: BlenderIcon(
                   BlenderGlyph.dragHandle,
-                  size: 13,
-                  color: theme.colors.foregroundMuted,
+                  size: 9,
+                  color: theme.colors.foreground.withAlpha(128),
                 ),
               ),
           ],
@@ -156,21 +170,27 @@ class _CollapsiblePanel extends StatefulWidget {
     required this.title,
     required this.content,
     required this.initiallyExpanded,
+    this.expanded,
     this.actions,
     this.leading,
     this.titleStyle,
+    this.handle,
     this.backgroundColor,
     this.showHandle = false,
+    this.onExpansionChanged,
   });
 
   final String title;
   final Widget content;
   final bool initiallyExpanded;
+  final bool? expanded;
   final List<Widget>? actions;
   final Widget? leading;
   final TextStyle? titleStyle;
+  final Widget? handle;
   final Color? backgroundColor;
   final bool showHandle;
+  final ValueChanged<bool>? onExpansionChanged;
 
   @override
   State<_CollapsiblePanel> createState() => _CollapsiblePanelState();
@@ -178,6 +198,16 @@ class _CollapsiblePanel extends StatefulWidget {
 
 class _CollapsiblePanelState extends State<_CollapsiblePanel> {
   late bool _expanded = widget.initiallyExpanded;
+
+  bool get _effectiveExpanded => widget.expanded ?? _expanded;
+
+  void _toggleExpanded() {
+    final expanded = !_effectiveExpanded;
+    if (widget.expanded == null) {
+      setState(() => _expanded = expanded);
+    }
+    widget.onExpansionChanged?.call(expanded);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,13 +227,14 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel> {
           BlenderPanelHeader(
             title: widget.title,
             actions: widget.actions,
-            expanded: _expanded,
+            expanded: _effectiveExpanded,
             leading: widget.leading,
             titleStyle: widget.titleStyle,
+            handle: widget.handle,
             showHandle: widget.showHandle,
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: _toggleExpanded,
           ),
-          if (_expanded) widget.content,
+          if (_effectiveExpanded) widget.content,
         ],
       ),
     );
@@ -631,7 +662,7 @@ class _BlenderEditorTypeSelectorState extends State<BlenderEditorTypeSelector> {
     final button = BlenderButton(
       label: widget.compact ? '' : widget.value.label,
       leading: BlenderIcon(widget.value.glyph, size: widget.compact ? 17 : 14),
-      trailing: const BlenderIcon(BlenderGlyph.panelDisclosureDown, size: 11),
+      trailing: const BlenderIcon(BlenderGlyph.panelDisclosureDown, size: 9),
       padding: widget.compact ? EdgeInsets.zero : null,
       selected: _open,
       variant: BlenderButtonVariant.menuTrigger,
@@ -1049,8 +1080,11 @@ class BlenderDataBlockGroup<T> extends StatelessWidget {
                       if (selectedItem?.icon != null) selectedItem!.icon!,
                       const SizedBox(width: 2),
                       BlenderIcon(
-                        BlenderGlyph.chevronDown,
-                        size: 10,
+                        key: ValueKey<String>(
+                          'data-block-selector-disclosure-$value',
+                        ),
+                        BlenderGlyph.panelDisclosureDown,
+                        size: 9,
                         color: theme.colors.foregroundMuted,
                       ),
                     ],

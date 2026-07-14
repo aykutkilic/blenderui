@@ -97,7 +97,7 @@ void main() {
             widget.glyph == BlenderGlyph.panelDisclosureDown,
       ),
     );
-    expect(disclosure.size, 11);
+    expect(disclosure.size, 9);
 
     await expectLater(
       find.byType(BlenderPropertiesEditor),

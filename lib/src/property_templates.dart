@@ -206,7 +206,10 @@ class _BlenderAttributeSearchState<T> extends State<BlenderAttributeSearch<T>> {
       child: IgnorePointer(
         child: BlenderButton(
           label: _selectedLabel,
-          trailing: const BlenderIcon(BlenderGlyph.chevronDown, size: 13),
+          trailing: const BlenderIcon(
+            BlenderGlyph.panelDisclosureDown,
+            size: 9,
+          ),
           onPressed: () {},
           enabled: widget.onChanged != null || widget.onCreate != null,
         ),

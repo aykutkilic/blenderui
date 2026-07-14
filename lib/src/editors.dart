@@ -276,6 +276,8 @@ class BlenderPropertiesEditor extends StatefulWidget {
     this.topContent,
     this.body,
     this.joinNavigationRail = false,
+    this.onGroupOrderChanged,
+    this.searchController,
   });
 
   final List<BlenderPropertyGroup> groups;
@@ -293,6 +295,17 @@ class BlenderPropertiesEditor extends StatefulWidget {
   /// leading outline or exposed parent-colour gutter.
   final bool joinNavigationRail;
 
+  /// Called after a grip drag commits a new panel order.
+  ///
+  /// Group IDs are used instead of indexes so callers can persist the order
+  /// across descriptor changes without coupling to a particular build.
+  final ValueChanged<List<String>>? onGroupOrderChanged;
+
+  /// Filters panel and property labels using Blender's Properties search
+  /// behavior. Matching panels are temporarily expanded without changing the
+  /// user's stored expansion state.
+  final TextEditingController? searchController;
+
   @override
   State<BlenderPropertiesEditor> createState() =>
       _BlenderPropertiesEditorState();
@@ -300,6 +313,9 @@ class BlenderPropertiesEditor extends StatefulWidget {
 
 class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
   late final ScrollController _scrollController;
+  late List<String> _groupOrder = widget.groups
+      .map((group) => group.id)
+      .toList();
   late final Set<String> _expanded = {
     for (final group in widget.groups)
       if (group.initiallyExpanded) group.id,
@@ -321,12 +337,191 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
   void didUpdateWidget(BlenderPropertiesEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     final ids = widget.groups.map((group) => group.id).toSet();
+    final oldIds = oldWidget.groups.map((group) => group.id).toSet();
     _expanded.retainWhere(ids.contains);
     _expanded.addAll(
       widget.groups
-          .where((group) => group.initiallyExpanded)
+          .where(
+            (group) => !oldIds.contains(group.id) && group.initiallyExpanded,
+          )
           .map((group) => group.id),
     );
+    _groupOrder = <String>[
+      for (final id in _groupOrder)
+        if (ids.contains(id)) id,
+      for (final group in widget.groups)
+        if (!_groupOrder.contains(group.id)) group.id,
+    ];
+  }
+
+  List<BlenderPropertyGroup> get _orderedGroups {
+    final groupsById = <String, BlenderPropertyGroup>{
+      for (final group in widget.groups) group.id: group,
+    };
+    return <BlenderPropertyGroup>[
+      for (final id in _groupOrder)
+        if (groupsById[id] case final group?) group,
+    ];
+  }
+
+  List<_PropertiesGroupView> _filteredGroups(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    return <_PropertiesGroupView>[
+      for (final group in _orderedGroups)
+        if (normalizedQuery.isEmpty ||
+            group.title.toLowerCase().contains(normalizedQuery))
+          _PropertiesGroupView(group: group, properties: group.properties)
+        else if (group.properties
+                .where(
+                  (property) =>
+                      property.label.toLowerCase().contains(normalizedQuery),
+                )
+                .toList()
+            case final matchingProperties when matchingProperties.isNotEmpty)
+          _PropertiesGroupView(group: group, properties: matchingProperties),
+    ];
+  }
+
+  void _reorderGroups(
+    List<_PropertiesGroupView> visibleGroups,
+    int oldIndex,
+    int newIndex,
+  ) {
+    setState(() {
+      final visibleIds = visibleGroups.map((view) => view.group.id).toList();
+      final id = visibleIds.removeAt(oldIndex);
+      visibleIds.insert(newIndex.clamp(0, visibleIds.length), id);
+
+      final oldFullIndex = _groupOrder.indexOf(id);
+      _groupOrder.remove(id);
+      final visibleIndex = visibleIds.indexOf(id);
+      final insertionIndex = visibleIds.length == 1
+          ? oldFullIndex
+          : visibleIndex == visibleIds.length - 1
+          ? _groupOrder.indexOf(visibleIds[visibleIndex - 1]) + 1
+          : _groupOrder.indexOf(visibleIds[visibleIndex + 1]);
+      _groupOrder.insert(insertionIndex.clamp(0, _groupOrder.length), id);
+    });
+    widget.onGroupOrderChanged?.call(List<String>.unmodifiable(_groupOrder));
+  }
+
+  Widget _buildPropertiesList(BuildContext context, String query) {
+    final theme = BlenderTheme.of(context);
+    final groups = _filteredGroups(query);
+    final searchActive = query.trim().isNotEmpty;
+    return BlenderScrollbar(
+      controller: _scrollController,
+      child: _EnsureOverlay(
+        child: ReorderableList(
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          itemCount: groups.length,
+          onReorderItem: (oldIndex, newIndex) =>
+              _reorderGroups(groups, oldIndex, newIndex),
+          proxyDecorator: (child, index, animation) => AnimatedBuilder(
+            animation: animation,
+            child: child,
+            builder: (context, child) => DecoratedBox(
+              decoration: const BoxDecoration(
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x99000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+          itemBuilder: (context, index) {
+            final view = groups[index];
+            final group = view.group;
+            final expanded = _expanded.contains(group.id);
+            return KeyedSubtree(
+              key: ValueKey<String>('property-group-${group.id}'),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == groups.length - 1
+                      ? 0
+                      : theme.density.spacing / 2,
+                ),
+                child: BlenderPanel(
+                  title: group.title,
+                  collapsible: true,
+                  initiallyExpanded: expanded,
+                  expanded: searchActive ? true : expanded,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  backgroundColor: theme.colors.panelBackground,
+                  headerTitleStyle: theme.textTheme.panelTitle,
+                  headerLeading: group.headerLeading,
+                  headerActions: group.headerActions,
+                  onExpansionChanged: searchActive
+                      ? null
+                      : (isExpanded) {
+                          setState(() {
+                            if (isExpanded) {
+                              _expanded.add(group.id);
+                            } else {
+                              _expanded.remove(group.id);
+                            }
+                          });
+                        },
+                  headerHandle: ReorderableDragStartListener(
+                    index: index,
+                    child: MouseRegion(
+                      key: ValueKey<String>(
+                        'property-group-handle-${group.id}',
+                      ),
+                      cursor: SystemMouseCursors.grab,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: theme.density.spacing / 2,
+                        ),
+                        child: BlenderIcon(
+                          BlenderGlyph.dragHandle,
+                          size: 9,
+                          color: theme.colors.foreground.withAlpha(128),
+                        ),
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      for (final property in view.properties)
+                        BlenderPropertyRow(
+                          label: property.label,
+                          tooltip: property.tooltip,
+                          state: property.state,
+                          labelPlacement: property.effectiveLabelPlacement,
+                          onKeyframe: property.onKeyframe,
+                          onReset: property.onReset,
+                          editor: property.buildEditor(context),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPropertiesBody(BuildContext context) {
+    if (widget.body case final body?) return body;
+    if (widget.searchController case final controller?) {
+      return ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, child) =>
+            _buildPropertiesList(context, value.text),
+      );
+    }
+    return _buildPropertiesList(context, '');
   }
 
   @override
@@ -355,62 +550,76 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
               child: widget.topContent!,
             ),
           ],
-          Expanded(
-            child:
-                widget.body ??
-                BlenderScrollbar(
-                  controller: _scrollController,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                    itemCount: widget.groups.length,
-                    itemBuilder: (context, index) {
-                      final group = widget.groups[index];
-                      final expanded = _expanded.contains(group.id);
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index == widget.groups.length - 1
-                              ? 0
-                              : theme.density.spacing / 2,
-                        ),
-                        child: BlenderPanel(
-                          title: group.title,
-                          collapsible: true,
-                          initiallyExpanded: expanded,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          backgroundColor: theme.colors.panelBackground,
-                          headerTitleStyle: theme.textTheme.panelTitle,
-                          headerLeading: group.headerLeading,
-                          headerActions: group.headerActions,
-                          showHandle: true,
-                          child: Column(
-                            children: <Widget>[
-                              for (final property in group.properties)
-                                BlenderPropertyRow(
-                                  label: property.label,
-                                  tooltip: property.tooltip,
-                                  state: property.state,
-                                  labelPlacement:
-                                      property.effectiveLabelPlacement,
-                                  onKeyframe: property.onKeyframe,
-                                  onReset: property.onReset,
-                                  editor: property.buildEditor(context),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-          ),
+          Expanded(child: _buildPropertiesBody(context)),
         ],
       ),
     );
   }
+}
+
+class _PropertiesGroupView {
+  const _PropertiesGroupView({required this.group, required this.properties});
+
+  final BlenderPropertyGroup group;
+  final List<BlenderPropertyDescriptor<dynamic>> properties;
+}
+
+/// Supplies the floating layer required by reorderable panels when an editor
+/// is embedded without a Navigator or app-level Overlay.
+class _EnsureOverlay extends StatelessWidget {
+  const _EnsureOverlay({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget result = Overlay.maybeOf(context) != null
+        ? child
+        : _LocalOverlay(child: child);
+    if (Localizations.of<WidgetsLocalizations>(context, WidgetsLocalizations) ==
+        null) {
+      result = Localizations(
+        locale: const Locale('en', 'US'),
+        delegates: const <LocalizationsDelegate<dynamic>>[
+          DefaultWidgetsLocalizations.delegate,
+        ],
+        child: result,
+      );
+    }
+    return result;
+  }
+}
+
+class _LocalOverlay extends StatefulWidget {
+  const _LocalOverlay({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_LocalOverlay> createState() => _LocalOverlayState();
+}
+
+class _LocalOverlayState extends State<_LocalOverlay> {
+  late final OverlayEntry _entry = OverlayEntry(
+    builder: (context) => widget.child,
+  );
+
+  @override
+  void didUpdateWidget(_LocalOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _entry.markNeedsBuild();
+  }
+
+  @override
+  void dispose() {
+    _entry.remove();
+    _entry.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Overlay(initialEntries: <OverlayEntry>[_entry]);
 }
 
 class _PropertiesContextCaption extends StatelessWidget {
@@ -694,10 +903,14 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                                       },
                                       child: Center(
                                         child: BlenderIcon(
+                                          key: ValueKey<String>(
+                                            'tree-disclosure-${node.id}',
+                                          ),
                                           _expanded.contains(node.id)
-                                              ? BlenderGlyph.chevronDown
-                                              : BlenderGlyph.chevronRight,
-                                          size: 12,
+                                              ? BlenderGlyph.panelDisclosureDown
+                                              : BlenderGlyph
+                                                    .panelDisclosureRight,
+                                          size: 9,
                                         ),
                                       ),
                                     )

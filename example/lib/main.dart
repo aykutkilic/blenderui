@@ -156,6 +156,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     'material',
   };
   int _bottomTab = 0;
+  String _activeAction = 'CubeAction';
   String _preferenceCategory = 'Interface';
   bool _playing = false;
   bool _fileGrid = false;
@@ -483,6 +484,60 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           keyframes: <BlenderTimelineKeyframe>[
             BlenderTimelineKeyframe(1),
             BlenderTimelineKeyframe(80),
+          ],
+        ),
+        BlenderTimelineTrack(
+          id: 'light',
+          label: 'Light',
+          keyframes: <BlenderTimelineKeyframe>[
+            BlenderTimelineKeyframe(1),
+            BlenderTimelineKeyframe(48),
+            BlenderTimelineKeyframe(96),
+          ],
+        ),
+      ],
+    );
+  }
+
+  BlenderTimelineModel get _actionModel {
+    return BlenderTimelineModel(
+      start: 1,
+      end: 120,
+      currentFrame: _frame,
+      tracks: const <BlenderTimelineTrack>[
+        BlenderTimelineTrack(
+          id: 'summary',
+          label: 'CubeAction Summary',
+          keyframes: <BlenderTimelineKeyframe>[
+            BlenderTimelineKeyframe(1),
+            BlenderTimelineKeyframe(24),
+            BlenderTimelineKeyframe(60),
+          ],
+        ),
+        BlenderTimelineTrack(
+          id: 'location-x',
+          label: 'X Location',
+          keyframes: <BlenderTimelineKeyframe>[
+            BlenderTimelineKeyframe(1),
+            BlenderTimelineKeyframe(24),
+            BlenderTimelineKeyframe(60),
+          ],
+        ),
+        BlenderTimelineTrack(
+          id: 'location-y',
+          label: 'Y Location',
+          keyframes: <BlenderTimelineKeyframe>[
+            BlenderTimelineKeyframe(1),
+            BlenderTimelineKeyframe(60),
+          ],
+        ),
+        BlenderTimelineTrack(
+          id: 'rotation-z',
+          label: 'Z Euler Rotation',
+          keyframes: <BlenderTimelineKeyframe>[
+            BlenderTimelineKeyframe(1),
+            BlenderTimelineKeyframe(24),
+            BlenderTimelineKeyframe(60),
           ],
         ),
       ],
@@ -876,38 +931,42 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     if (_propertyTab != 0) return null;
     return Align(
       alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: 100,
-        child: BlenderSegmentedControl<String>(
-          value: _selectionMode,
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(
-              value: 'Set',
-              label: '',
-              icon: BlenderIcon(BlenderGlyph.selectBox, size: 14),
-            ),
-            BlenderMenuItem<String>(
-              value: 'Extend',
-              label: '',
-              icon: BlenderIcon(BlenderGlyph.plus, size: 14),
-            ),
-            BlenderMenuItem<String>(
-              value: 'Subtract',
-              label: '',
-              icon: BlenderIcon(BlenderGlyph.minus, size: 14),
-            ),
-            BlenderMenuItem<String>(
-              value: 'Difference',
-              label: '',
-              icon: BlenderIcon(BlenderGlyph.duplicate, size: 14),
-            ),
-            BlenderMenuItem<String>(
-              value: 'Intersect',
-              label: '',
-              icon: BlenderIcon(BlenderGlyph.object, size: 14),
-            ),
-          ],
-          onChanged: (value) => setState(() => _selectionMode = value),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 190),
+        child: SizedBox(
+          key: const ValueKey<String>('tool-selection-operation-group'),
+          width: double.infinity,
+          child: BlenderSegmentedControl<String>(
+            value: _selectionMode,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Set',
+                label: '',
+                icon: BlenderIcon(BlenderGlyph.selectBox, size: 16),
+              ),
+              BlenderMenuItem<String>(
+                value: 'Extend',
+                label: '',
+                icon: BlenderIcon(BlenderGlyph.selectExtend, size: 16),
+              ),
+              BlenderMenuItem<String>(
+                value: 'Subtract',
+                label: '',
+                icon: BlenderIcon(BlenderGlyph.selectSubtract, size: 16),
+              ),
+              BlenderMenuItem<String>(
+                value: 'Difference',
+                label: '',
+                icon: BlenderIcon(BlenderGlyph.selectDifference, size: 16),
+              ),
+              BlenderMenuItem<String>(
+                value: 'Intersect',
+                label: '',
+                icon: BlenderIcon(BlenderGlyph.selectIntersect, size: 16),
+              ),
+            ],
+            onChanged: (value) => setState(() => _selectionMode = value),
+          ),
         ),
       ),
     );
@@ -1098,10 +1157,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 child: Row(
                   children: <Widget>[
                     BlenderIcon(
+                      key: ValueKey<String>(
+                        'tool-settings-panel-disclosure-$title',
+                      ),
                       expanded
-                          ? BlenderGlyph.chevronDown
-                          : BlenderGlyph.chevronRight,
-                      size: 13,
+                          ? BlenderGlyph.panelDisclosureDown
+                          : BlenderGlyph.panelDisclosureRight,
+                      size: 9,
                       color: theme.colors.foregroundMuted,
                     ),
                     const SizedBox(width: 5),
@@ -1113,8 +1175,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       ),
                     ),
                     BlenderIcon(
+                      key: ValueKey<String>('tool-settings-drag-handle-$title'),
                       BlenderGlyph.dragHandle,
-                      size: 13,
+                      size: 9,
                       color: theme.colors.foregroundMuted,
                     ),
                   ],
@@ -1178,8 +1241,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         child: Row(
           children: <Widget>[
             BlenderIcon(
-              expanded ? BlenderGlyph.chevronDown : BlenderGlyph.chevronRight,
-              size: 13,
+              key: ValueKey<String>('tool-settings-nested-disclosure-$title'),
+              expanded
+                  ? BlenderGlyph.panelDisclosureDown
+                  : BlenderGlyph.panelDisclosureRight,
+              size: 9,
               color: theme.colors.foregroundMuted,
             ),
             const SizedBox(width: 5),
@@ -2376,6 +2442,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   initialFraction: .72,
                   first: BlenderPropertiesEditor(
                     groups: _visiblePropertyGroups,
+                    searchController: _propertiesSearchController,
                     body: _propertyTab == 0 ? _buildToolSettingsBody() : null,
                     joinNavigationRail: true,
                     title: _propertiesContextTitle,
@@ -2499,7 +2566,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       leading: const <Widget>[],
       menus: const <Widget>[],
       center: SizedBox(
-        width: 116,
+        // Blender's string-property search occupies six 20px widget units.
+        width: 120,
         child: BlenderSearchField(
           controller: _propertiesSearchController,
           placeholder: 'Search',
@@ -2590,9 +2658,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   Widget _buildBottomEditor() {
     final bottomLabel = switch (_bottomTab) {
       0 => 'Timeline',
-      1 => 'Shader Editor',
-      2 => 'Spreadsheet',
-      3 => 'Keymap',
+      1 => 'Action',
+      2 => 'Shader Editor',
+      3 => 'Spreadsheet',
+      4 => 'Keymap',
       _ => 'UI Catalog',
     };
     return Column(
@@ -2601,19 +2670,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           height: 30,
           scrollable: true,
           children: <Widget>[
-            const BlenderIconButton(
-              glyph: BlenderGlyph.timeline,
-              tooltip: 'Timeline editor',
+            BlenderIconButton(
+              glyph: _bottomTab == 1
+                  ? BlenderGlyph.action
+                  : BlenderGlyph.timeline,
+              tooltip: _bottomTab == 1 ? 'Action editor' : 'Timeline editor',
               size: 24,
             ),
             BlenderMenuButton<int>(
               label: bottomLabel,
               items: const <BlenderMenuItem<int>>[
                 BlenderMenuItem<int>(value: 0, label: 'Timeline'),
-                BlenderMenuItem<int>(value: 1, label: 'Shader Editor'),
-                BlenderMenuItem<int>(value: 2, label: 'Spreadsheet'),
-                BlenderMenuItem<int>(value: 3, label: 'Keymap'),
-                BlenderMenuItem<int>(value: 4, label: 'UI Catalog'),
+                BlenderMenuItem<int>(value: 1, label: 'Action'),
+                BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),
+                BlenderMenuItem<int>(value: 3, label: 'Spreadsheet'),
+                BlenderMenuItem<int>(value: 4, label: 'Keymap'),
+                BlenderMenuItem<int>(value: 5, label: 'UI Catalog'),
               ],
               onSelected: (value) => setState(() => _bottomTab = value),
             ),
@@ -2642,6 +2714,64 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ],
               onSelected: _setStatus,
             ),
+            if (_bottomTab == 1) ...<Widget>[
+              BlenderMenuButton<String>(
+                label: 'Select',
+                items: const <BlenderMenuItem<String>>[
+                  BlenderMenuItem<String>(value: 'All', label: 'All Keyframes'),
+                  BlenderMenuItem<String>(value: 'None', label: 'None'),
+                ],
+                onSelected: _setStatus,
+              ),
+              BlenderMenuButton<String>(
+                label: 'Channel',
+                items: const <BlenderMenuItem<String>>[
+                  BlenderMenuItem<String>(
+                    value: 'Group',
+                    label: 'Group Channels',
+                  ),
+                  BlenderMenuItem<String>(
+                    value: 'Delete',
+                    label: 'Delete Channels',
+                  ),
+                ],
+                onSelected: _setStatus,
+              ),
+              BlenderMenuButton<String>(
+                label: 'Key',
+                items: const <BlenderMenuItem<String>>[
+                  BlenderMenuItem<String>(
+                    value: 'Insert',
+                    label: 'Insert Keyframes',
+                  ),
+                  BlenderMenuItem<String>(
+                    value: 'Delete',
+                    label: 'Delete Keyframes',
+                  ),
+                ],
+                onSelected: _setStatus,
+              ),
+              SizedBox(
+                width: 220,
+                child: BlenderActionSelector<String>(
+                  value: _activeAction,
+                  items: const <BlenderMenuItem<String>>[
+                    BlenderMenuItem<String>(
+                      value: 'CubeAction',
+                      label: 'CubeAction',
+                    ),
+                    BlenderMenuItem<String>(
+                      value: 'CameraAction',
+                      label: 'CameraAction',
+                    ),
+                  ],
+                  onChanged: (value) => setState(() => _activeAction = value),
+                  onNew: () => _setStatus('New Action'),
+                  onUnlink: () => _setStatus('Unlink Action'),
+                  userCount: 1,
+                ),
+              ),
+            ],
             BlenderMenuButton<String>(
               label: 'Playback',
               items: const <BlenderMenuItem<String>>[
@@ -2691,16 +2821,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         model: _timelineModel,
         onCurrentFrameChanged: (value) => setState(() => _frame = value),
       ),
-      1 => BlenderNodeEditor(
+      1 => BlenderDopeSheetEditor(
+        title: 'Action',
+        model: _actionModel,
+        onCurrentFrameChanged: (value) => setState(() => _frame = value),
+      ),
+      2 => BlenderNodeEditor(
         model: _nodeGraph,
         onNodeSelected: (node) => _setStatus('Selected node ${node.title}'),
         onNodeMoved: _moveNode,
       ),
-      2 => BlenderSpreadsheetEditor(
+      3 => BlenderSpreadsheetEditor(
         columns: _spreadsheetColumns,
         rows: _spreadsheetRows,
       ),
-      3 => BlenderKeymapEditor(
+      4 => BlenderKeymapEditor(
         searchController: _keymapSearchController,
         selectedId: _selectedShortcut,
         entries: const <BlenderKeymapEntry>[
@@ -2865,6 +3000,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 rowLabels: const <String>['X', 'Y', 'Z'],
                 columnLabels: const <String>['X', 'Y', 'Z'],
                 onChanged: (values) => setState(() => _galleryMatrix = values),
+              ),
+              const SizedBox(height: 6),
+              BlenderMatrixTransformPanel(
+                values: const BlenderMatrixTransformValues(
+                  location: <double>[1.25, -0.5, 3],
+                  rotation: <double>[0, 45, 90],
+                  scale: <double>[1, 1, 1],
+                  hasShear: true,
+                ),
+                onRotationModeChanged: (mode) =>
+                    _setStatus('Rotation mode: $mode'),
               ),
               const SizedBox(height: 6),
               BlenderAttributeSearch<String>(
@@ -3040,6 +3186,28 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 onIncrement: () => _setStatus('Next filename'),
                 onCancel: () => _setStatus('File operation canceled'),
                 onExecute: () => _setStatus('Overwrite file'),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 270,
+                child: BlenderFileBrowserHint(
+                  title: 'Internet Access Required',
+                  icon: BlenderGlyph.internetOffline,
+                  message:
+                      'Allow Online Access in order to browse and download online assets, or turn off the "Remote Assets" filter to show only the downloaded assets.\n\nYou can adjust this later from the "System" preferences.',
+                  actions: <BlenderFileBrowserHintAction>[
+                    BlenderFileBrowserHintAction(
+                      label: 'Continue Offline',
+                      icon: BlenderGlyph.close,
+                      onPressed: () => _setStatus('Continue offline'),
+                    ),
+                    BlenderFileBrowserHintAction(
+                      label: 'Allow Online Access',
+                      icon: BlenderGlyph.check,
+                      onPressed: () => _setStatus('Allow online access'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               SizedBox(
