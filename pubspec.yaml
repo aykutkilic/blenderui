@@ -1,0 +1,27 @@
+name: blender_ui
+description: Blender-inspired, desktop-first Flutter controls and editor surfaces.
+version: 0.1.0
+repository: https://github.com/aykutkilic/blenderui
+issue_tracker: https://github.com/aykutkilic/blenderui/issues
+homepage: https://github.com/aykutkilic/blenderui
+topics:
+  - flutter
+  - desktop
+  - ui
+  - design-system
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.0.10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false

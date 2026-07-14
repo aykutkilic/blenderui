@@ -1,0 +1,15 @@
+.dart_tool/
+build/
+coverage/
+test/failures/
+.pub-cache/
+.idea/
+*.iml
+
+# Package lockfiles are generated for local resolution. Applications should
+# commit their own lockfile; this repository publishes a package.
+pubspec.lock
+example/.dart_tool/
+example/build/
+example/test/failures/
+example/pubspec.lock

@@ -1,0 +1,17 @@
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - example/**
+
+linter:
+  rules:
+    avoid_print: true
+    avoid_unnecessary_containers: true
+    always_declare_return_types: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_fields: true
+    use_build_context_synchronously: true
