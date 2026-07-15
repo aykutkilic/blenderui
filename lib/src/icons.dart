@@ -29,6 +29,11 @@ enum BlenderGlyph {
   internet,
   internetOffline,
   diskDrive,
+  keyShift,
+  keyControl,
+  keyOption,
+  keyCommand,
+  keyWindows,
   mouseLeft,
   mouseRight,
   mouseMiddle,
@@ -135,6 +140,11 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.internet: 'internet.svg',
   BlenderGlyph.internetOffline: 'internet_offline.svg',
   BlenderGlyph.diskDrive: 'disk_drive.svg',
+  BlenderGlyph.keyShift: 'key_shift.svg',
+  BlenderGlyph.keyControl: 'key_control.svg',
+  BlenderGlyph.keyOption: 'key_option.svg',
+  BlenderGlyph.keyCommand: 'key_command.svg',
+  BlenderGlyph.keyWindows: 'key_windows.svg',
   BlenderGlyph.mouseLeft: 'mouse_lmb.svg',
   BlenderGlyph.mouseRight: 'mouse_rmb.svg',
   BlenderGlyph.mouseMiddle: 'mouse_mmb.svg',
@@ -474,6 +484,37 @@ class _BlenderIconPainter extends CustomPainter {
           Offset(w * .25, h * .62),
           Offset(w * .75, h * .62),
           paint,
+        );
+      case BlenderGlyph.keyShift:
+      case BlenderGlyph.keyControl:
+      case BlenderGlyph.keyOption:
+      case BlenderGlyph.keyCommand:
+      case BlenderGlyph.keyWindows:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * .12, h * .12, w * .76, h * .76),
+            Radius.circular(w * .08),
+          ),
+          paint,
+        );
+        final keyText = switch (glyph) {
+          BlenderGlyph.keyShift => '⇧',
+          BlenderGlyph.keyControl => '⌃',
+          BlenderGlyph.keyOption => '⌥',
+          BlenderGlyph.keyCommand => '⌘',
+          BlenderGlyph.keyWindows => '⊞',
+          _ => '',
+        };
+        final keyPainter = TextPainter(
+          text: TextSpan(
+            text: keyText,
+            style: TextStyle(color: color, fontSize: h * .55),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        keyPainter.paint(
+          canvas,
+          Offset((w - keyPainter.width) / 2, (h - keyPainter.height) / 2),
         );
       case BlenderGlyph.pointer:
         path.moveTo(w * .2, h * .16);

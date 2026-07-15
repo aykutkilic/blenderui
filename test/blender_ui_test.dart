@@ -2744,6 +2744,20 @@ void main() {
       ),
       findsWidgets,
     );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.keyShift,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.keyControl,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('bone, component, and compact-list templates preserve variants', (

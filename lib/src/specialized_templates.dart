@@ -3617,9 +3617,13 @@ class BlenderInputStatusItem {
     required this.label,
     this.event,
     this.events = const <String>[],
+    this.eventGlyphs = const <BlenderGlyph>[],
     this.dragEvent,
     this.modifiers = const <String>[],
     this.dragModifiers = const <String>[],
+    this.modifierGlyphs = const <BlenderGlyph>[],
+    this.dragModifierGlyphs = const <BlenderGlyph>[],
+    this.dragEventGlyph,
     this.icon,
     this.warning = false,
     this.enabled = true,
@@ -3628,9 +3632,13 @@ class BlenderInputStatusItem {
   final String label;
   final String? event;
   final List<String> events;
+  final List<BlenderGlyph> eventGlyphs;
   final String? dragEvent;
   final List<String> modifiers;
   final List<String> dragModifiers;
+  final List<BlenderGlyph> modifierGlyphs;
+  final List<BlenderGlyph> dragModifierGlyphs;
+  final BlenderGlyph? dragEventGlyph;
   final BlenderGlyph? icon;
   final bool warning;
   final bool enabled;
@@ -3683,12 +3691,12 @@ class BlenderStatusContextBar extends StatelessWidget {
           ),
           BlenderInputStatusItem(
             label: 'Duplicate into Window',
-            modifiers: <String>['Shift'],
+            modifierGlyphs: <BlenderGlyph>[BlenderGlyph.keyShift],
             icon: BlenderGlyph.mouseLeftDrag,
           ),
           BlenderInputStatusItem(
             label: 'Swap Areas',
-            modifiers: <String>['Ctrl'],
+            modifierGlyphs: <BlenderGlyph>[BlenderGlyph.keyControl],
             icon: BlenderGlyph.mouseLeftDrag,
           ),
         ];
@@ -3823,12 +3831,33 @@ class BlenderInputStatus extends StatelessWidget {
     return Opacity(opacity: enabled ? 1 : .5, child: BlenderKeycap(label));
   }
 
+  Widget _glyphToken(BuildContext context, BlenderGlyph glyph, bool enabled) {
+    final theme = BlenderTheme.of(context);
+    return Opacity(
+      opacity: enabled ? 1 : .5,
+      child: BlenderIcon(
+        glyph,
+        size: 16,
+        color: itemWarningColor(theme, enabled: enabled),
+      ),
+    );
+  }
+
+  Color? itemWarningColor(BlenderThemeData theme, {required bool enabled}) {
+    return enabled ? null : theme.colors.foregroundDisabled;
+  }
+
   Widget _item(BuildContext context, BlenderInputStatusItem item) {
     final theme = BlenderTheme.of(context);
     final tokens = <Widget>[
+      for (final modifier in item.modifierGlyphs)
+        _glyphToken(context, modifier, item.enabled),
       for (final modifier in item.modifiers)
         _token(context, modifier, item.enabled),
-      if (item.events.isNotEmpty)
+      if (item.eventGlyphs.isNotEmpty)
+        for (final event in item.eventGlyphs)
+          _glyphToken(context, event, item.enabled)
+      else if (item.events.isNotEmpty)
         for (final event in item.events) _token(context, event, item.enabled)
       else if (item.event != null)
         _token(context, item.event!, item.enabled),
@@ -3850,9 +3879,14 @@ class BlenderInputStatus extends StatelessWidget {
       ),
       if (item.dragEvent != null) ...<Widget>[
         const SizedBox(width: 3),
+        for (final modifier in item.dragModifierGlyphs)
+          _glyphToken(context, modifier, item.enabled),
         for (final modifier in item.dragModifiers)
           _token(context, modifier, item.enabled),
-        _token(context, item.dragEvent!, item.enabled),
+        if (item.dragEventGlyph != null)
+          _glyphToken(context, item.dragEventGlyph!, item.enabled)
+        else
+          _token(context, item.dragEvent!, item.enabled),
       ],
     ];
     return Semantics(
