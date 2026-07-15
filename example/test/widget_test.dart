@@ -1126,9 +1126,18 @@ void main() {
     );
     expect(find.text('Node'), findsWidgets);
     expect(find.text('View'), findsWidgets);
-    expect(find.text('Options'), findsWidgets);
+    expect(
+      find.descendant(of: nodeSidebar, matching: find.text('Options')),
+      findsNothing,
+    );
     expect(find.text('Group'), findsOneWidget);
     expect(find.text('Texture Mapping'), findsOneWidget);
+    expect(find.text('Properties'), findsOneWidget);
+    expect(find.text('Custom Properties'), findsOneWidget);
+    expect(
+      find.descendant(of: nodeSidebar, matching: find.text('Object Types')),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey<String>('node-tree-context')),
       findsOneWidget,
@@ -1167,6 +1176,25 @@ void main() {
         'Sidebar',
         'Frame Selected',
         'Frame All',
+        'Zoom In',
+        'Zoom Out',
+      ]),
+    );
+    final nodeMenu = tester.widget<BlenderMenuButton<String>>(
+      find
+          .ancestor(
+            of: find.text('Node').first,
+            matching: find.byType(BlenderMenuButton<String>),
+          )
+          .first,
+    );
+    expect(
+      nodeMenu.items.map((item) => item.label),
+      containsAll(<String>[
+        'Remove from Frame',
+        'Make and Replace Links',
+        'Links Cut',
+        'Show/Hide',
       ]),
     );
     await tester.tap(find.byKey(const ValueKey<String>('node-overlay-button')));

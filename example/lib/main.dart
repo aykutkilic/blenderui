@@ -16390,8 +16390,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               selected: _imageProportional,
               tooltip: 'Proportional editing',
             ),
-            onOpenChanged: (open) =>
-                setState(() => _imageProportional = open),
+            onOpenChanged: (open) => setState(() => _imageProportional = open),
             popover: (context, close) =>
                 _buildAnimationPopoverPanel('Proportional Editing', <Widget>[
                   BlenderCheckbox(
@@ -17892,10 +17891,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       label: 'Make and Replace Links',
     ),
     const BlenderMenuItem<String>(value: 'Links Cut', label: 'Links Cut'),
-    const BlenderMenuItem<String>(
-      value: 'Links Detach',
-      label: 'Links Detach',
-    ),
+    const BlenderMenuItem<String>(value: 'Links Detach', label: 'Links Detach'),
     const BlenderMenuItem<String>(value: 'Links Mute', label: 'Links Mute'),
     const BlenderMenuItem<String>(value: 'Group', label: 'Group'),
     const BlenderMenuItem<String>(
@@ -18388,7 +18384,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderEditorType.textureNodeEditor => BlenderNodeEditor(
         model: _nodeGraph,
         sidebar: BlenderNodeEditorSidebar(
-          geometryNodeEditor: _mainEditorType == BlenderEditorType.geometryNodeEditor,
+          geometryNodeEditor:
+              _mainEditorType == BlenderEditorType.geometryNodeEditor,
           compositor: _mainEditorType == BlenderEditorType.compositor,
         ),
         onNodeSelected: (node) => _setStatus('Selected node ${node.title}'),

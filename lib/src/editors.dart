@@ -2787,11 +2787,7 @@ class BlenderNodeEditorSidebar extends StatelessWidget {
       ]),
       _panel('Custom Properties', <Widget>[_number('example_value', 1)]),
       _panel('Texture Mapping', <Widget>[
-        _choice('Vector', 'Generated', <String>[
-          'Generated',
-          'Normal',
-          'UV',
-        ]),
+        _choice('Vector', 'Generated', <String>['Generated', 'Normal', 'UV']),
         _choice('Projection X', 'Flat', <String>['Flat', 'Box', 'Sphere']),
         _choice('Projection Y', 'Flat', <String>['Flat', 'Box', 'Sphere']),
         _choice('Projection Z', 'Flat', <String>['Flat', 'Box', 'Sphere']),
