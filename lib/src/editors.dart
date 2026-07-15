@@ -522,6 +522,8 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
           itemCount: groups.length,
+          // Keep the package's Flutter 3.41 compatibility floor.
+          // ignore: deprecated_member_use
           onReorder: (oldIndex, newIndex) {
             if (newIndex > oldIndex) {
               newIndex -= 1;

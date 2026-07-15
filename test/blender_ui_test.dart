@@ -23,6 +23,18 @@ class _TreeFixture {
 }
 
 void main() {
+  testWidgets('BlenderApp supplies the themed default text foreground', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const BlenderApp(home: Text('Inherited text')));
+
+    final textContext = tester.element(find.text('Inherited text'));
+    expect(
+      DefaultTextStyle.of(textContext).style.color,
+      const Color(0xFFE6E6E6),
+    );
+  });
+
   testWidgets(
     'application shell scopes state and services around a dockable workspace',
     (tester) async {

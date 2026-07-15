@@ -472,6 +472,10 @@ class BlenderApp extends StatelessWidget {
         title: title,
         home: home,
         navigatorKey: navigatorKey,
+        builder: (context, child) => DefaultTextStyle(
+          style: theme.textTheme.body.copyWith(color: theme.colors.foreground),
+          child: child ?? const SizedBox.shrink(),
+        ),
         pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) =>
             PageRouteBuilder<T>(
               settings: settings,

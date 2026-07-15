@@ -1144,6 +1144,8 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
           itemCount: visibleSections.length,
+          // Keep the package's Flutter 3.41 compatibility floor.
+          // ignore: deprecated_member_use
           onReorder: (oldIndex, newIndex) {
             if (newIndex > oldIndex) {
               newIndex -= 1;
