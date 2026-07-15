@@ -123,6 +123,7 @@ class BlenderPropertyGroup {
     this.initiallyExpanded = true,
     this.headerLeading,
     this.headerActions,
+    this.children = const <BlenderPropertyGroup>[],
   });
 
   final String id;
@@ -131,6 +132,10 @@ class BlenderPropertyGroup {
   final bool initiallyExpanded;
   final Widget? headerLeading;
   final List<Widget>? headerActions;
+
+  /// Child panels rendered inside this panel, matching Blender's
+  /// `bl_parent_id` panel relationship.
+  final List<BlenderPropertyGroup> children;
 }
 
 class BlenderPropertyRow extends StatelessWidget {
@@ -317,9 +322,18 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
       .map((group) => group.id)
       .toList();
   late final Set<String> _expanded = {
-    for (final group in widget.groups)
+    for (final group in _allGroups(widget.groups))
       if (group.initiallyExpanded) group.id,
   };
+
+  Iterable<BlenderPropertyGroup> _allGroups(
+    Iterable<BlenderPropertyGroup> groups,
+  ) sync* {
+    for (final group in groups) {
+      yield group;
+      yield* _allGroups(group.children);
+    }
+  }
 
   @override
   void initState() {
@@ -336,11 +350,13 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
   @override
   void didUpdateWidget(BlenderPropertiesEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final ids = widget.groups.map((group) => group.id).toSet();
-    final oldIds = oldWidget.groups.map((group) => group.id).toSet();
+    final ids = _allGroups(widget.groups).map((group) => group.id).toSet();
+    final oldIds = _allGroups(
+      oldWidget.groups,
+    ).map((group) => group.id).toSet();
     _expanded.retainWhere(ids.contains);
     _expanded.addAll(
-      widget.groups
+      _allGroups(widget.groups)
           .where(
             (group) => !oldIds.contains(group.id) && group.initiallyExpanded,
           )
@@ -364,22 +380,105 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
     ];
   }
 
+  _PropertiesGroupView? _filteredGroup(
+    BlenderPropertyGroup group,
+    String normalizedQuery,
+  ) {
+    if (normalizedQuery.isEmpty ||
+        group.title.toLowerCase().contains(normalizedQuery)) {
+      return _PropertiesGroupView(
+        group: group,
+        properties: group.properties,
+        children: <_PropertiesGroupView>[
+          for (final child in group.children)
+            _PropertiesGroupView.fromGroup(child),
+        ],
+      );
+    }
+    final properties = group.properties
+        .where(
+          (property) => property.label.toLowerCase().contains(normalizedQuery),
+        )
+        .toList();
+    final children = <_PropertiesGroupView>[
+      for (final child in group.children)
+        if (_filteredGroup(child, normalizedQuery) case final match?) match,
+    ];
+    if (properties.isEmpty && children.isEmpty) return null;
+    return _PropertiesGroupView(
+      group: group,
+      properties: properties,
+      children: children,
+    );
+  }
+
   List<_PropertiesGroupView> _filteredGroups(String query) {
     final normalizedQuery = query.trim().toLowerCase();
     return <_PropertiesGroupView>[
       for (final group in _orderedGroups)
-        if (normalizedQuery.isEmpty ||
-            group.title.toLowerCase().contains(normalizedQuery))
-          _PropertiesGroupView(group: group, properties: group.properties)
-        else if (group.properties
-                .where(
-                  (property) =>
-                      property.label.toLowerCase().contains(normalizedQuery),
-                )
-                .toList()
-            case final matchingProperties when matchingProperties.isNotEmpty)
-          _PropertiesGroupView(group: group, properties: matchingProperties),
+        if (_filteredGroup(group, normalizedQuery) case final match?) match,
     ];
+  }
+
+  Widget _buildGroupContents(
+    BuildContext context,
+    _PropertiesGroupView view,
+    bool searchActive,
+  ) {
+    return Column(
+      children: <Widget>[
+        for (final property in view.properties)
+          BlenderPropertyRow(
+            label: property.label,
+            tooltip: property.tooltip,
+            state: property.state,
+            labelPlacement: property.effectiveLabelPlacement,
+            onKeyframe: property.onKeyframe,
+            onReset: property.onReset,
+            editor: property.buildEditor(context),
+          ),
+        for (final child in view.children)
+          _buildPanel(context, child, searchActive: searchActive, nested: true),
+      ],
+    );
+  }
+
+  Widget _buildPanel(
+    BuildContext context,
+    _PropertiesGroupView view, {
+    required bool searchActive,
+    bool nested = false,
+    Widget? headerHandle,
+  }) {
+    final theme = BlenderTheme.of(context);
+    final group = view.group;
+    final expanded = _expanded.contains(group.id);
+    return BlenderPanel(
+      title: group.title,
+      collapsible: true,
+      initiallyExpanded: expanded,
+      expanded: searchActive ? true : expanded,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      backgroundColor: nested
+          ? theme.colors.panelSubSurface
+          : theme.colors.panelBackground,
+      headerTitleStyle: theme.textTheme.panelTitle,
+      headerLeading: group.headerLeading,
+      headerActions: group.headerActions,
+      onExpansionChanged: searchActive
+          ? null
+          : (isExpanded) {
+              setState(() {
+                if (isExpanded) {
+                  _expanded.add(group.id);
+                } else {
+                  _expanded.remove(group.id);
+                }
+              });
+            },
+      headerHandle: headerHandle,
+      child: _buildGroupContents(context, view, searchActive),
+    );
   }
 
   void _reorderGroups(
@@ -437,7 +536,6 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
           itemBuilder: (context, index) {
             final view = groups[index];
             final group = view.group;
-            final expanded = _expanded.contains(group.id);
             return KeyedSubtree(
               key: ValueKey<String>('property-group-${group.id}'),
               child: Padding(
@@ -446,30 +544,10 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
                       ? 0
                       : theme.density.spacing / 2,
                 ),
-                child: BlenderPanel(
-                  title: group.title,
-                  collapsible: true,
-                  initiallyExpanded: expanded,
-                  expanded: searchActive ? true : expanded,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  backgroundColor: theme.colors.panelBackground,
-                  headerTitleStyle: theme.textTheme.panelTitle,
-                  headerLeading: group.headerLeading,
-                  headerActions: group.headerActions,
-                  onExpansionChanged: searchActive
-                      ? null
-                      : (isExpanded) {
-                          setState(() {
-                            if (isExpanded) {
-                              _expanded.add(group.id);
-                            } else {
-                              _expanded.remove(group.id);
-                            }
-                          });
-                        },
+                child: _buildPanel(
+                  context,
+                  view,
+                  searchActive: searchActive,
                   headerHandle: ReorderableDragStartListener(
                     index: index,
                     child: MouseRegion(
@@ -488,20 +566,6 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
                         ),
                       ),
                     ),
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      for (final property in view.properties)
-                        BlenderPropertyRow(
-                          label: property.label,
-                          tooltip: property.tooltip,
-                          state: property.state,
-                          labelPlacement: property.effectiveLabelPlacement,
-                          onKeyframe: property.onKeyframe,
-                          onReset: property.onReset,
-                          editor: property.buildEditor(context),
-                        ),
-                    ],
                   ),
                 ),
               ),
@@ -558,10 +622,25 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
 }
 
 class _PropertiesGroupView {
-  const _PropertiesGroupView({required this.group, required this.properties});
+  const _PropertiesGroupView({
+    required this.group,
+    required this.properties,
+    this.children = const <_PropertiesGroupView>[],
+  });
+
+  _PropertiesGroupView.fromGroup(BlenderPropertyGroup group)
+    : this(
+        group: group,
+        properties: group.properties,
+        children: <_PropertiesGroupView>[
+          for (final child in group.children)
+            _PropertiesGroupView.fromGroup(child),
+        ],
+      );
 
   final BlenderPropertyGroup group;
   final List<BlenderPropertyDescriptor<dynamic>> properties;
+  final List<_PropertiesGroupView> children;
 }
 
 /// Supplies the floating layer required by reorderable panels when an editor

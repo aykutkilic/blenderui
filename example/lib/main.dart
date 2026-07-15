@@ -131,6 +131,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   double _frameStep = 1;
   double _locationX = 0;
   double _locationY = 0;
+  List<double> _objectLocation = <double>[-1.1446, -4.4965, -1.5457];
+  List<double> _objectRotation = <double>[0, 0, 0];
+  List<double> _objectScale = <double>[1, 1, 1];
+  List<bool> _objectLocationLocks = <bool>[false, false, false];
+  List<bool> _objectRotationLocks = <bool>[false, false, false];
+  List<bool> _objectScaleLocks = <bool>[false, false, false];
+  String _objectRotationMode = 'XYZ Euler';
   Color _accentColor = const Color(0xFF4772B3);
   bool _useSmoothShading = true;
   bool _renderRegion = false;
@@ -857,13 +864,160 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     ];
   }
 
+  void _setObjectVectorValue(
+    List<double> values,
+    int index,
+    double value,
+    void Function(List<double>) assign,
+  ) {
+    final updated = List<double>.of(values)..[index] = value;
+    setState(() => assign(updated));
+  }
+
+  void _toggleObjectVectorLock(
+    List<bool> locks,
+    int index,
+    void Function(List<bool>) assign,
+  ) {
+    final updated = List<bool>.of(locks)..[index] = !locks[index];
+    setState(() => assign(updated));
+  }
+
+  List<BlenderPropertyGroup> get _objectPropertyGroups {
+    const axes = <String>['X', 'Y', 'Z'];
+    return <BlenderPropertyGroup>[
+      BlenderPropertyGroup(
+        id: 'object-transform',
+        title: 'Transform',
+        properties: <BlenderPropertyDescriptor<dynamic>>[
+          for (var index = 0; index < 3; index++)
+            BlenderPropertyDescriptor<double>(
+              id: 'object-location-${axes[index].toLowerCase()}',
+              label: index == 0 ? 'Location X' : axes[index],
+              value: _objectLocation[index],
+              editorBuilder: (context, value, onChanged) =>
+                  _ObjectTransformValueEditor(
+                    value: value,
+                    suffix: ' m',
+                    decimalDigits: 4,
+                    locked: _objectLocationLocks[index],
+                    onChanged: onChanged,
+                    onLockChanged: () => _toggleObjectVectorLock(
+                      _objectLocationLocks,
+                      index,
+                      (locks) => _objectLocationLocks = locks,
+                    ),
+                    onKeyframe: () =>
+                        _setStatus('Keyframe Location ${axes[index]}'),
+                  ),
+              onChanged: (value) => _setObjectVectorValue(
+                _objectLocation,
+                index,
+                value,
+                (values) => _objectLocation = values,
+              ),
+            ),
+          for (var index = 0; index < 3; index++)
+            BlenderPropertyDescriptor<double>(
+              id: 'object-rotation-${axes[index].toLowerCase()}',
+              label: index == 0 ? 'Rotation X' : axes[index],
+              value: _objectRotation[index],
+              editorBuilder: (context, value, onChanged) =>
+                  _ObjectTransformValueEditor(
+                    value: value,
+                    suffix: '°',
+                    decimalDigits: 0,
+                    locked: _objectRotationLocks[index],
+                    onChanged: onChanged,
+                    onLockChanged: () => _toggleObjectVectorLock(
+                      _objectRotationLocks,
+                      index,
+                      (locks) => _objectRotationLocks = locks,
+                    ),
+                    onKeyframe: () =>
+                        _setStatus('Keyframe Rotation ${axes[index]}'),
+                  ),
+              onChanged: (value) => _setObjectVectorValue(
+                _objectRotation,
+                index,
+                value,
+                (values) => _objectRotation = values,
+              ),
+            ),
+          BlenderPropertyDescriptor<String>(
+            id: 'object-rotation-mode',
+            label: 'Mode',
+            value: _objectRotationMode,
+            editorBuilder: (context, value, onChanged) =>
+                _ObjectRotationModeEditor(
+                  value: value,
+                  onChanged: onChanged,
+                  onKeyframe: () => _setStatus('Keyframe Rotation Mode'),
+                ),
+            onChanged: (value) => setState(() => _objectRotationMode = value),
+          ),
+          for (var index = 0; index < 3; index++)
+            BlenderPropertyDescriptor<double>(
+              id: 'object-scale-${axes[index].toLowerCase()}',
+              label: index == 0 ? 'Scale X' : axes[index],
+              value: _objectScale[index],
+              editorBuilder: (context, value, onChanged) =>
+                  _ObjectTransformValueEditor(
+                    value: value,
+                    decimalDigits: 3,
+                    locked: _objectScaleLocks[index],
+                    onChanged: onChanged,
+                    onLockChanged: () => _toggleObjectVectorLock(
+                      _objectScaleLocks,
+                      index,
+                      (locks) => _objectScaleLocks = locks,
+                    ),
+                    onKeyframe: () =>
+                        _setStatus('Keyframe Scale ${axes[index]}'),
+                  ),
+              onChanged: (value) => _setObjectVectorValue(
+                _objectScale,
+                index,
+                value,
+                (values) => _objectScale = values,
+              ),
+            ),
+        ],
+        children: const <BlenderPropertyGroup>[
+          BlenderPropertyGroup(
+            id: 'object-delta-transform',
+            title: 'Delta Transform',
+            initiallyExpanded: false,
+            properties: <BlenderPropertyDescriptor<dynamic>>[],
+          ),
+        ],
+      ),
+      for (final section in const <(String, String)>[
+        ('object-relations', 'Relations'),
+        ('object-collections', 'Collections'),
+        ('object-viewport-display', 'Viewport Display'),
+        ('object-instancing', 'Instancing'),
+        ('object-motion-paths', 'Motion Paths'),
+        ('object-visibility', 'Visibility'),
+        ('object-animation', 'Animation'),
+        ('object-custom-properties', 'Custom Properties'),
+      ])
+        BlenderPropertyGroup(
+          id: section.$1,
+          title: section.$2,
+          initiallyExpanded: false,
+          properties: const <BlenderPropertyDescriptor<dynamic>>[],
+        ),
+    ];
+  }
+
   String get _propertiesContextTitle => switch (_propertyTab) {
     0 => 'Select Box',
     1 => 'Render',
     2 => 'Output',
     3 => 'Scene',
     4 => 'World',
-    5 => 'Object',
+    5 => _selectedObject,
     6 => 'Modifiers',
     _ => 'Material',
   };
@@ -904,13 +1058,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             properties: <BlenderPropertyDescriptor<dynamic>>[],
           ),
         ],
-        5 => const <BlenderPropertyGroup>[
-          BlenderPropertyGroup(
-            id: 'object-context',
-            title: 'Object',
-            properties: <BlenderPropertyDescriptor<dynamic>>[],
-          ),
-        ],
+        5 => _objectPropertyGroups,
         6 => const <BlenderPropertyGroup>[
           BlenderPropertyGroup(
             id: 'modifier-context',
@@ -928,6 +1076,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       };
 
   Widget? get _propertyTopContent {
+    if (_propertyTab == 5) {
+      return BlenderDataBlockField<String>(
+        key: const ValueKey<String>('active-object-field'),
+        value: _selectedObject,
+        icon: BlenderGlyph.object,
+        items: const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(
+            value: 'Camera',
+            label: 'Camera',
+            icon: BlenderIcon(BlenderGlyph.camera, size: 14),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Cube',
+            label: 'Cube',
+            icon: BlenderIcon(BlenderGlyph.object, size: 14),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Light',
+            label: 'Light',
+            icon: BlenderIcon(BlenderGlyph.light, size: 14),
+          ),
+        ],
+        onChanged: (value) => setState(() => _selectedObject = value),
+      );
+    }
     if (_propertyTab != 0) return null;
     return Align(
       alignment: Alignment.centerLeft,
@@ -2444,6 +2617,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     groups: _visiblePropertyGroups,
                     searchController: _propertiesSearchController,
                     body: _propertyTab == 0 ? _buildToolSettingsBody() : null,
+                    topContent: _propertyTab == 5 ? _propertyTopContent : null,
                     joinNavigationRail: true,
                     title: _propertiesContextTitle,
                     headerLeading: BlenderIcon(
@@ -2597,7 +2771,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       onOpenChanged: (open) =>
           setState(() => _propertiesContextMenuOpen = open),
       child: BlenderIconButton(
-        glyph: BlenderGlyph.chevronDown,
+        key: const ValueKey<String>('properties-context-options-button'),
+        glyph: BlenderGlyph.panelDisclosureDown,
         selected: _propertiesContextMenuOpen,
         tooltip: 'Properties context options',
         size: 20,
@@ -4076,6 +4251,129 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     if (_galleryRamp.length <= 2) return;
     setState(
       () => _galleryRamp = _galleryRamp.sublist(0, _galleryRamp.length - 1),
+    );
+  }
+}
+
+/// Keeps Blender's aligned transform value, lock decorator, and animation
+/// decorator together as one reusable value-column control.
+class _ObjectTransformValueEditor extends StatelessWidget {
+  const _ObjectTransformValueEditor({
+    required this.value,
+    required this.decimalDigits,
+    required this.locked,
+    required this.onChanged,
+    required this.onLockChanged,
+    required this.onKeyframe,
+    this.suffix,
+  });
+
+  final double value;
+  final int decimalDigits;
+  final bool locked;
+  final ValueChanged<double> onChanged;
+  final VoidCallback onLockChanged;
+  final VoidCallback onKeyframe;
+  final String? suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: BlenderNumberField(
+            value: value,
+            step: decimalDigits == 0 ? 1 : .1,
+            decimalDigits: decimalDigits,
+            suffix: suffix,
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Semantics(
+          button: true,
+          label: locked ? 'Unlock transform axis' : 'Lock transform axis',
+          child: BlenderIconButton(
+            glyph: locked ? BlenderGlyph.lock : BlenderGlyph.unlock,
+            selected: locked,
+            tooltip: locked ? 'Unlock transform axis' : 'Lock transform axis',
+            size: 20,
+            onPressed: onLockChanged,
+          ),
+        ),
+        _ObjectKeyframeDot(
+          color: theme.colors.foreground,
+          onPressed: onKeyframe,
+        ),
+      ],
+    );
+  }
+}
+
+class _ObjectRotationModeEditor extends StatelessWidget {
+  const _ObjectRotationModeEditor({
+    required this.value,
+    required this.onChanged,
+    required this.onKeyframe,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onKeyframe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: BlenderDropdown<String>(
+            value: value,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'XYZ Euler', label: 'XYZ Euler'),
+              BlenderMenuItem<String>(value: 'XZY Euler', label: 'XZY Euler'),
+              BlenderMenuItem<String>(value: 'YXZ Euler', label: 'YXZ Euler'),
+              BlenderMenuItem<String>(value: 'Quaternion', label: 'Quaternion'),
+              BlenderMenuItem<String>(value: 'Axis Angle', label: 'Axis Angle'),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 23),
+        _ObjectKeyframeDot(
+          color: BlenderTheme.of(context).colors.foreground,
+          onPressed: onKeyframe,
+        ),
+      ],
+    );
+  }
+}
+
+class _ObjectKeyframeDot extends StatelessWidget {
+  const _ObjectKeyframeDot({required this.color, required this.onPressed});
+
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Insert keyframe',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: SizedBox(
+          width: 14,
+          height: 20,
+          child: Center(
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: const SizedBox.square(dimension: 5),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

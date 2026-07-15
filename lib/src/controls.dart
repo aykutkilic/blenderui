@@ -251,6 +251,7 @@ class BlenderIconButton extends StatelessWidget {
     this.selected = false,
     this.enabled = true,
     this.size = 28,
+    this.iconSize = 15,
     this.variant = BlenderButtonVariant.toolbar,
   });
 
@@ -260,6 +261,7 @@ class BlenderIconButton extends StatelessWidget {
   final bool selected;
   final bool enabled;
   final double size;
+  final double iconSize;
   final BlenderButtonVariant variant;
 
   @override
@@ -272,7 +274,7 @@ class BlenderIconButton extends StatelessWidget {
       selected: selected,
       variant: variant,
       padding: EdgeInsets.zero,
-      leading: BlenderIcon(glyph, size: 15),
+      leading: BlenderIcon(glyph, size: iconSize),
     );
     if (tooltip != null) {
       result = BlenderTooltip(message: tooltip!, child: result);
@@ -796,6 +798,7 @@ class BlenderNumberField extends StatefulWidget {
     this.max,
     this.step = 1,
     this.decimalDigits = 3,
+    this.suffix,
     this.fieldWidth,
     this.backgroundColor,
     this.enabled = true,
@@ -808,6 +811,7 @@ class BlenderNumberField extends StatefulWidget {
   final double? max;
   final double step;
   final int decimalDigits;
+  final String? suffix;
   final double? fieldWidth;
   final Color? backgroundColor;
   final bool enabled;
@@ -994,13 +998,13 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
             ? () => setState(() => _dragging = false)
             : null,
         child: Container(
+          key: const ValueKey<String>('blender-number-field-surface'),
           height: theme.density.controlHeight,
           padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
           decoration: BoxDecoration(
             color: _dragging
                 ? theme.colors.textField
                 : widget.backgroundColor ?? theme.colors.button,
-            border: Border.all(color: theme.colors.borderSubtle),
             borderRadius: BorderRadius.circular(theme.shapes.controlRadius),
           ),
           child: Row(
@@ -1012,7 +1016,7 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                 ),
               Expanded(
                 child: Text(
-                  _format(widget.value),
+                  '${_format(widget.value)}${widget.suffix ?? ''}',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.body.copyWith(
                     color: widget.enabled
@@ -1865,10 +1869,11 @@ class _BlenderMenuRow<T> extends StatefulWidget {
 
 class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
   bool _hovered = false;
+  bool _submenuOpen = false;
 
   Widget _buildContent(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    final highlighted = widget.item.selected || _hovered;
+    final highlighted = widget.item.selected || _hovered || _submenuOpen;
     final foreground = widget.item.enabled
         ? theme.colors.foreground
         : theme.colors.foregroundDisabled;
@@ -1876,6 +1881,7 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Container(
+        key: ValueKey<String>('menu-row-${widget.item.label}'),
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
@@ -1912,8 +1918,11 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: BlenderIcon(
-                  BlenderGlyph.chevronRight,
-                  size: 12,
+                  key: ValueKey<String>(
+                    'menu-submenu-arrow-${widget.item.label}',
+                  ),
+                  BlenderGlyph.panelDisclosureRight,
+                  size: 9,
                   color: foreground,
                 ),
               ),
@@ -1940,6 +1949,11 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
       offset: const Offset(3, 0),
       openOnHover: true,
       hoverDelay: const Duration(milliseconds: 200),
+      onOpenChanged: (open) {
+        if (mounted && _submenuOpen != open) {
+          setState(() => _submenuOpen = open);
+        }
+      },
       child: content,
       popover: (context, close) => BlenderMenu<T>(
         items: item.submenu!,

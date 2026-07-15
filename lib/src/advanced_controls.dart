@@ -568,6 +568,25 @@ class BlenderPropertyTab {
   final int group;
 }
 
+Color _propertyTabIconColor(BlenderColorScheme colors, BlenderGlyph glyph) {
+  switch (glyph) {
+    case BlenderGlyph.tool:
+    case BlenderGlyph.modifier:
+      return colors.iconModifier;
+    case BlenderGlyph.object:
+      return colors.iconObject;
+    case BlenderGlyph.material:
+      return colors.iconShading;
+    case BlenderGlyph.render:
+    case BlenderGlyph.output:
+    case BlenderGlyph.scene:
+    case BlenderGlyph.world:
+      return colors.iconScene;
+    default:
+      return colors.foregroundMuted;
+  }
+}
+
 /// The compact menu used by Properties headers to choose which context tabs
 /// are visible. It opens on hover like Blender and remains usable by click.
 class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
@@ -592,8 +611,9 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
       targetAnchor: Alignment.bottomRight,
       followerAnchor: Alignment.topRight,
       child: BlenderIconButton(
-        glyph: BlenderGlyph.chevronDown,
+        glyph: BlenderGlyph.panelDisclosureDown,
         size: size,
+        iconSize: 9,
         tooltip: 'Show visible Properties tabs',
       ),
       popover: (context, close) => ConstrainedBox(
@@ -639,7 +659,10 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
                                   child: BlenderIcon(
                                     tab.glyph,
                                     size: 16,
-                                    color: theme.colors.foregroundMuted,
+                                    color: _propertyTabIconColor(
+                                      theme.colors,
+                                      tab.glyph,
+                                    ),
                                   ),
                                 ),
                                 Expanded(
@@ -776,22 +799,22 @@ class BlenderPropertyTabs extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (visibleTabIds != null &&
+                      onVisibilityChanged != null) ...<Widget>[
+                    const SizedBox(height: 3),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: BlenderPropertyTabVisibilityMenu(
+                        tabs: tabs,
+                        visibleTabIds: visibleTabIds!,
+                        onVisibilityChanged: onVisibilityChanged!,
+                        size: tileSize.clamp(1, width - 1).toDouble(),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (visibleTabIds != null &&
-                onVisibilityChanged != null) ...<Widget>[
-              const SizedBox(height: 3),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(1, 0, 0, 3),
-                child: BlenderPropertyTabVisibilityMenu(
-                  tabs: tabs,
-                  visibleTabIds: visibleTabIds!,
-                  onVisibilityChanged: onVisibilityChanged!,
-                  size: tileSize.clamp(1, width - 1).toDouble(),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -838,6 +861,7 @@ class _BlenderPropertyTabButtonState extends State<_BlenderPropertyTabButton> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onPressed,
           child: SizedBox(
+            key: ValueKey<String>('property-tab-${widget.tab.id}'),
             width: widget.size,
             height: widget.size,
             child: Padding(
@@ -856,9 +880,10 @@ class _BlenderPropertyTabButtonState extends State<_BlenderPropertyTabButton> {
                   child: BlenderIcon(
                     widget.tab.glyph,
                     size: 15,
-                    color: widget.selected
-                        ? theme.colors.foreground
-                        : theme.colors.foregroundMuted,
+                    color: _propertyTabIconColor(
+                      theme.colors,
+                      widget.tab.glyph,
+                    ),
                   ),
                 ),
               ),

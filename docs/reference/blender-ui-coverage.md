@@ -63,6 +63,7 @@ appearance, and composition.
 | `space_userpref/userpref_asset_libraries_list.cc` | `BlenderAssetLibrariesPreferencesPanel` | Partial |
 | `space_buttons/buttons_texture.cc` | `BlenderTextureUserSelector` | Partial |
 | `space_buttons/space_buttons.cc`, `space_properties.py`, `interface_layout.cc` | `BlenderPropertiesEditor` panel/property filtering and search-state expansion | Implemented |
+| `scripts/startup/bl_ui/properties_object.py` | nested `BlenderPropertyGroup` panels and example Object identity/Transform context | Partial |
 | `space_action`, `space_dopesheet.py`, `space_time.py` | `BlenderTimeline`, `BlenderDopeSheetEditor`, example Timeline/Action mode composition | Partial |
 
 ## Editor and pane surfaces
@@ -135,6 +136,9 @@ The corresponding local source references are:
 - `interface_template_operator_property.cc` for collection importer/exporter
   panels: add/remove or reorder controls, active file-handler panels, filepath
   rows, presets/export actions, and caller-owned operator properties.
+- `interface_template_color_management.cc` for the vertical split-property
+  rows for Color Space, View, Look, Exposure, Gamma, curve mapping, and white
+  balance; the package keeps those optional sections caller-owned.
 - `interface_template_color_picker.cc` for palette management controls,
   responsive color-swatch rows, selection state, and hue/saturation/value/
   luminance sorting affordances; the compact `BlenderCryptoPicker` covers the
@@ -143,6 +147,12 @@ The corresponding local source references are:
   resize grip, preview render-type controls, preview-world toggle, texture or
   material mode row, and preview-alpha toggle. `BlenderPreviewTile` remains the
   separate grid-tile anatomy used by asset and ID browsers.
+- `interface_template_scopes.cc` for histogram, waveform, and vectorscope
+  surfaces with Blender's bounded height and bottom resize grip; scope samples
+  remain caller-owned.
+- `interface_template_recent_files.cc` for the compact filename-only recent
+  file rows, `.blend`/backup file icons, and path/metadata tooltip content;
+  file existence and metadata remain caller-owned.
 - `interface_template_event.cc` for modal keymap/status event composition; the
   package now covers reusable modifier/event/label rows, source-backed
   Shift/Ctrl/Option/Command/Windows glyphs, and compact grouped Axis, Plane,
@@ -201,8 +211,8 @@ without coupling the package to Blender source or data structures.
 ## Verification notes
 
 - `flutter analyze` passes for the package and example.
-- Package widget suite passes with 71 tests; the example smoke suite passes
-  with 6 tests.
+- Package widget suite passes with 74 tests; the example smoke suite passes
+  with 7 tests.
 - The Flutter SDK can emit non-fatal SVG parser warnings for the existing
   custom glyph test fixtures.
 - The configured Flutter/Dart tools may need permission to update SDK cache

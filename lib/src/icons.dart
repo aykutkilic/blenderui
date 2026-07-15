@@ -25,6 +25,7 @@ enum BlenderGlyph {
   pause,
   eye,
   lock,
+  unlock,
   link,
   internet,
   internetOffline,
@@ -109,6 +110,8 @@ enum BlenderGlyph {
   checkCircle,
   home,
   file,
+  fileBlend,
+  fileBackup,
   save,
   open,
   export,
@@ -136,6 +139,7 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.pause: 'pause.svg',
   BlenderGlyph.eye: 'restrict_view_on.svg',
   BlenderGlyph.lock: 'locked.svg',
+  BlenderGlyph.unlock: 'decorate_unlocked.svg',
   BlenderGlyph.link: 'linked.svg',
   BlenderGlyph.internet: 'internet.svg',
   BlenderGlyph.internetOffline: 'internet_offline.svg',
@@ -219,6 +223,8 @@ const Map<BlenderGlyph, String> _blenderIconFileNames = <BlenderGlyph, String>{
   BlenderGlyph.errorFilled: 'status_error_filled.svg',
   BlenderGlyph.home: 'home.svg',
   BlenderGlyph.file: 'file_blank.svg',
+  BlenderGlyph.fileBlend: 'file_blend.svg',
+  BlenderGlyph.fileBackup: 'file_backup.svg',
   BlenderGlyph.save: 'file_tick.svg',
   BlenderGlyph.open: 'file.svg',
   BlenderGlyph.export: 'export.svg',
@@ -453,6 +459,21 @@ class _BlenderIconPainter extends CustomPainter {
         path.arcToPoint(
           Offset(w * .66, h * .42),
           radius: Radius.circular(w * .16),
+        );
+        canvas.drawPath(path, paint);
+      case BlenderGlyph.unlock:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * .2, h * .42, w * .6, h * .42),
+            Radius.circular(w * .06),
+          ),
+          paint,
+        );
+        path.moveTo(w * .34, h * .42);
+        path.lineTo(w * .34, h * .3);
+        path.arcToPoint(
+          Offset(w * .72, h * .3),
+          radius: Radius.circular(w * .19),
         );
         canvas.drawPath(path, paint);
       case BlenderGlyph.link:
@@ -1324,6 +1345,8 @@ class _BlenderIconPainter extends CustomPainter {
         path.close();
         canvas.drawPath(path, paint);
       case BlenderGlyph.file:
+      case BlenderGlyph.fileBlend:
+      case BlenderGlyph.fileBackup:
         path.moveTo(w * .24, h * .14);
         path.lineTo(w * .62, h * .14);
         path.lineTo(w * .78, h * .3);

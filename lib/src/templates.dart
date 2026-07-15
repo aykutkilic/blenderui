@@ -678,34 +678,89 @@ class BlenderScopeSeries {
 
 /// A compact waveform, histogram, or vectorscope template for image-oriented
 /// editor panels.
-class BlenderScopeView extends StatelessWidget {
+class BlenderScopeView extends StatefulWidget {
   const BlenderScopeView({
     super.key,
     required this.type,
     required this.series,
     this.title = 'Scope',
     this.height = 150,
+    this.minHeight = 20,
+    this.maxHeight = 400,
   });
 
   final BlenderScopeType type;
   final List<BlenderScopeSeries> series;
   final String title;
   final double height;
+  final double minHeight;
+  final double maxHeight;
+
+  @override
+  State<BlenderScopeView> createState() => _BlenderScopeViewState();
+}
+
+class _BlenderScopeViewState extends State<BlenderScopeView> {
+  late double _height;
+
+  @override
+  void initState() {
+    super.initState();
+    _height = widget.height.clamp(widget.minHeight, widget.maxHeight);
+  }
+
+  @override
+  void didUpdateWidget(BlenderScopeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.height != widget.height ||
+        oldWidget.minHeight != widget.minHeight ||
+        oldWidget.maxHeight != widget.maxHeight) {
+      _height = widget.height.clamp(widget.minHeight, widget.maxHeight);
+    }
+  }
+
+  void _resize(double delta) {
+    setState(() {
+      _height = (_height + delta).clamp(widget.minHeight, widget.maxHeight);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     return BlenderPanel(
-      title: title,
+      title: widget.title,
       padding: EdgeInsets.zero,
       child: SizedBox(
-        height: height,
-        child: CustomPaint(
-          painter: _BlenderScopePainter(
-            type: type,
-            series: series,
-            colors: theme.colors,
-          ),
+        height: _height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            CustomPaint(
+              painter: _BlenderScopePainter(
+                type: widget.type,
+                series: widget.series,
+                colors: theme.colors,
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: (details) => _resize(details.delta.dy),
+                child: SizedBox(
+                  height: 10,
+                  child: Center(
+                    child: BlenderIcon(
+                      BlenderGlyph.grip,
+                      size: 14,
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -814,12 +869,14 @@ class BlenderRecentFile {
     required this.name,
     required this.path,
     this.detail,
+    this.isBackup = false,
   });
 
   final String id;
   final String name;
   final String path;
   final String? detail;
+  final bool isBackup;
 }
 
 /// A compact recent-file template used by Blender's file and splash menus.
@@ -868,7 +925,10 @@ class BlenderRecentFiles extends StatelessWidget {
               itemCount: files.length,
               itemBuilder: (context, index) {
                 final file = files[index];
-                return GestureDetector(
+                final isBackup =
+                    file.isBackup ||
+                    RegExp(r'\.blend\d+$').hasMatch(file.path.toLowerCase());
+                final row = GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: onSelected == null ? null : () => onSelected!(file),
                   child: Padding(
@@ -879,41 +939,28 @@ class BlenderRecentFiles extends StatelessWidget {
                     child: Row(
                       children: <Widget>[
                         BlenderIcon(
-                          BlenderGlyph.file,
+                          isBackup
+                              ? BlenderGlyph.fileBackup
+                              : BlenderGlyph.fileBlend,
                           size: 16,
                           color: theme.colors.iconFolder,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                file.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.label,
-                              ),
-                              Text(
-                                file.path,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.caption.copyWith(
-                                  color: theme.colors.foregroundMuted,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            file.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.label,
                           ),
                         ),
-                        if (file.detail != null)
-                          Text(
-                            file.detail!,
-                            style: theme.textTheme.caption.copyWith(
-                              color: theme.colors.foregroundMuted,
-                            ),
-                          ),
                       ],
                     ),
                   ),
                 );
+                final tooltip = file.detail == null
+                    ? file.path
+                    : '${file.path}\n${file.detail}';
+                return BlenderTooltip(message: tooltip, child: row);
               },
             ),
     );

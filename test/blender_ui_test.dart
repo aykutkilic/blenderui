@@ -1,4 +1,5 @@
 import 'package:blender_ui/blender_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -314,6 +315,60 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('nested Properties panels follow parent search and expansion', (
+    tester,
+  ) async {
+    final search = TextEditingController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 400,
+          height: 300,
+          child: BlenderPropertiesEditor(
+            searchController: search,
+            groups: const <BlenderPropertyGroup>[
+              BlenderPropertyGroup(
+                id: 'transform',
+                title: 'Transform',
+                properties: <BlenderPropertyDescriptor<dynamic>>[],
+                children: <BlenderPropertyGroup>[
+                  BlenderPropertyGroup(
+                    id: 'delta-transform',
+                    title: 'Delta Transform',
+                    initiallyExpanded: false,
+                    properties: <BlenderPropertyDescriptor<dynamic>>[
+                      BlenderPropertyDescriptor<double>(
+                        id: 'delta-location-x',
+                        label: 'Delta Location X',
+                        value: 0,
+                        editorBuilder: _emptyDoubleEditor,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Transform'), findsOneWidget);
+    expect(find.text('Delta Transform'), findsOneWidget);
+    expect(find.text('Delta Location X'), findsNothing);
+
+    search.text = 'Delta Location';
+    await tester.pumpAndSettle();
+    expect(find.text('Transform'), findsOneWidget);
+    expect(find.text('Delta Transform'), findsOneWidget);
+    expect(find.text('Delta Location X'), findsOneWidget);
+
+    search.clear();
+    await tester.pumpAndSettle();
+    expect(find.text('Delta Location X'), findsNothing);
+  });
 
   testWidgets('property panel grips move and commit stable group order', (
     tester,
@@ -687,6 +742,57 @@ void main() {
     await tester.tap(find.text('Open File'));
     await tester.pump();
     expect(selected, 'open');
+  });
+
+  testWidgets('submenu rows use thin arrows and stay highlighted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      BlenderApp(
+        home: _harness(
+          const SizedBox(
+            width: 320,
+            child: BlenderMenuButton<String>(
+              label: 'File',
+              items: const <BlenderMenuItem<String>>[
+                BlenderMenuItem<String>(
+                  value: 'previews',
+                  label: 'Data Previews',
+                  submenu: <BlenderMenuItem<String>>[
+                    BlenderMenuItem<String>(
+                      value: 'update',
+                      label: 'Update Data Previews',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('File'), warnIfMissed: false);
+    await tester.pump();
+
+    final arrow = tester.widget<BlenderIcon>(
+      find.byKey(const ValueKey<String>('menu-submenu-arrow-Data Previews')),
+    );
+    expect(arrow.glyph, BlenderGlyph.panelDisclosureRight);
+    expect(arrow.size, 9);
+
+    final row = find.byKey(const ValueKey<String>('menu-row-Data Previews'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(() => mouse.removePointer());
+    await mouse.addPointer(location: tester.getCenter(row));
+    await mouse.moveTo(tester.getCenter(row));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final colors = BlenderTheme.of(tester.element(row)).colors;
+    final decoration =
+        tester.widget<Container>(row).decoration! as BoxDecoration;
+    expect(decoration.color, colors.menuSelection);
+    expect(find.text('Update Data Previews'), findsOneWidget);
   });
 
   testWidgets('color picker emits a changed color', (tester) async {
@@ -1133,6 +1239,12 @@ void main() {
                 name: 'showcase.blend',
                 path: '/showcase/showcase.blend',
               ),
+              BlenderRecentFile(
+                id: 'backup',
+                name: 'showcase.blend1',
+                path: '/showcase/showcase.blend1',
+                isBackup: true,
+              ),
             ],
             onSelected: (file) => selected = file,
           ),
@@ -1143,6 +1255,21 @@ void main() {
     await tester.tap(find.text('showcase.blend'));
     await tester.pump();
     expect(selected?.id, 'scene');
+    expect(find.text('/showcase/showcase.blend'), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.fileBlend,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.fileBackup,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('job progress reports cancellation', (tester) async {
@@ -1261,6 +1388,48 @@ void main() {
     await tester.tap(find.text('2'));
     await tester.pump();
     expect(activeLayers, <String>['two']);
+  });
+
+  testWidgets('scope templates preserve Blender resize grip anatomy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const UnconstrainedBox(
+          constrainedAxis: Axis.horizontal,
+          child: SizedBox(
+            width: 360,
+            child: BlenderScopeView(
+              type: BlenderScopeType.waveform,
+              series: <BlenderScopeSeries>[
+                BlenderScopeSeries(
+                  color: Color(0xFF71A8FF),
+                  points: <Offset>[Offset(0, .2), Offset(1, .8)],
+                ),
+              ],
+              height: 120,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scope = find.byType(BlenderScopeView);
+    final before = tester.getSize(scope).height;
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is BlenderIcon && widget.glyph == BlenderGlyph.grip,
+      ),
+      findsOneWidget,
+    );
+    await tester.drag(
+      find.byWidgetPredicate(
+        (widget) => widget is BlenderIcon && widget.glyph == BlenderGlyph.grip,
+      ),
+      const Offset(0, 24),
+    );
+    await tester.pump();
+    expect(tester.getSize(scope).height, greaterThan(before));
   });
 
   testWidgets('modifier and node-input templates render', (tester) async {
@@ -1557,6 +1726,8 @@ void main() {
             ],
             selectedIndex: 0,
             onChanged: _ignoreInt,
+            visibleTabIds: const <String>{'tool', 'output'},
+            onVisibilityChanged: _ignoreStringSet,
           ),
         ),
       ),
@@ -1566,6 +1737,24 @@ void main() {
       find.byType(BlenderPropertyTabs),
     );
     expect(tabs.tileSize, tabs.width);
+    final disclosure = tester.widget<BlenderIcon>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon &&
+            widget.glyph == BlenderGlyph.panelDisclosureDown,
+      ),
+    );
+    expect(disclosure.size, 9);
+    expect(
+      tester.getTopLeft(find.byType(BlenderPropertyTabVisibilityMenu)).dy,
+      greaterThanOrEqualTo(
+        tester
+            .getBottomLeft(
+              find.byKey(const ValueKey<String>('property-tab-output')),
+            )
+            .dy,
+      ),
+    );
   });
 
   testWidgets('editor type selector uses Blender menu trigger states', (
@@ -1802,6 +1991,56 @@ void main() {
     tester.widget<GestureDetector>(fieldGesture.first).onTap!();
     await tester.pumpAndSettle();
     expect(find.byType(EditableText), findsOneWidget);
+  });
+
+  testWidgets('number slider surface has no extra outline', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 180,
+          child: BlenderNumberField(
+            value: 1920,
+            decimalDigits: 0,
+            onChanged: _ignoreDouble,
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey<String>('blender-number-field-surface')),
+    );
+    final decoration = surface.decoration! as BoxDecoration;
+    expect(decoration.border, isNull);
+    expect(surface.constraints?.minHeight, 20);
+    expect(surface.constraints?.maxHeight, 20);
+  });
+
+  testWidgets('collapsed panels retain Blender rounded surfaces', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 240,
+          child: BlenderPanel(
+            title: 'Format',
+            collapsible: true,
+            initiallyExpanded: false,
+            child: SizedBox(height: 40),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(ClipRRect), findsOneWidget);
+    final surface = tester.widget<ClipRRect>(find.byType(ClipRRect));
+    expect(surface.borderRadius, BorderRadius.circular(4));
+    expect(find.byType(BlenderPanelHeader), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('blender-number-field-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('alert dialog uses centered Blender modal anatomy', (
@@ -2149,6 +2388,41 @@ void main() {
     search.text = 'outline';
     await tester.pump();
     expect(find.text('Outline'), findsOneWidget);
+  });
+
+  testWidgets('cache file time rows preserve source conditional states', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 560,
+          height: 520,
+          child: BlenderCacheFilePanel(
+            settings: const BlenderCacheFileSettings(
+              path: '/cache/scene.abc',
+              isSequence: true,
+            ),
+            onChanged: _ignoreCacheFileSettings,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Filepath'), findsOneWidget);
+    expect(find.text('Override Frame'), findsOneWidget);
+    expect(find.text('Frame Offset'), findsOneWidget);
+    final numberFields = tester
+        .widgetList<BlenderNumberField>(find.byType(BlenderNumberField))
+        .toList();
+    expect(
+      numberFields.any((field) => field.value == 1 && !field.enabled),
+      isTrue,
+    );
+    expect(
+      numberFields.any((field) => field.value == 0 && !field.enabled),
+      isTrue,
+    );
   });
 
   testWidgets('data-block field exposes the full ID template anatomy', (
@@ -2853,7 +3127,15 @@ void main() {
 
 void _ignoreDouble(double value) {}
 
+Widget _emptyDoubleEditor(
+  BuildContext context,
+  double value,
+  ValueChanged<double> onChanged,
+) => const SizedBox(height: 20);
+
 void _ignoreString(String value) {}
+
+void _ignoreStringSet(Set<String> value) {}
 
 void _ignoreBool(bool value) {}
 
@@ -2866,3 +3148,5 @@ void _ignoreVoid() {}
 void _ignoreOffset(Offset value) {}
 
 void _ignoreMatrix(List<List<double>> value) {}
+
+void _ignoreCacheFileSettings(BlenderCacheFileSettings value) {}

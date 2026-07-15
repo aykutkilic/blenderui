@@ -1,5 +1,39 @@
 # Development history
 
+## 2026-07-15 — Matched the Object Properties transform context
+
+- Re-read Blender's `properties_object.py` and matched the Object context's
+  active-object `template_ID`, active-object caption, Transform property split,
+  location/rotation/scale vectors, rotation mode, unlocked decorators, and
+  animation dots in the example application.
+- Added source-ordered, default-collapsed Object sections. Delta Transform now
+  uses a reusable `BlenderPropertyGroup.children` relationship, corresponding
+  to Blender's `bl_parent_id`, so it remains inside Transform instead of being
+  modeled as an unrelated reorderable top-level panel.
+- Extended Properties filtering and expansion reconciliation recursively so
+  nested panels remain searchable without losing their stored collapsed state.
+  Because the nested content is part of the parent widget, existing measured
+  reorder proxies also carry its true expanded height.
+- Added the source `DECORATE_UNLOCKED` glyph mapping and optional numeric-field
+  suffixes for meters and degrees. The Properties options trigger now uses the
+  compact thin down-disclosure glyph rather than the generic filled chevron.
+- Added Object-context interaction and golden coverage, then verified all 75
+  package tests and all 7 example tests. An initial example test invocation
+  from the repository root could not resolve `blender_ui_example`; rerunning
+  from the example package root is the correct workspace procedure.
+
+## 2026-07-15 — Matched submenu and Properties context-tab affordances
+
+- Submenu rows now use Blender's thin right-disclosure glyph at 9px. Their
+  parent row remains highlighted while the child submenu is open, matching
+  Blender's menu navigation state.
+- Properties context tabs now resolve icon colors from the shared Blender theme
+  categories for scene, object, modifier, and shading contexts. The visible
+  tabs control uses the same thin 9px down arrow and is laid out immediately
+  after the final visible tab rather than pinned to the rail bottom.
+- Added focused regressions for submenu hover persistence and the trailing
+  Properties-tab disclosure placement.
+
 ## 2026-07-15 — Added Action mode and richer Timeline example data
 
 - Re-read `space_dopesheet.py`, `space_time.py`, and the `space_action`
@@ -209,7 +243,64 @@
   remain caller-owned; the visual descriptor can now represent the resulting
   grouped rows without coupling to Blender's window-manager types.
 - Package analysis and all 71 package tests pass; the example suite and its 6
-  smoke/visual-baseline tests pass without golden changes.
+  smoke/visual-baseline tests pass without golden changes. The final example
+  invocation briefly waited for Flutter's startup lock, then completed
+  successfully; the existing non-fatal SVG parser warnings remain unchanged.
+
+## 2026-07-15 — Matched Color Management property-row composition
+
+- Re-read `interface_template_color_management.cc`: Blender draws Color Space,
+  View, Look, Exposure, Gamma, curve-mapping, and white-balance controls as
+  vertical split-property rows. Temperature and Tint also remain separate rows
+  when white balance is enabled.
+- Replaced the app's side-by-side Exposure/Gamma and Temperature/Tint groups
+  with reusable `BlenderPropertyRow` composition. Checkbox labels now live in
+  the split label column, matching Blender's property layout while preserving
+  the existing immutable settings and callback API.
+- Package analysis and all 71 package tests pass; the example analysis and all
+  6 smoke/visual-baseline tests pass without golden changes.
+
+## 2026-07-15 — Matched cache-file conditional property rows
+
+- Re-read `interface_template_cache_file.cc`. Blender keeps the filepath and
+  reload affordance in a split row, combines `Override Frame` with its frame
+  value, and disables `Frame Offset` when `Is Sequence` is enabled.
+- Updated `BlenderCacheFilePanel` to use the shared split-property row, expose
+  the filepath label, keep the override checkbox and frame field together, and
+  propagate the sequence-dependent disabled state to Frame Offset.
+- Added a focused regression for the disabled frame fields. Package analysis
+  and all 72 package tests pass; the example suite and all 6 visual-baseline
+  tests pass without golden changes. Dart formatting caught a nested filepath
+  row delimiter typo during the edit; it was corrected before analysis.
+
+## 2026-07-15 — Matched scope resize anatomy
+
+- Re-read `interface_template_scopes.cc`: Histogram, Waveform, and Vectorscope
+  all use a bounded persisted height and a bottom `ICON_GRIP` resize control.
+- Converted `BlenderScopeView` to a stateful bounded surface with configurable
+  minimum/maximum height and a source-backed grip; the scope painter and
+  caller-owned samples remain unchanged.
+- Added a drag regression. During verification, a concurrent submenu test's
+  unsupported `WidgetTester.hover` call was migrated to a supported mouse
+  `TestGesture`, and accidental test-file delimiter edits were restored before
+  formatting. Package analysis and all 74 package tests pass; the example
+  analysis and all 7 smoke/visual-baseline tests pass after refreshing the
+  intentional Properties-rail baseline.
+
+## 2026-07-15 — Matched Recent Files row and tooltip anatomy
+
+- Re-read `interface_template_recent_files.cc`. Blender displays each recent
+  entry as a compact filename-only operator row with a `.blend` or backup file
+  icon; directory, version, modified time, and size are supplied by the
+  tooltip rather than a second visible text line.
+- Added source-backed `fileBlend` and `fileBackup` glyphs and changed
+  `BlenderRecentFiles` to keep path/details in a tooltip while deriving backup
+  icon state from the descriptor or `.blendN` path suffix. Selection and clear
+  callbacks remain unchanged.
+- Extended the regression for both file icon variants and hidden path text.
+  The showcase workspace, Output Properties, and Object Properties baselines
+  were refreshed for the intentional row/icon change. Package analysis and
+  all 74 package tests pass; the example analysis and all 7 tests pass.
 
 ## 2026-07-15 — Matched selector and Properties-tab states
 

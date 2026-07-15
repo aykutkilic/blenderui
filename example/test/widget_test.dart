@@ -228,6 +228,71 @@ void main() {
     );
   });
 
+  testWidgets('Object Properties follows Blender transform anatomy', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(900, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final optionsButton = tester.widget<BlenderIconButton>(
+      find.byKey(const ValueKey<String>('properties-context-options-button')),
+    );
+    expect(optionsButton.glyph, BlenderGlyph.panelDisclosureDown);
+
+    await tester.tap(find.bySemanticsLabel('Object'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('active-object-field')),
+      findsOneWidget,
+    );
+    expect(find.text('Transform'), findsOneWidget);
+    expect(find.text('Location X'), findsOneWidget);
+    expect(find.text('Rotation X'), findsOneWidget);
+    expect(find.text('Mode'), findsOneWidget);
+    expect(find.text('Scale X'), findsOneWidget);
+    expect(find.text('Delta Transform'), findsOneWidget);
+    expect(find.text('Relations'), findsOneWidget);
+    expect(find.text('Viewport Display'), findsOneWidget);
+    final objectEditor = tester.widget<BlenderPropertiesEditor>(
+      find.byType(BlenderPropertiesEditor),
+    );
+    expect(
+      objectEditor.groups.map((group) => group.title),
+      containsAll(<String>[
+        'Collections',
+        'Instancing',
+        'Motion Paths',
+        'Visibility',
+        'Animation',
+        'Custom Properties',
+      ]),
+    );
+
+    final numberFields = tester
+        .widgetList<BlenderNumberField>(find.byType(BlenderNumberField))
+        .toList();
+    expect(numberFields.where((field) => field.suffix == ' m').length, 3);
+    expect(numberFields.where((field) => field.suffix == '°').length, 3);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.unlock,
+      ),
+      findsNWidgets(9),
+    );
+
+    await expectLater(
+      find.byType(ShowcaseApp),
+      matchesGoldenFile('goldens/showcase_object_properties.png'),
+    );
+  });
+
   testWidgets('bottom animation editor exposes Timeline and Action details', (
     tester,
   ) async {

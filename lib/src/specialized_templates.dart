@@ -3831,32 +3831,27 @@ class BlenderInputStatus extends StatelessWidget {
     return Opacity(opacity: enabled ? 1 : .5, child: BlenderKeycap(label));
   }
 
-  Widget _glyphToken(BuildContext context, BlenderGlyph glyph, bool enabled) {
-    final theme = BlenderTheme.of(context);
+  Widget _glyphToken(BlenderGlyph glyph, bool enabled, {Color? color}) {
     return Opacity(
       opacity: enabled ? 1 : .5,
-      child: BlenderIcon(
-        glyph,
-        size: 16,
-        color: itemWarningColor(theme, enabled: enabled),
-      ),
+      child: BlenderIcon(glyph, size: 16, color: color),
     );
-  }
-
-  Color? itemWarningColor(BlenderThemeData theme, {required bool enabled}) {
-    return enabled ? null : theme.colors.foregroundDisabled;
   }
 
   Widget _item(BuildContext context, BlenderInputStatusItem item) {
     final theme = BlenderTheme.of(context);
     final tokens = <Widget>[
       for (final modifier in item.modifierGlyphs)
-        _glyphToken(context, modifier, item.enabled),
+        _glyphToken(modifier, item.enabled),
       for (final modifier in item.modifiers)
         _token(context, modifier, item.enabled),
       if (item.eventGlyphs.isNotEmpty)
         for (final event in item.eventGlyphs)
-          _glyphToken(context, event, item.enabled)
+          _glyphToken(
+            event,
+            item.enabled,
+            color: item.warning ? theme.colors.warning : null,
+          )
       else if (item.events.isNotEmpty)
         for (final event in item.events) _token(context, event, item.enabled)
       else if (item.event != null)
@@ -3880,11 +3875,15 @@ class BlenderInputStatus extends StatelessWidget {
       if (item.dragEvent != null) ...<Widget>[
         const SizedBox(width: 3),
         for (final modifier in item.dragModifierGlyphs)
-          _glyphToken(context, modifier, item.enabled),
+          _glyphToken(modifier, item.enabled),
         for (final modifier in item.dragModifiers)
           _token(context, modifier, item.enabled),
         if (item.dragEventGlyph != null)
-          _glyphToken(context, item.dragEventGlyph!, item.enabled)
+          _glyphToken(
+            item.dragEventGlyph!,
+            item.enabled,
+            color: item.warning ? theme.colors.warning : null,
+          )
         else
           _token(context, item.dragEvent!, item.enabled),
       ],
@@ -4041,14 +4040,7 @@ class _BlenderCacheFilePanelState extends State<BlenderCacheFilePanel> {
   void _change(BlenderCacheFileSettings next) => widget.onChanged(next);
 
   Widget _propertyRow(String label, Widget child) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(child: Text(label)),
-        const SizedBox(width: 8),
-        Expanded(flex: 2, child: child),
-      ],
-    );
+    return BlenderPropertyRow(label: label, editor: child);
   }
 
   @override
@@ -4059,29 +4051,33 @@ class _BlenderCacheFilePanelState extends State<BlenderCacheFilePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: BlenderTextField(
-                  controller: _pathController,
-                  placeholder: 'Cache file path',
-                  onChanged: (value) => _change(settings.copyWith(path: value)),
+          _propertyRow(
+            'Filepath',
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: BlenderTextField(
+                    controller: _pathController,
+                    placeholder: 'Cache file path',
+                    onChanged: (value) =>
+                        _change(settings.copyWith(path: value)),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              BlenderIconButton(
-                glyph: BlenderGlyph.refresh,
-                onPressed: widget.onReload,
-                tooltip: 'Reload cache file',
-                size: 24,
-              ),
-              BlenderIconButton(
-                glyph: BlenderGlyph.folder,
-                onPressed: widget.onBrowse,
-                tooltip: 'Browse cache file',
-                size: 24,
-              ),
-            ],
+                const SizedBox(width: 4),
+                BlenderIconButton(
+                  glyph: BlenderGlyph.refresh,
+                  onPressed: widget.onReload,
+                  tooltip: 'Reload cache file',
+                  size: 24,
+                ),
+                BlenderIconButton(
+                  glyph: BlenderGlyph.folder,
+                  onPressed: widget.onBrowse,
+                  tooltip: 'Browse cache file',
+                  size: 24,
+                ),
+              ],
+            ),
           ),
           if (settings.showManualScale) ...<Widget>[
             const SizedBox(height: 6),
@@ -4103,36 +4099,44 @@ class _BlenderCacheFilePanelState extends State<BlenderCacheFilePanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                BlenderCheckbox(
-                  value: settings.isSequence,
-                  label: 'Sequence',
-                  onChanged: (value) =>
-                      _change(settings.copyWith(isSequence: value)),
-                ),
-                const SizedBox(height: 5),
-                BlenderCheckbox(
-                  value: settings.overrideFrame,
-                  label: 'Override Frame',
-                  onChanged: (value) =>
-                      _change(settings.copyWith(overrideFrame: value)),
-                ),
-                const SizedBox(height: 5),
                 _propertyRow(
-                  'Frame',
-                  BlenderNumberField(
-                    value: settings.frame,
-                    decimalDigits: 0,
-                    enabled: settings.overrideFrame,
+                  'Is Sequence',
+                  BlenderCheckbox(
+                    value: settings.isSequence,
+                    label: '',
                     onChanged: (value) =>
-                        _change(settings.copyWith(frame: value)),
+                        _change(settings.copyWith(isSequence: value)),
                   ),
                 ),
-                const SizedBox(height: 5),
+                _propertyRow(
+                  'Override Frame',
+                  Row(
+                    children: <Widget>[
+                      BlenderCheckbox(
+                        value: settings.overrideFrame,
+                        label: '',
+                        onChanged: (value) =>
+                            _change(settings.copyWith(overrideFrame: value)),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: BlenderNumberField(
+                          value: settings.frame,
+                          decimalDigits: 0,
+                          enabled: settings.overrideFrame,
+                          onChanged: (value) =>
+                              _change(settings.copyWith(frame: value)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 _propertyRow(
                   'Frame Offset',
                   BlenderNumberField(
                     value: settings.frameOffset,
                     decimalDigits: 0,
+                    enabled: !settings.isSequence,
                     onChanged: (value) =>
                         _change(settings.copyWith(frameOffset: value)),
                   ),

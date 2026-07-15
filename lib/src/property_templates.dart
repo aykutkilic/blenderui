@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'controls.dart';
+import 'editors.dart';
 import 'icons.dart';
 import 'layout.dart';
 import 'templates.dart';
@@ -414,20 +415,16 @@ class BlenderColorManagement extends StatelessWidget {
     List<String> values,
     ValueChanged<String> onValueChanged,
   ) {
-    return Row(
-      children: <Widget>[
-        SizedBox(width: 82, child: Text(label)),
-        Expanded(
-          child: BlenderDropdown<String>(
-            value: value,
-            items: [
-              for (final item in values)
-                BlenderMenuItem<String>(value: item, label: item),
-            ],
-            onChanged: onValueChanged,
-          ),
-        ),
-      ],
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderDropdown<String>(
+        value: value,
+        items: [
+          for (final item in values)
+            BlenderMenuItem<String>(value: item, label: item),
+        ],
+        onChanged: onValueChanged,
+      ),
     );
   }
 
@@ -459,36 +456,33 @@ class BlenderColorManagement extends StatelessWidget {
             (value) => onChanged(settings.copyWith(look: value)),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: BlenderNumberField(
-                  value: settings.exposure,
-                  label: 'Exposure',
-                  step: .1,
-                  onChanged: (value) =>
-                      onChanged(settings.copyWith(exposure: value)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: BlenderNumberField(
-                  value: settings.gamma,
-                  label: 'Gamma',
-                  min: 0,
-                  step: .01,
-                  onChanged: (value) =>
-                      onChanged(settings.copyWith(gamma: value)),
-                ),
-              ),
-            ],
+          BlenderPropertyRow(
+            label: 'Exposure',
+            editor: BlenderNumberField(
+              value: settings.exposure,
+              step: .1,
+              onChanged: (value) =>
+                  onChanged(settings.copyWith(exposure: value)),
+            ),
+          ),
+          BlenderPropertyRow(
+            label: 'Gamma',
+            editor: BlenderNumberField(
+              value: settings.gamma,
+              min: 0,
+              step: .01,
+              onChanged: (value) => onChanged(settings.copyWith(gamma: value)),
+            ),
           ),
           const SizedBox(height: 4),
-          BlenderCheckbox(
-            value: settings.useCurveMapping,
+          BlenderPropertyRow(
             label: 'Use Curve Mapping',
-            onChanged: (value) =>
-                onChanged(settings.copyWith(useCurveMapping: value)),
+            editor: BlenderCheckbox(
+              value: settings.useCurveMapping,
+              label: '',
+              onChanged: (value) =>
+                  onChanged(settings.copyWith(useCurveMapping: value)),
+            ),
           ),
           if (settings.useCurveMapping) ...<Widget>[
             const SizedBox(height: 4),
@@ -500,42 +494,40 @@ class BlenderColorManagement extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 4),
-          BlenderCheckbox(
-            value: settings.useWhiteBalance,
+          BlenderPropertyRow(
             label: 'Use White Balance',
-            onChanged: (value) =>
-                onChanged(settings.copyWith(useWhiteBalance: value)),
+            editor: BlenderCheckbox(
+              value: settings.useWhiteBalance,
+              label: '',
+              onChanged: (value) =>
+                  onChanged(settings.copyWith(useWhiteBalance: value)),
+            ),
           ),
           if (settings.useWhiteBalance) ...<Widget>[
             const SizedBox(height: 4),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: BlenderNumberField(
-                    value: settings.whiteBalanceTemperature,
-                    label: 'Temperature',
-                    min: 1000,
-                    max: 20000,
-                    step: 10,
-                    decimalDigits: 0,
-                    onChanged: (value) => onChanged(
-                      settings.copyWith(whiteBalanceTemperature: value),
-                    ),
-                  ),
+            BlenderPropertyRow(
+              label: 'Temperature',
+              editor: BlenderNumberField(
+                value: settings.whiteBalanceTemperature,
+                min: 1000,
+                max: 20000,
+                step: 10,
+                decimalDigits: 0,
+                onChanged: (value) => onChanged(
+                  settings.copyWith(whiteBalanceTemperature: value),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: BlenderNumberField(
-                    value: settings.whiteBalanceTint,
-                    label: 'Tint',
-                    min: -1,
-                    max: 1,
-                    step: .01,
-                    onChanged: (value) =>
-                        onChanged(settings.copyWith(whiteBalanceTint: value)),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            BlenderPropertyRow(
+              label: 'Tint',
+              editor: BlenderNumberField(
+                value: settings.whiteBalanceTint,
+                min: -1,
+                max: 1,
+                step: .01,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(whiteBalanceTint: value)),
+              ),
             ),
           ],
         ],

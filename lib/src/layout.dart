@@ -54,25 +54,28 @@ class BlenderPanel extends StatelessWidget {
           final body = constraints.hasBoundedHeight
               ? Flexible(child: content)
               : content;
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: backgroundColor ?? theme.colors.panelBackground,
-              border: Border.all(color: theme.colors.panelOutline),
-              borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                BlenderPanelHeader(
-                  title: title!,
-                  actions: headerActions,
-                  leading: headerLeading,
-                  titleStyle: headerTitleStyle,
-                  handle: headerHandle,
-                  showHandle: showHandle,
-                ),
-                body,
-              ],
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: backgroundColor ?? theme.colors.panelBackground,
+                border: Border.all(color: theme.colors.panelOutline),
+                borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  BlenderPanelHeader(
+                    title: title!,
+                    actions: headerActions,
+                    leading: headerLeading,
+                    titleStyle: headerTitleStyle,
+                    handle: headerHandle,
+                    showHandle: showHandle,
+                  ),
+                  body,
+                ],
+              ),
             ),
           );
         },
@@ -211,31 +214,32 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color:
-            widget.backgroundColor ??
-            BlenderTheme.of(context).colors.panelBackground,
-        border: Border.all(color: BlenderTheme.of(context).colors.panelOutline),
-        borderRadius: BorderRadius.circular(
-          BlenderTheme.of(context).shapes.panelRadius,
+    final theme = BlenderTheme.of(context);
+    final radius = BorderRadius.circular(theme.shapes.panelRadius);
+    return ClipRRect(
+      borderRadius: radius,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.backgroundColor ?? theme.colors.panelBackground,
+          border: Border.all(color: theme.colors.panelOutline),
+          borderRadius: radius,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          BlenderPanelHeader(
-            title: widget.title,
-            actions: widget.actions,
-            expanded: _effectiveExpanded,
-            leading: widget.leading,
-            titleStyle: widget.titleStyle,
-            handle: widget.handle,
-            showHandle: widget.showHandle,
-            onTap: _toggleExpanded,
-          ),
-          if (_effectiveExpanded) widget.content,
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            BlenderPanelHeader(
+              title: widget.title,
+              actions: widget.actions,
+              expanded: _effectiveExpanded,
+              leading: widget.leading,
+              titleStyle: widget.titleStyle,
+              handle: widget.handle,
+              showHandle: widget.showHandle,
+              onTap: _toggleExpanded,
+            ),
+            if (_effectiveExpanded) widget.content,
+          ],
+        ),
       ),
     );
   }
