@@ -31,7 +31,7 @@ appearance, and composition.
 | `interface_template_color_ramp.cc` | `BlenderColorRamp` | Implemented |
 | `interface_template_curve_mapping.cc` | `BlenderCurveMapping` | Implemented |
 | `interface_template_curve_profile.cc` | `BlenderCurveProfile` | Implemented |
-| `interface_template_event.cc` | `BlenderInputStatus`, `BlenderKeycap` | Partial |
+| `interface_template_event.cc` | `BlenderInputStatus`, source-backed modifier/event glyphs, `BlenderKeycap` fallback | Partial |
 | `interface_template_shader_fx.cc` | `BlenderShaderEffectStack` | Implemented |
 | `interface_template_node_tree_interface.cc` | `BlenderNodeTreeInterface` | Implemented |
 | `interface_template_node_inputs.cc` | `BlenderNodeInputs` | Implemented |
@@ -144,9 +144,10 @@ The corresponding local source references are:
   material mode row, and preview-alpha toggle. `BlenderPreviewTile` remains the
   separate grid-tile anatomy used by asset and ID browsers.
 - `interface_template_event.cc` for modal keymap/status event composition; the
-  package now covers reusable modifier/event/label rows and compact grouped
-  Axis, Plane, and Proportional Size tokens through `BlenderInputStatus`, but
-  not the source-level keymap polling that decides when groups collapse.
+  package now covers reusable modifier/event/label rows, source-backed
+  Shift/Ctrl/Option/Command/Windows glyphs, and compact grouped Axis, Plane,
+  and Proportional Size tokens through `BlenderInputStatus`, but not the
+  source-level keymap polling that decides when groups collapse.
 - `interface_template_status.cc` for status-bar and report content; the
   package now covers the persistent bar, status-info text/version and
   extension states, report editor, severity-colored transient report banner,

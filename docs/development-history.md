@@ -196,6 +196,21 @@
   Package analysis and all 71 package tests pass; the example analysis and all
   6 smoke/visual-baseline tests pass.
 
+## 2026-07-15 — Matched status-bar modifier glyph anatomy
+
+- Re-read `interface_template_event.cc` and `interface_template_status.cc`.
+  Blender renders split/dock modifier actions with dedicated Shift/Ctrl event
+  icons followed by mouse-drag icons; these are not boxed text keycaps.
+- Added source-backed key glyphs and optional modifier/event glyph lists to
+  `BlenderInputStatusItem`. Existing string fields remain as a compatibility
+  fallback for callers without Blender event metadata, while the built-in
+  split/dock contexts now use the source glyphs.
+- Runtime keymap polling and the source's conditional axis/plane collapse
+  remain caller-owned; the visual descriptor can now represent the resulting
+  grouped rows without coupling to Blender's window-manager types.
+- Package analysis and all 71 package tests pass; the example suite and its 6
+  smoke/visual-baseline tests pass without golden changes.
+
 ## 2026-07-15 — Matched selector and Properties-tab states
 
 - Reduced pane-section chevrons to 11px after comparing their rendered bounds
