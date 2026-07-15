@@ -11,11 +11,15 @@ class ShowcaseViewport extends StatefulWidget {
     required this.selectedObject,
     required this.showGrid,
     required this.wireframe,
+    this.sidebar,
+    this.sidebarWidth = 240,
   });
 
   final String selectedObject;
   final bool showGrid;
   final bool wireframe;
+  final Widget? sidebar;
+  final double sidebarWidth;
 
   @override
   State<ShowcaseViewport> createState() => _ShowcaseViewportState();
@@ -52,7 +56,7 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
   Widget build(BuildContext context) {
     final colors = BlenderTheme.of(context).colors;
     final camera = _OrbitCamera(yaw: _yaw, pitch: _pitch, distance: _distance);
-    return Listener(
+    final canvas = Listener(
       onPointerSignal: _zoom,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -96,6 +100,14 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
           ),
         ),
       ),
+    );
+    if (widget.sidebar == null) return canvas;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(child: canvas),
+        SizedBox(width: widget.sidebarWidth, child: widget.sidebar),
+      ],
     );
   }
 }

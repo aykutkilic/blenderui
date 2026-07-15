@@ -703,7 +703,7 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
   }
 }
 
-class BlenderPropertyTabs extends StatelessWidget {
+class BlenderPropertyTabs extends StatefulWidget {
   const BlenderPropertyTabs({
     super.key,
     required this.tabs,
@@ -727,11 +727,54 @@ class BlenderPropertyTabs extends StatelessWidget {
   final ValueChanged<Set<String>>? onVisibilityChanged;
 
   @override
+  State<BlenderPropertyTabs> createState() => _BlenderPropertyTabsState();
+}
+
+class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
+  late final ScrollController _scrollController;
+  bool _showTopFade = false;
+  bool _showBottomFade = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_syncFadeState);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncFadeState());
+  }
+
+  void _syncFadeState() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final showTop = position.pixels > 1;
+    final showBottom = position.pixels < position.maxScrollExtent - 1;
+    if (showTop == _showTopFade && showBottom == _showBottomFade) return;
+    if (!mounted) return;
+    setState(() {
+      _showTopFade = showTop;
+      _showBottomFade = showBottom;
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_syncFadeState)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final tabs = widget.tabs;
+    final selectedIndex = widget.selectedIndex;
+    final width = widget.width;
+    final tileSize = widget.tileSize;
+    final visibleTabIds = widget.visibleTabIds;
+    final onVisibilityChanged = widget.onVisibilityChanged;
     final theme = BlenderTheme.of(context);
     final visibleEntries = <MapEntry<int, List<int>>>[];
     for (var index = 0; index < tabs.length; index++) {
-      if (visibleTabIds != null && !visibleTabIds!.contains(tabs[index].id)) {
+      if (visibleTabIds != null && !visibleTabIds.contains(tabs[index].id)) {
         continue;
       }
       final existing = visibleEntries.indexWhere(
@@ -764,54 +807,110 @@ class BlenderPropertyTabs extends StatelessWidget {
         child: Column(
           children: <Widget>[
             Expanded(
-              child: ListView(
-                // An attached Properties rail shares the editor's top edge.
-                // Keep a one-pixel seam on the outer edge, while the content
-                // edge stays flush so the selected tile attaches to the pane.
-                padding: const EdgeInsets.fromLTRB(1, 0, 0, 5),
+              child: Stack(
                 children: <Widget>[
-                  for (
-                    var groupIndex = 0;
-                    groupIndex < visibleEntries.length;
-                    groupIndex++
-                  ) ...<Widget>[
-                    if (groupIndex > 0) const SizedBox(height: 4),
-                    DecoratedBox(
-                      decoration: const BoxDecoration(
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: Color(0x38000000),
-                            offset: Offset(0, 1),
-                            blurRadius: 1,
+                  ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(
+                      context,
+                    ).copyWith(scrollbars: false),
+                    child: ListView(
+                      key: const ValueKey<String>('property-tabs-scroll'),
+                      controller: _scrollController,
+                      // An attached Properties rail shares the editor's top
+                      // edge. Keep a one-pixel seam on the outer edge, while
+                      // the content edge stays flush with the pane.
+                      padding: const EdgeInsets.fromLTRB(1, 0, 0, 5),
+                      children: <Widget>[
+                        for (
+                          var groupIndex = 0;
+                          groupIndex < visibleEntries.length;
+                          groupIndex++
+                        ) ...<Widget>[
+                          if (groupIndex > 0) const SizedBox(height: 4),
+                          DecoratedBox(
+                            decoration: const BoxDecoration(
+                              boxShadow: <BoxShadow>[
+                                BoxShadow(
+                                  color: Color(0x38000000),
+                                  offset: Offset(0, 1),
+                                  blurRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: <Widget>[
+                                for (final index
+                                    in visibleEntries[groupIndex].value)
+                                  _BlenderPropertyTabButton(
+                                    tab: tabs[index],
+                                    selected: index == selectedIndex,
+                                    size: tileSize
+                                        .clamp(1, width - 1)
+                                        .toDouble(),
+                                    onPressed: () => widget.onChanged(index),
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
-                      ),
-                      child: Column(
-                        children: <Widget>[
-                          for (final index in visibleEntries[groupIndex].value)
-                            _BlenderPropertyTabButton(
-                              tab: tabs[index],
-                              selected: index == selectedIndex,
+                        if (visibleTabIds != null &&
+                            onVisibilityChanged != null) ...<Widget>[
+                          const SizedBox(height: 3),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: BlenderPropertyTabVisibilityMenu(
+                              tabs: tabs,
+                              visibleTabIds: visibleTabIds,
+                              onVisibilityChanged: onVisibilityChanged,
                               size: tileSize.clamp(1, width - 1).toDouble(),
-                              onPressed: () => onChanged(index),
                             ),
+                          ),
                         ],
+                      ],
+                    ),
+                  ),
+                  if (_showTopFade)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: 18,
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: <Color>[
+                                theme.colors.tab,
+                                theme.colors.tab.withAlpha(0),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                  if (visibleTabIds != null &&
-                      onVisibilityChanged != null) ...<Widget>[
-                    const SizedBox(height: 3),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: BlenderPropertyTabVisibilityMenu(
-                        tabs: tabs,
-                        visibleTabIds: visibleTabIds!,
-                        onVisibilityChanged: onVisibilityChanged!,
-                        size: tileSize.clamp(1, width - 1).toDouble(),
+                  if (_showBottomFade)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 18,
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: <Color>[
+                                theme.colors.tab,
+                                theme.colors.tab.withAlpha(0),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ],
                 ],
               ),
             ),

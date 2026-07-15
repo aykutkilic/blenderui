@@ -98,10 +98,14 @@ class BlenderListView<T> extends StatelessWidget {
                       ),
                     ),
                     if (item.detail != null)
-                      Text(
-                        item.detail!,
-                        style: theme.textTheme.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
+                      Flexible(
+                        child: Text(
+                          item.detail!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
                         ),
                       ),
                   ],
@@ -312,7 +316,7 @@ class _BlenderTemplateListState<T> extends State<BlenderTemplateList<T>> {
                         alignment: Alignment.center,
                         child: BlenderIcon(
                           BlenderGlyph.grip,
-                          size: 14,
+                          size: 10,
                           color: theme.colors.foregroundMuted,
                         ),
                       ),

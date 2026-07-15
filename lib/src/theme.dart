@@ -455,11 +455,13 @@ class BlenderApp extends StatelessWidget {
     required this.home,
     this.title = 'Blender UI',
     this.theme = const BlenderThemeData(),
+    this.navigatorKey,
   });
 
   final Widget home;
   final String title;
   final BlenderThemeData theme;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   Widget build(BuildContext context) {
@@ -469,6 +471,7 @@ class BlenderApp extends StatelessWidget {
         color: theme.colors.accent,
         title: title,
         home: home,
+        navigatorKey: navigatorKey,
         pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) =>
             PageRouteBuilder<T>(
               settings: settings,

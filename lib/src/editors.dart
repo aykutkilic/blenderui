@@ -7,6 +7,7 @@ import 'collections.dart';
 import 'controls.dart';
 import 'icons.dart';
 import 'layout.dart';
+import 'overlay_host.dart';
 import 'theme.dart';
 
 typedef BlenderPropertyEditorBuilder<T> =
@@ -123,6 +124,7 @@ class BlenderPropertyGroup {
     this.initiallyExpanded = true,
     this.headerLeading,
     this.headerActions,
+    this.content,
     this.children = const <BlenderPropertyGroup>[],
   });
 
@@ -132,6 +134,10 @@ class BlenderPropertyGroup {
   final bool initiallyExpanded;
   final Widget? headerLeading;
   final List<Widget>? headerActions;
+
+  /// Optional source-shaped content for panels whose Blender implementation
+  /// is primarily a list/tree rather than property rows.
+  final Widget? content;
 
   /// Child panels rendered inside this panel, matching Blender's
   /// `bl_parent_id` panel relationship.
@@ -427,6 +433,7 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
   ) {
     return Column(
       children: <Widget>[
+        if (view.group.content != null) view.group.content!,
         for (final property in view.properties)
           BlenderPropertyRow(
             label: property.label,
@@ -510,7 +517,7 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
     final searchActive = query.trim().isNotEmpty;
     return BlenderScrollbar(
       controller: _scrollController,
-      child: _EnsureOverlay(
+      child: BlenderEnsureOverlay(
         child: ReorderableList(
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -561,7 +568,7 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
                         ),
                         child: BlenderIcon(
                           BlenderGlyph.dragHandle,
-                          size: 9,
+                          size: 7,
                           color: theme.colors.foreground.withAlpha(128),
                         ),
                       ),
@@ -641,64 +648,6 @@ class _PropertiesGroupView {
   final BlenderPropertyGroup group;
   final List<BlenderPropertyDescriptor<dynamic>> properties;
   final List<_PropertiesGroupView> children;
-}
-
-/// Supplies the floating layer required by reorderable panels when an editor
-/// is embedded without a Navigator or app-level Overlay.
-class _EnsureOverlay extends StatelessWidget {
-  const _EnsureOverlay({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget result = Overlay.maybeOf(context) != null
-        ? child
-        : _LocalOverlay(child: child);
-    if (Localizations.of<WidgetsLocalizations>(context, WidgetsLocalizations) ==
-        null) {
-      result = Localizations(
-        locale: const Locale('en', 'US'),
-        delegates: const <LocalizationsDelegate<dynamic>>[
-          DefaultWidgetsLocalizations.delegate,
-        ],
-        child: result,
-      );
-    }
-    return result;
-  }
-}
-
-class _LocalOverlay extends StatefulWidget {
-  const _LocalOverlay({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_LocalOverlay> createState() => _LocalOverlayState();
-}
-
-class _LocalOverlayState extends State<_LocalOverlay> {
-  late final OverlayEntry _entry = OverlayEntry(
-    builder: (context) => widget.child,
-  );
-
-  @override
-  void didUpdateWidget(_LocalOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _entry.markNeedsBuild();
-  }
-
-  @override
-  void dispose() {
-    _entry.remove();
-    _entry.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      Overlay(initialEntries: <OverlayEntry>[_entry]);
 }
 
 class _PropertiesContextCaption extends StatelessWidget {
@@ -1006,9 +955,10 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                             Expanded(
                               child: Row(
                                 children: <Widget>[
-                                  Expanded(
+                                  Flexible(
                                     child: Text(
                                       node.label,
+                                      maxLines: 1,
                                       style: theme.textTheme.label.copyWith(
                                         color: node.selectable
                                             ? theme.colors.foreground
@@ -1018,12 +968,16 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                                     ),
                                   ),
                                   if (node.dropHint != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: Text(
-                                        node.dropHint!,
-                                        style: theme.textTheme.caption.copyWith(
-                                          color: theme.colors.accent,
+                                    Flexible(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: Text(
+                                          node.dropHint!,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.caption
+                                              .copyWith(
+                                                color: theme.colors.accent,
+                                              ),
                                         ),
                                       ),
                                     ),
@@ -1097,9 +1051,19 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
   @override
   void didUpdateWidget(covariant BlenderTree<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Reconcile against the complete tree. Retaining only root IDs causes
+    // nested collections to collapse whenever the parent rebuilds, which can
+    // turn the collapsed-child summary into an unexpectedly wide row.
     final ids = <String>{};
+    void collectIds(BlenderTreeNode<T> node) {
+      if (node.children.isNotEmpty) ids.add(node.id);
+      for (final child in node.children) {
+        collectIds(child);
+      }
+    }
+
     for (final root in widget.roots) {
-      if (root.children.isNotEmpty) ids.add(root.id);
+      collectIds(root);
     }
     _expanded.retainWhere(ids.contains);
   }
@@ -1233,8 +1197,41 @@ class BlenderOutliner<T> extends StatelessWidget {
     this.onLockChanged,
     this.title = 'Outliner',
     this.headerActions,
+    this.filterController,
+    this.onFilterChanged,
+    this.filterPlaceholder = 'Search',
     this.displayMode = BlenderOutlinerDisplayMode.viewLayer,
     this.onDisplayModeChanged,
+    this.syncSelection = true,
+    this.onSyncSelectionChanged,
+    this.libraryOverrideViewMode = 'Hierarchies',
+    this.onLibraryOverrideViewModeChanged,
+    this.useIdFilter = false,
+    this.onIdFilterChanged,
+    this.idFilterType = 'All',
+    this.idFilterTypes = const <String>[
+      'All',
+      'Actions',
+      'Armatures',
+      'Cameras',
+      'Collections',
+      'Materials',
+      'Meshes',
+      'Objects',
+      'Scenes',
+      'Worlds',
+    ],
+    this.onIdFilterTypeChanged,
+    this.onNewCollection,
+    this.onPurgeUnusedData,
+    this.hasActiveKeyingSet = false,
+    this.activeKeyingSet = 'Location',
+    this.keyingSets = const <String>['Location', 'Rotation', 'Scale'],
+    this.onKeyingSetChanged,
+    this.onKeyingSetAdd,
+    this.onKeyingSetRemove,
+    this.onKeyframeInsert,
+    this.onKeyframeDelete,
     this.editorType = BlenderEditorType.outliner,
     this.onEditorTypeChanged,
   });
@@ -1248,14 +1245,176 @@ class BlenderOutliner<T> extends StatelessWidget {
   final ValueChanged<BlenderTreeNode<T>>? onLockChanged;
   final String title;
   final List<Widget>? headerActions;
+  final TextEditingController? filterController;
+  final ValueChanged<String>? onFilterChanged;
+  final String filterPlaceholder;
   final BlenderOutlinerDisplayMode displayMode;
   final ValueChanged<BlenderOutlinerDisplayMode>? onDisplayModeChanged;
+  final bool syncSelection;
+  final ValueChanged<bool>? onSyncSelectionChanged;
+  final String libraryOverrideViewMode;
+  final ValueChanged<String>? onLibraryOverrideViewModeChanged;
+  final bool useIdFilter;
+  final ValueChanged<bool>? onIdFilterChanged;
+  final String idFilterType;
+  final List<String> idFilterTypes;
+  final ValueChanged<String>? onIdFilterTypeChanged;
+  final VoidCallback? onNewCollection;
+  final VoidCallback? onPurgeUnusedData;
+  final bool hasActiveKeyingSet;
+  final String activeKeyingSet;
+  final List<String> keyingSets;
+  final ValueChanged<String>? onKeyingSetChanged;
+  final VoidCallback? onKeyingSetAdd;
+  final VoidCallback? onKeyingSetRemove;
+  final VoidCallback? onKeyframeInsert;
+  final VoidCallback? onKeyframeDelete;
 
   /// The editor assigned to this area. Keeping this separate from
   /// [displayMode] mirrors Blender: the first control chooses the area editor,
   /// while the second chooses how the Outliner represents its data.
   final BlenderEditorType editorType;
   final ValueChanged<BlenderEditorType>? onEditorTypeChanged;
+
+  List<Widget> _buildSourceHeaderControls() {
+    final controls = <Widget>[];
+    switch (displayMode) {
+      case BlenderOutlinerDisplayMode.videoSequencer:
+        controls.add(
+          BlenderIconButton(
+            glyph: BlenderGlyph.sync,
+            selected: syncSelection,
+            onPressed: onSyncSelectionChanged == null
+                ? null
+                : () => onSyncSelectionChanged!(!syncSelection),
+            tooltip: 'Sync Selection',
+            size: 24,
+          ),
+        );
+      case BlenderOutlinerDisplayMode.scenes:
+      case BlenderOutlinerDisplayMode.viewLayer:
+      case BlenderOutlinerDisplayMode.libraryOverrides:
+        controls.add(const _BlenderOutlinerFilterMenu());
+      case BlenderOutlinerDisplayMode.blenderFile:
+      case BlenderOutlinerDisplayMode.unusedData:
+        controls.add(
+          BlenderIconButton(
+            glyph: BlenderGlyph.filter,
+            selected: useIdFilter,
+            onPressed: onIdFilterChanged == null
+                ? null
+                : () => onIdFilterChanged!(!useIdFilter),
+            tooltip: 'Filter ID Types',
+            size: 24,
+          ),
+        );
+        controls.add(
+          SizedBox(
+            width: 86,
+            child: BlenderDropdown<String>(
+              value: idFilterType,
+              items: <BlenderMenuItem<String>>[
+                for (final type in idFilterTypes)
+                  BlenderMenuItem<String>(value: type, label: type),
+              ],
+              compact: true,
+              enabled: useIdFilter,
+              onChanged: onIdFilterTypeChanged ?? (_) {},
+            ),
+          ),
+        );
+      case BlenderOutlinerDisplayMode.dataApi:
+        controls.add(
+          BlenderIconButton(
+            glyph: BlenderGlyph.plus,
+            onPressed: onKeyingSetAdd,
+            tooltip: 'Add Selected to Keying Set',
+            size: 24,
+          ),
+        );
+        controls.add(
+          BlenderIconButton(
+            glyph: BlenderGlyph.minus,
+            onPressed: onKeyingSetRemove,
+            tooltip: 'Remove Selected from Keying Set',
+            size: 24,
+          ),
+        );
+        if (hasActiveKeyingSet) {
+          controls.add(
+            SizedBox(
+              width: 92,
+              child: BlenderDropdown<String>(
+                value: activeKeyingSet,
+                items: <BlenderMenuItem<String>>[
+                  for (final keyingSet in keyingSets)
+                    BlenderMenuItem<String>(value: keyingSet, label: keyingSet),
+                ],
+                compact: true,
+                onChanged: onKeyingSetChanged ?? (_) {},
+              ),
+            ),
+          );
+          controls.add(
+            BlenderIconButton(
+              glyph: BlenderGlyph.keyframe,
+              onPressed: onKeyframeInsert,
+              tooltip: 'Insert Keyframe',
+              size: 24,
+            ),
+          );
+          controls.add(
+            BlenderIconButton(
+              glyph: BlenderGlyph.keyframe,
+              onPressed: onKeyframeDelete,
+              tooltip: 'Delete Keyframe',
+              size: 24,
+            ),
+          );
+        } else {
+          controls.add(const Text('No Keying Set Active'));
+        }
+    }
+    if (displayMode == BlenderOutlinerDisplayMode.libraryOverrides) {
+      controls.insert(
+        0,
+        SizedBox(
+          width: 92,
+          child: BlenderDropdown<String>(
+            value: libraryOverrideViewMode,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Hierarchies',
+                label: 'Hierarchies',
+              ),
+              BlenderMenuItem<String>(value: 'Properties', label: 'Properties'),
+            ],
+            compact: true,
+            onChanged: onLibraryOverrideViewModeChanged ?? (_) {},
+          ),
+        ),
+      );
+    }
+    if (displayMode == BlenderOutlinerDisplayMode.viewLayer) {
+      controls.add(
+        BlenderIconButton(
+          glyph: BlenderGlyph.plus,
+          onPressed: onNewCollection,
+          tooltip: 'Add collection',
+          size: 24,
+        ),
+      );
+    } else if (displayMode == BlenderOutlinerDisplayMode.unusedData) {
+      controls.add(
+        BlenderButton(
+          label: 'Purge',
+          variant: BlenderButtonVariant.toolbar,
+          onPressed: onPurgeUnusedData,
+        ),
+      );
+    }
+    return controls;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1296,13 +1455,20 @@ class BlenderOutliner<T> extends StatelessWidget {
                   onChanged: onDisplayModeChanged ?? (_) {},
                 ),
               ),
+              if (filterController != null &&
+                  !(displayMode ==
+                          BlenderOutlinerDisplayMode.libraryOverrides &&
+                      libraryOverrideViewMode == 'Hierarchies'))
+                SizedBox(
+                  width: 108,
+                  child: BlenderSearchField(
+                    controller: filterController!,
+                    onChanged: onFilterChanged,
+                    placeholder: filterPlaceholder,
+                  ),
+                ),
               ...?headerActions,
-              const _BlenderOutlinerFilterMenu(),
-              const BlenderIconButton(
-                glyph: BlenderGlyph.plus,
-                tooltip: 'Add collection',
-                size: 24,
-              ),
+              ..._buildSourceHeaderControls(),
             ],
           ),
           Expanded(
@@ -1507,6 +1673,14 @@ class BlenderFileBrowser extends StatelessWidget {
     this.onPathSelected,
     this.gridView = false,
     this.onGridViewChanged,
+    this.onBack,
+    this.onForward,
+    this.onParent,
+    this.onRefresh,
+    this.onNewFolder,
+    this.sidebar,
+    this.sidebarWidth = 220,
+    this.assetBrowser = false,
     this.title = 'File Browser',
   });
 
@@ -1519,6 +1693,14 @@ class BlenderFileBrowser extends StatelessWidget {
   final ValueChanged<int>? onPathSelected;
   final bool gridView;
   final ValueChanged<bool>? onGridViewChanged;
+  final VoidCallback? onBack;
+  final VoidCallback? onForward;
+  final VoidCallback? onParent;
+  final VoidCallback? onRefresh;
+  final VoidCallback? onNewFolder;
+  final Widget? sidebar;
+  final double sidebarWidth;
+  final bool assetBrowser;
   final String title;
 
   @override
@@ -1537,25 +1719,64 @@ class BlenderFileBrowser extends StatelessWidget {
           );
     return BlenderPanel(
       title: title,
-      headerActions: onGridViewChanged == null
-          ? null
-          : <Widget>[
-              BlenderIconButton(
-                glyph: BlenderGlyph.outliner,
-                selected: !gridView,
-                onPressed: () => onGridViewChanged!(false),
-                tooltip: 'List view',
-                size: 22,
-              ),
-              BlenderIconButton(
-                glyph: BlenderGlyph.grid,
-                selected: gridView,
-                onPressed: () => onGridViewChanged!(true),
-                tooltip: 'Grid view',
-                size: 22,
-              ),
-            ],
-      child: content,
+      headerActions: <Widget>[
+        _headerAction(BlenderGlyph.stepBack, 'Back', onBack),
+        _headerAction(BlenderGlyph.stepForward, 'Forward', onForward),
+        _headerAction(BlenderGlyph.folder, 'Parent Directory', onParent),
+        _headerAction(BlenderGlyph.refresh, 'Refresh', onRefresh),
+        _headerAction(BlenderGlyph.plus, 'New Folder', onNewFolder),
+        _BlenderFileBrowserPopover(assetBrowser: assetBrowser, filter: false),
+        _BlenderFileBrowserPopover(assetBrowser: assetBrowser, filter: true),
+        if (onGridViewChanged != null) ...<Widget>[
+          BlenderIconButton(
+            glyph: BlenderGlyph.outliner,
+            selected: !gridView,
+            onPressed: () => onGridViewChanged!(false),
+            tooltip: 'List view',
+            size: 22,
+          ),
+          BlenderIconButton(
+            glyph: BlenderGlyph.grid,
+            selected: gridView,
+            onPressed: () => onGridViewChanged!(true),
+            tooltip: 'Grid view',
+            size: 22,
+          ),
+        ],
+      ],
+      child: sidebar == null
+          ? content
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: content),
+                SizedBox(
+                  width: sidebarWidth,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colors.surface,
+                      border: Border(
+                        left: BorderSide(color: theme.colors.editorBorder),
+                      ),
+                    ),
+                    child: sidebar,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _headerAction(
+    BlenderGlyph glyph,
+    String tooltip,
+    VoidCallback? callback,
+  ) {
+    return BlenderIconButton(
+      glyph: glyph,
+      tooltip: tooltip,
+      onPressed: callback ?? () {},
+      size: 22,
     );
   }
 
@@ -1666,6 +1887,279 @@ class BlenderFileBrowser extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Source-shaped File Browser and Asset Browser header popovers from
+/// `space_filebrowser.py`.
+class _BlenderFileBrowserPopover extends StatelessWidget {
+  const _BlenderFileBrowserPopover({
+    required this.assetBrowser,
+    required this.filter,
+  });
+
+  final bool assetBrowser;
+  final bool filter;
+
+  Widget _check(String label, {bool value = true}) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderCheckbox(value: value, onChanged: (_) {}),
+  );
+
+  Widget _choice(String label, String value, List<String> values) {
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderDropdown<String>(
+        value: value,
+        items: <BlenderMenuItem<String>>[
+          for (final item in values)
+            BlenderMenuItem<String>(value: item, label: item),
+        ],
+        onChanged: (_) {},
+      ),
+    );
+  }
+
+  List<Widget> _displayChildren() {
+    if (assetBrowser) {
+      return <Widget>[
+        _choice('Display Type', 'Thumbnail', <String>[
+          'Thumbnail',
+          'List Horizontal',
+          'List Vertical',
+        ]),
+        _choice('Preview Size', 'Medium', <String>['Small', 'Medium', 'Large']),
+        _choice('Sort By', 'Name', <String>['Name', 'Asset Type', 'Modified']),
+      ];
+    }
+    return <Widget>[
+      _choice('Display Type', 'List Vertical', <String>[
+        'List Vertical',
+        'List Horizontal',
+        'Thumbnail',
+      ]),
+      _choice('Size', 'Medium', <String>['Small', 'Medium', 'Large']),
+      _check('Date', value: false),
+      _choice('Recursions', 'None', <String>['None', 'One Level', 'All']),
+      _choice('Sort By', 'Name', <String>['Name', 'Modified', 'Size', 'Type']),
+      _check('Invert Sort', value: false),
+    ];
+  }
+
+  List<Widget> _filterChildren() {
+    if (assetBrowser) {
+      return <Widget>[
+        _check('Blender IDs'),
+        _check('Objects'),
+        _check('Materials'),
+        _check('Collections'),
+        _check('Worlds', value: false),
+        _choice('Access', 'All', <String>['All', 'Local', 'Remote']),
+      ];
+    }
+    return <Widget>[
+      _check('Folders'),
+      _check('.blend Files'),
+      _check('Backup .blend Files', value: false),
+      _check('Image Files'),
+      _check('Movie Files', value: false),
+      _check('Script Files', value: false),
+      _check('Font Files', value: false),
+      _check('Sound Files', value: false),
+      _check('Text Files', value: false),
+      _check('Volume Files', value: false),
+      _check('Show Hidden', value: false),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = filter
+        ? (assetBrowser ? 'Filter' : 'Filter Settings')
+        : (assetBrowser ? 'Display Settings' : 'Display Settings');
+    return BlenderPopover(
+      child: BlenderIconButton(
+        glyph: filter ? BlenderGlyph.filter : BlenderGlyph.settings,
+        tooltip: title,
+        size: 22,
+      ),
+      popover: (context, close) => ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 330, maxHeight: 620),
+        child: SingleChildScrollView(
+          child: BlenderPanel(
+            title: title,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: filter ? _filterChildren() : _displayChildren(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Source-shaped File Browser and Asset Browser side panels.
+///
+/// Blender owns the region visibility, file operations, asset metadata, and
+/// catalog mutation. This widget only provides the visual panel anatomy so a
+/// host can supply those behaviors separately.
+class BlenderFileBrowserSidebar extends StatelessWidget {
+  const BlenderFileBrowserSidebar({
+    super.key,
+    this.assetBrowser = false,
+    this.assetCatalog,
+  });
+
+  final bool assetBrowser;
+  final Widget? assetCatalog;
+
+  Widget _body(List<Widget> children) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: children,
+  );
+
+  Widget _panel(String title, List<Widget> children, {bool expanded = false}) {
+    return BlenderPanel(
+      title: title,
+      collapsible: true,
+      initiallyExpanded: expanded,
+      child: _body(children),
+    );
+  }
+
+  Widget _check(String label, {bool value = true}) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderCheckbox(value: value, onChanged: (_) {}),
+  );
+
+  Widget _choice(String label, String value, List<String> values) {
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderDropdown<String>(
+        value: value,
+        items: <BlenderMenuItem<String>>[
+          for (final item in values)
+            BlenderMenuItem<String>(value: item, label: item),
+        ],
+        onChanged: (_) {},
+      ),
+    );
+  }
+
+  Widget _actions(List<String> labels) => Wrap(
+    spacing: 4,
+    runSpacing: 4,
+    children: <Widget>[
+      for (final label in labels) BlenderButton(label: label, onPressed: () {}),
+    ],
+  );
+
+  Widget _list(List<String> labels) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      for (final label in labels)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Row(
+            children: <Widget>[
+              const BlenderIcon(BlenderGlyph.folder, size: 14),
+              const SizedBox(width: 5),
+              Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final panels = assetBrowser
+        ? <Widget>[
+            _panel('Library', <Widget>[
+              _choice('Access', 'All', <String>['All', 'Local', 'Remote']),
+              _actions(<String>['Refresh', 'Reload Listing']),
+            ], expanded: true),
+            if (assetCatalog != null)
+              SizedBox(height: 300, child: assetCatalog)
+            else
+              _panel('Catalog', <Widget>[
+                _actions(<String>['Undo', 'Redo', 'Save', 'New']),
+              ]),
+            _panel('Asset', <Widget>[
+              _actions(<String>['Clear Asset', 'Open Containing File']),
+            ]),
+            _panel('Asset Metadata', <Widget>[
+              BlenderPropertyRow(
+                label: 'Name',
+                editor: BlenderTextField(
+                  controller: TextEditingController(text: 'Showcase Asset'),
+                  readOnly: true,
+                ),
+              ),
+              BlenderPropertyRow(
+                label: 'Description',
+                editor: BlenderTextField(
+                  controller: TextEditingController(
+                    text: 'Source-shaped asset',
+                  ),
+                  readOnly: true,
+                ),
+              ),
+              _choice('License', 'CC0', <String>['CC0', 'GPL', 'Unknown']),
+              _choice('Author', 'Blender UI', <String>[
+                'Blender UI',
+                'Unknown',
+              ]),
+            ], expanded: true),
+            _panel('Import', <Widget>[
+              _check('Use Preferred Method'),
+              _choice('Preferred Method', 'Link', <String>['Link', 'Append']),
+            ]),
+            _panel('Preview', <Widget>[
+              const SizedBox(
+                height: 70,
+                child: Center(child: BlenderIcon(BlenderGlyph.image, size: 32)),
+              ),
+              _actions(<String>['Load', 'Generate', 'Remove']),
+            ]),
+            _panel('Tags', <Widget>[
+              _list(<String>['Environment', 'Asset']),
+              _actions(<String>['Add', 'Remove']),
+            ]),
+          ]
+        : <Widget>[
+            _panel('Directory Path', <Widget>[
+              _actions(<String>['Back', 'Forward', 'Parent', 'Refresh']),
+              BlenderTextField(
+                controller: TextEditingController(text: '/showcase/assets'),
+                readOnly: true,
+              ),
+              _actions(<String>['New Folder']),
+            ], expanded: true),
+            _panel('Volumes', <Widget>[
+              _list(<String>['Home', 'Documents']),
+            ], expanded: true),
+            _panel('System', <Widget>[
+              _list(<String>['Desktop', 'Downloads']),
+            ]),
+            _panel('Bookmarks', <Widget>[
+              _list(<String>['Showcase', 'Assets']),
+              _actions(<String>['Add', 'Remove', 'Move']),
+            ]),
+            _panel('Recent', <Widget>[
+              _list(<String>['scene.blend', 'assets']),
+              _actions(<String>['Clear']),
+            ]),
+            _panel('Advanced Filter', <Widget>[
+              _check('Blender Files Only'),
+              _check('Asset Data', value: false),
+              _check('Fonts', value: false),
+              _check('Images', value: false),
+              _check('Movies', value: false),
+            ]),
+          ];
+    return ListView(padding: const EdgeInsets.all(4), children: panels);
   }
 }
 
@@ -1958,18 +2452,169 @@ class BlenderNodeGraphModel {
   final List<BlenderGraphLink> links;
 }
 
+/// Source-shaped 3D Viewport sidebar panels from `space_view3d.py`,
+/// `space_view3d_sidebar.py`, and the viewport transform template.
+///
+/// View state, object transforms, collections, and animation operators remain
+/// caller-owned; this widget mirrors the visible N-panel families.
+class BlenderViewportSidebar extends StatelessWidget {
+  const BlenderViewportSidebar({super.key});
+
+  Widget _body(List<Widget> children) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: children,
+  );
+
+  Widget _panel(String title, List<Widget> children, {bool expanded = false}) {
+    return BlenderPanel(
+      title: title,
+      collapsible: true,
+      initiallyExpanded: expanded,
+      child: _body(children),
+    );
+  }
+
+  Widget _check(String label, {bool value = true}) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderCheckbox(value: value, onChanged: (_) {}),
+  );
+
+  Widget _number(String label, double value) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderNumberField(
+      value: value,
+      decimalDigits: 2,
+      onChanged: (_) {},
+    ),
+  );
+
+  Widget _choice(String label, String value, List<String> values) {
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderDropdown<String>(
+        value: value,
+        items: <BlenderMenuItem<String>>[
+          for (final item in values)
+            BlenderMenuItem<String>(value: item, label: item),
+        ],
+        onChanged: _viewportNoopString,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(6),
+      children: <Widget>[
+        _panel('View', <Widget>[
+          _number('Focal Length', 50),
+          _number('Clip Start', .01),
+          _number('Clip End', 1000),
+          _check('Use Local Camera', value: false),
+          _choice('Camera', 'Camera', <String>['Camera', 'None']),
+          _check('Passepartout', value: false),
+          _check('Render Region', value: false),
+          _panel('View Lock', <Widget>[
+            _choice('Lock Object', 'None', <String>['None', 'Cube', 'Camera']),
+            _check('To 3D Cursor', value: false),
+            _check('Camera to View', value: false),
+            _check('Rotation', value: false),
+          ]),
+          _panel('3D Cursor', <Widget>[
+            _number('Location X', 0),
+            _number('Location Y', 0),
+            _number('Location Z', 0),
+            _number('Rotation X', 0),
+            _number('Rotation Y', 0),
+            _number('Rotation Z', 0),
+            _choice('Rotation Mode', 'XYZ Euler', <String>[
+              'XYZ Euler',
+              'Quaternion',
+              'Axis Angle',
+            ]),
+          ]),
+          _panel('Collections', <Widget>[
+            _check('Collection'),
+            _check('Environment', value: false),
+            _check('Characters', value: false),
+          ]),
+        ], expanded: true),
+        _panel('Item', <Widget>[
+          _panel('Transform', <Widget>[
+            _number('Location X', 0),
+            _number('Location Y', 0),
+            _number('Location Z', 0),
+            _number('Rotation X', 0),
+            _number('Rotation Y', 0),
+            _number('Rotation Z', 0),
+            _number('Scale X', 1),
+            _number('Scale Y', 1),
+            _number('Scale Z', 1),
+          ], expanded: true),
+          _choice('Mode', 'Object', <String>['Object', 'Edit', 'Pose']),
+        ], expanded: true),
+        _panel('Global Transform', <Widget>[
+          const BlenderButton(label: 'Copy', onPressed: _viewportNoop),
+          const SizedBox(height: 4),
+          const Row(
+            children: <Widget>[
+              Expanded(
+                child: BlenderButton(label: 'Paste', onPressed: _viewportNoop),
+              ),
+              SizedBox(width: 4),
+              Expanded(
+                child: BlenderButton(
+                  label: 'Mirrored',
+                  onPressed: _viewportNoop,
+                ),
+              ),
+            ],
+          ),
+          _panel('Fix to Camera', <Widget>[
+            _check('Location'),
+            _check('Rotation'),
+            _check('Scale'),
+          ]),
+          _panel('Mirror', <Widget>[
+            _choice('Object', 'Active Armature', <String>[
+              'Active Armature',
+              'None',
+            ]),
+            _choice('Bone', 'Bone', <String>['Bone', 'Root']),
+          ]),
+          _panel('Relative', <Widget>[
+            _choice('Object', 'Active Camera', <String>[
+              'Active Camera',
+              'None',
+            ]),
+          ]),
+        ]),
+      ],
+    );
+  }
+}
+
+void _viewportNoop() {}
+
+void _viewportNoopString(String? _) {}
+
 class BlenderNodeEditor extends StatelessWidget {
   const BlenderNodeEditor({
     super.key,
     required this.model,
     this.onNodeSelected,
     this.onNodeMoved,
+    this.sidebar,
+    this.sidebarWidth = 230,
     this.title = 'Node Editor',
   });
 
   final BlenderNodeGraphModel model;
   final ValueChanged<BlenderGraphNode>? onNodeSelected;
   final void Function(BlenderGraphNode node, Offset position)? onNodeMoved;
+  final Widget? sidebar;
+  final double sidebarWidth;
   final String title;
 
   @override
@@ -1978,46 +2623,243 @@ class BlenderNodeEditor extends StatelessWidget {
     return BlenderPanel(
       title: title,
       padding: EdgeInsets.zero,
-      child: InteractiveViewer(
-        minScale: .25,
-        maxScale: 3,
-        boundaryMargin: const EdgeInsets.all(400),
-        child: SizedBox(
-          width: 2000,
-          height: 1200,
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _BlenderGraphPainter(
-                    model: model,
-                    color: theme.colors.borderSubtle,
+      child: sidebar == null
+          ? _buildCanvas(context, theme)
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: _buildCanvas(context, theme)),
+                SizedBox(
+                  width: sidebarWidth,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colors.surface,
+                      border: Border(
+                        left: BorderSide(color: theme.colors.editorBorder),
+                      ),
+                    ),
+                    child: sidebar,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildCanvas(BuildContext context, BlenderThemeData theme) {
+    return InteractiveViewer(
+      minScale: .25,
+      maxScale: 3,
+      boundaryMargin: const EdgeInsets.all(400),
+      child: SizedBox(
+        width: 2000,
+        height: 1200,
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _BlenderGraphPainter(
+                  model: model,
+                  color: theme.colors.borderSubtle,
+                ),
+              ),
+            ),
+            for (final node in model.nodes)
+              Positioned(
+                left: node.position.dx,
+                top: node.position.dy,
+                width: node.size.width,
+                height: node.size.height,
+                child: GestureDetector(
+                  onTap: () => onNodeSelected?.call(node),
+                  onPanUpdate: onNodeMoved == null
+                      ? null
+                      : (details) =>
+                            onNodeMoved!(node, node.position + details.delta),
+                  child: BlenderPanel(
+                    title: node.title,
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
+                    child: _BlenderNodeBody(node: node),
                   ),
                 ),
               ),
-              for (final node in model.nodes)
-                Positioned(
-                  left: node.position.dx,
-                  top: node.position.dy,
-                  width: node.size.width,
-                  height: node.size.height,
-                  child: GestureDetector(
-                    onTap: () => onNodeSelected?.call(node),
-                    onPanUpdate: onNodeMoved == null
-                        ? null
-                        : (details) =>
-                              onNodeMoved!(node, node.position + details.delta),
-                    child: BlenderPanel(
-                      title: node.title,
-                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
-                      child: _BlenderNodeBody(node: node),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// Source-shaped sidebar panels for Blender's Node Editor.
+///
+/// Node selection, node-tree evaluation, and operator execution remain
+/// caller-owned; this widget provides the Tool, Node, View, Options, and Group
+/// panel composition from `space_node.py`.
+class BlenderNodeEditorSidebar extends StatelessWidget {
+  const BlenderNodeEditorSidebar({
+    super.key,
+    this.geometryNodeEditor = false,
+    this.compositor = false,
+  });
+
+  final bool geometryNodeEditor;
+  final bool compositor;
+
+  Widget _body(List<Widget> children) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: children,
+  );
+
+  Widget _panel(String title, List<Widget> children, {bool expanded = false}) {
+    return BlenderPanel(
+      title: title,
+      collapsible: true,
+      initiallyExpanded: expanded,
+      child: _body(children),
+    );
+  }
+
+  Widget _check(String label, {bool value = true}) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderCheckbox(value: value, onChanged: (_) {}),
+  );
+
+  Widget _number(String label, double value) => BlenderPropertyRow(
+    label: label,
+    editor: BlenderNumberField(
+      value: value,
+      decimalDigits: 2,
+      onChanged: (_) {},
+    ),
+  );
+
+  Widget _choice(String label, String value, List<String> values) {
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderDropdown<String>(
+        value: value,
+        items: <BlenderMenuItem<String>>[
+          for (final item in values)
+            BlenderMenuItem<String>(value: item, label: item),
+        ],
+        onChanged: (_) {},
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final toolPanels = <Widget>[
+      _panel('Tool', <Widget>[
+        _check('Select'),
+        _check('Tweak'),
+        _choice('Node Tool', 'Select Box', <String>['Select Box', 'Tweak']),
+      ], expanded: true),
+      if (geometryNodeEditor) ...<Widget>[
+        _panel('Object Types', <Widget>[
+          _check('Mesh'),
+          _check('Curve'),
+          _check('Volume'),
+        ]),
+        _panel('Modes', <Widget>[_check('Object Mode'), _check('Edit Mode')]),
+        _panel('Options', <Widget>[
+          _check('Auto Offset'),
+          _check('Transform Node Parents'),
+        ]),
+      ],
+    ];
+    final nodePanels = <Widget>[
+      _panel('Node', <Widget>[
+        _choice('Name', 'Node', <String>['Node', 'Active Node']),
+        _choice('Label', 'Custom Label', <String>[
+          'Custom Label',
+          'Node Name',
+          'Hidden',
+        ]),
+        _check('Use Custom Color'),
+        _check('Show Options'),
+        _check('Mute'),
+        if (geometryNodeEditor || compositor) _check('Propagate Warnings'),
+      ], expanded: true),
+      _panel('Properties', <Widget>[
+        _choice('Input', 'Value', <String>['Value', 'Default', 'Linked']),
+        _check('Use Default'),
+      ]),
+      _panel('Custom Properties', <Widget>[_number('example_value', 1)]),
+      _panel('Texture Mapping', <Widget>[
+        _choice('Vector', 'Generated', <String>[
+          'Generated',
+          'Normal',
+          'UV',
+        ]),
+        _choice('Projection X', 'Flat', <String>['Flat', 'Box', 'Sphere']),
+        _choice('Projection Y', 'Flat', <String>['Flat', 'Box', 'Sphere']),
+        _choice('Projection Z', 'Flat', <String>['Flat', 'Box', 'Sphere']),
+        _number('Scale', 1),
+      ]),
+    ];
+    final viewPanels = <Widget>[
+      if (compositor)
+        _panel('Backdrop', <Widget>[
+          _choice('Channels', 'Color', <String>[
+            'Color',
+            'Color and Alpha',
+            'Alpha',
+          ]),
+          _number('Zoom', 1),
+          _number('Offset X', 0),
+          _number('Offset Y', 0),
+          _check('Show Backdrop'),
+          _check('Fit to Available Space'),
+        ]),
+      _panel('Annotation', <Widget>[
+        _check('Use Annotation'),
+        _choice('Layer', 'Main', <String>['Main', 'Notes']),
+      ]),
+    ];
+    final optionPanels = <Widget>[
+      if (compositor)
+        _panel('Performance', <Widget>[
+          _choice('Device', 'CPU', <String>['CPU', 'GPU']),
+          _choice('Precision', 'Full', <String>['Full', 'Half']),
+          _check('Cache Frames'),
+        ], expanded: true),
+    ];
+    final groupPanels = <Widget>[
+      _panel('Group', <Widget>[
+        _choice('Name', 'Node Group', <String>['Node Group', 'Group']),
+        _choice('Description', 'Node group description', <String>[
+          'Node group description',
+          'Empty',
+        ]),
+        _choice('Color Tag', 'None', <String>[
+          'None',
+          'Attribute',
+          'Geometry',
+          'Shader',
+        ]),
+        _number('Node Width', 140),
+        if (geometryNodeEditor) _check('Modifier'),
+        if (geometryNodeEditor) _check('Tool'),
+        if (compositor) _check('Strip Modifier'),
+      ], expanded: true),
+      _panel('Animation', <Widget>[
+        _choice('Action', 'NodeGroupAction', <String>[
+          'NodeGroupAction',
+          'None',
+        ]),
+        _choice('Slot', 'Node Group', <String>['Node Group', 'None']),
+      ]),
+    ];
+    return ListView(
+      padding: const EdgeInsets.all(4),
+      children: <Widget>[
+        ...toolPanels,
+        ...nodePanels,
+        _panel('View', viewPanels),
+        ...optionPanels,
+        ...groupPanels,
+      ],
     );
   }
 }

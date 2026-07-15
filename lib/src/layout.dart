@@ -149,7 +149,14 @@ class BlenderPanelHeader extends StatelessWidget {
                 style: titleStyle ?? theme.textTheme.panelTitle,
               ),
             ),
-            ...?actions,
+            if (actions case final actions? when actions.isNotEmpty)
+              Flexible(
+                fit: FlexFit.loose,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+                ),
+              ),
             if (handle != null)
               handle!
             else if (showHandle)
@@ -157,7 +164,7 @@ class BlenderPanelHeader extends StatelessWidget {
                 padding: EdgeInsets.only(left: theme.density.spacing / 2),
                 child: BlenderIcon(
                   BlenderGlyph.dragHandle,
-                  size: 9,
+                  size: 7,
                   color: theme.colors.foreground.withAlpha(128),
                 ),
               ),
@@ -537,6 +544,7 @@ enum BlenderEditorType {
   fileBrowser,
   assetBrowser,
   spreadsheet,
+  project,
 }
 
 extension BlenderEditorTypePresentation on BlenderEditorType {
@@ -565,6 +573,7 @@ extension BlenderEditorTypePresentation on BlenderEditorType {
     BlenderEditorType.fileBrowser => 'File Browser',
     BlenderEditorType.assetBrowser => 'Asset Browser',
     BlenderEditorType.spreadsheet => 'Spreadsheet',
+    BlenderEditorType.project => 'Project',
   };
 
   BlenderGlyph get glyph => switch (this) {
@@ -592,6 +601,7 @@ extension BlenderEditorTypePresentation on BlenderEditorType {
     BlenderEditorType.fileBrowser => BlenderGlyph.folder,
     BlenderEditorType.assetBrowser => BlenderGlyph.folder,
     BlenderEditorType.spreadsheet => BlenderGlyph.spreadsheet,
+    BlenderEditorType.project => BlenderGlyph.folder,
   };
 
   String get description => switch (this) {
@@ -619,6 +629,7 @@ extension BlenderEditorTypePresentation on BlenderEditorType {
     BlenderEditorType.fileBrowser => 'Browse files and directories',
     BlenderEditorType.assetBrowser => 'Browse reusable assets',
     BlenderEditorType.spreadsheet => 'Inspect tabular data',
+    BlenderEditorType.project => 'Manage project settings and files',
   };
 
   String? get shortcut => switch (this) {
@@ -629,6 +640,7 @@ extension BlenderEditorTypePresentation on BlenderEditorType {
     BlenderEditorType.textEditor => '⇧ F11',
     BlenderEditorType.pythonConsole => '⇧ F4',
     BlenderEditorType.infoEditor => null,
+    BlenderEditorType.project => null,
     BlenderEditorType.geometryNodeEditor ||
     BlenderEditorType.compositor ||
     BlenderEditorType.shaderEditor ||
@@ -785,6 +797,7 @@ class _BlenderEditorTypeMenu extends StatelessWidget {
         BlenderEditorType.assetBrowser,
         BlenderEditorType.spreadsheet,
         BlenderEditorType.preferences,
+        BlenderEditorType.project,
       ],
     ),
   ];
@@ -954,6 +967,7 @@ class BlenderAreaHeader extends StatelessWidget {
     this.showEditorLabel = true,
     this.editorSelectorWidth,
     this.showBottomBorder = true,
+    this.actionsScrollable = false,
   });
 
   final BlenderEditorType editorType;
@@ -967,6 +981,7 @@ class BlenderAreaHeader extends StatelessWidget {
   final bool showEditorLabel;
   final double? editorSelectorWidth;
   final bool showBottomBorder;
+  final bool actionsScrollable;
 
   @override
   Widget build(BuildContext context) {
@@ -995,15 +1010,47 @@ class BlenderAreaHeader extends StatelessWidget {
               ),
               ...leading,
               Expanded(
-                child: _blenderHeaderScrollSurface(
-                  context,
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(mainAxisSize: MainAxisSize.min, children: menus),
-                  ),
-                ),
+                child: actionsScrollable
+                    ? Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _blenderHeaderScrollSurface(
+                              context,
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: menus,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Flexible(
+                            child: _blenderHeaderScrollSurface(
+                              context,
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: actions,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : _blenderHeaderScrollSurface(
+                        context,
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: menus,
+                          ),
+                        ),
+                      ),
               ),
-              ...actions,
+              if (!actionsScrollable) ...actions,
             ],
           ),
           if (center != null) Center(child: center),
@@ -1240,11 +1287,13 @@ class BlenderStatusBar extends StatelessWidget {
   const BlenderStatusBar({
     super.key,
     this.left = const <Widget>[],
+    this.center = const <Widget>[],
     this.right = const <Widget>[],
     this.height,
   });
 
   final List<Widget> left;
+  final List<Widget> center;
   final List<Widget> right;
   final double? height;
 
@@ -1262,7 +1311,52 @@ class BlenderStatusBar extends StatelessWidget {
         style: theme.textTheme.caption.copyWith(
           color: theme.colors.foregroundMuted,
         ),
-        child: Row(children: <Widget>[...left, const Spacer(), ...right]),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: ClipRect(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: left),
+                ),
+              ),
+            ),
+            if (center.isNotEmpty) ...<Widget>[
+              SizedBox(width: theme.density.spacing),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: ClipRect(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: center,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (right.isNotEmpty) ...<Widget>[
+              SizedBox(width: theme.density.spacing),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: ClipRect(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: right,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1501,18 +1595,18 @@ class BlenderTabBar extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (var index = 0; index < tabs.length; index++)
+        for (final entry in tabs.indexed)
           Padding(
             padding: EdgeInsets.only(right: theme.density.spacing),
             child: BlenderTooltip(
-              message: index == selectedIndex
+              message: entry.$1 == selectedIndex
                   ? 'Active workspace showing in the window.'
-                  : 'Switch to ${tabs[index]} workspace.',
+                  : 'Switch to ${entry.$2} workspace.',
               child: BlenderButton(
-                label: tabs[index],
+                label: entry.$2,
                 variant: variant,
-                selected: index == selectedIndex,
-                onPressed: () => onChanged(index),
+                selected: entry.$1 == selectedIndex,
+                onPressed: () => onChanged(entry.$1),
               ),
             ),
           ),

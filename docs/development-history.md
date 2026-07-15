@@ -1,5 +1,1408 @@
 # Development history
 
+## 2026-07-15 — Matched Image/UV editor source menus and panel regions
+
+- Re-read Blender's local `space_image.py`. The Image/UV header exposes
+  source-shaped View, Select, Image, and UV menus with nested Zoom, Select
+  Linked, Select by Trait, Transform, Snap, and UV operation families.
+- Added those menu descriptors and submenu arrows to the example header,
+  including the source View/Zoom, image save/pack, and UV unwrap/seam/packing
+  items. Added visual Snapping and Proportional Editing header popovers with
+  the source settings rather than leaving them as inert icon buttons.
+- Corrected the sidebar hierarchy: Scopes are separate Histogram, Waveform,
+  Vectorscope, Sample Line, and Samples panels; Tiling is a sibling of Brush
+  Settings; and UV header panels are no longer presented as sidebar cards.
+- Refreshed and reviewed `showcase_image_editor.png` and
+  `showcase_uv_editor.png`. The focused structural and golden regression passes.
+
+## 2026-07-15 — Began catalog and editor-composition refactor
+
+- Audited repeated property factories, sidebar forms, panel stacks, nested-tree
+  algorithms, and inert APIs. The showcase state object is the remaining
+  primary extraction target because it combines catalogs, state, menus, and
+  editor composition.
+- Added `BlenderPropertyFactory`, `BlenderSidebarSections`, and
+  `BlenderStaticPropertyField`. Strip and Mask descriptor factories now use
+  the shared property builder.
+- Added `BlenderTreeState`, moved Node Interface, Bone Collection, and Grease
+  Pencil layer traversal to it, and introduced `BlenderActionPanelStack` for
+  Constraint and Shader Effect stacks.
+- Unified the formerly separate Properties and Preferences overlay/localization
+  fallbacks as `BlenderEnsureOverlay`, retaining embedded-editor support with
+  one lifecycle implementation.
+- Removed the unused Sequencer `onSelected` API, which was accepted and
+  forwarded but never invoked. Added focused tests for property callback
+  ownership and shared tree state.
+
+## 2026-07-15 — Matched Preferences grouping and section ordering
+
+- Re-read Blender's `rna_userdef.cc`, `space_userpref.py`, and the Input panel
+  registration order. Preferences categories now use source-shaped groups, and
+  Input sections appear as Keyboard, Mouse, Tablet, Touchpad, and NDOF.
+- Added stable reorder handles and drag ordering to the reusable Preferences
+  editor, while preserving section IDs when categories or descriptors change.
+- Removed automatic tab-rail scrollbars, added resizable temporary Preferences
+  windows, and aligned the content/navigation padding with Blender's layout.
+
+## 2026-07-15 — Added conditional TextCurve Data panels
+
+- Re-read `properties_data_curve.py`. Blender's Font, Transform, Paragraph,
+  Alignment, Spacing, and Text Boxes panels are polled only for `TextCurve`,
+  while ordinary Curve data keeps Shape, Geometry, and Path Animation.
+- Added a distinct Text data-block selection path to the showcase and routed it
+  to source-shaped Shape, Texture Space, Font/Transform, Paragraph with
+  Alignment and Spacing children, Text Boxes, Animation, and Custom Properties
+  descriptors. This keeps text-only controls out of the ordinary Curve path
+  without adding an Outliner row that would destabilize existing scroll-based
+  fixtures.
+- Added a structural regression and a dedicated `showcase_text_data.png`
+  baseline. The first focused run correctly reported the missing new golden;
+  update mode created it, and the focused test then passed.
+- A full compile surfaced an incomplete Preferences API in the dirty worktree:
+  the category-group type was not exported consistently and the temporary
+  window resize clamp inferred `num`. Restoring the barrel export and
+  `categoryGroups` surface, then converting clamped dimensions to `double`,
+  cleared the compile errors. The full suite also exposed two brittle fixtures:
+  data-block menu taps for Bone/Text depended on the last row fitting in a
+  short viewport, and a Preferences drag-icon count included nested panels.
+  Those regressions now use the data-field callback and stable namespaced
+  section-handle keys instead.
+
+## 2026-07-15 — Audited the remaining core Data editor families
+
+- Compared the local Blender registrations for Curves, Armature, Lattice,
+  Metaball, Speaker, Volume, and Light Probe data with the existing visual
+  descriptors and regressions. Their source panel order and nesting are
+  already represented: Curves Surface/Attributes, Armature Pose/Viewport/Bone
+  Collections/IK/Motion Paths/Selection Sets, Lattice, Metaball Texture Space
+  and Active Element, Speaker Distance and Cone, Volume viewport Slicing, and
+  Light Probe Probe/Visibility/Capture/Bake sub-panels.
+- No visual implementation change was needed in this audit. The important
+  source distinction is retained in the descriptors: nested panels such as
+  Volume Slicing and Light Probe Bake Resolution/Capture/Offset/Clamping stay
+  children of their registered parent rather than becoming flat top-level
+  cards.
+
+## 2026-07-15 — Matched Outliner mode-specific header controls
+
+- Re-read `space_outliner.py` and `rna_space.cc` in the local Blender checkout.
+  The header is not one generic filter row: DATA API, Sequence, Library
+  Overrides, Blender File, View Layer, and Unused Data each add different
+  controls.
+- Replaced the reusable Outliner header's unconditional filter/plus controls
+  with descriptor-driven branches for keying-set/keyframe actions, selection
+  sync, ID filtering, override view mode, collection creation, and unused-data
+  purging. The host still owns state and operator callbacks.
+- Made the filter-text field a source-aware part of `BlenderOutliner`: it is
+  shown in normal modes and Library Overrides Properties, but suppressed for
+  lazy Library Overrides Hierarchies. Each embedding area supplies its own
+  controller, so the reusable widget does not own filtering or persistence.
+- Added a mode regression covering the visible controls and kept the existing
+  normal View Layer presentation intact.
+- A formatter invocation from the example package initially included the
+  repository-relative `lib/src/editors.dart` path and reported it missing;
+  the correct package-root formatter command then completed. The installed
+  Dart binary still emits its known telemetry-file sandbox warning, but the
+  requested files were formatted and all gates passed.
+
+## 2026-07-15 — Matched Workspace add-on filtering anatomy
+
+- Re-read `properties_workspace.py`. The Workspace tool panel's Filter
+  Add-ons card has a header owner-filter toggle, source-shaped add-on rows
+  with right-aligned enable states, and a distinct warning box for unknown
+  owners; the previous showcase used three unlabeled left-side checkboxes.
+- Added those visual states while keeping add-on discovery, owner filtering,
+  enable/disable operators, and custom-property persistence caller-owned.
+- Extended the existing Workspace tool regression to cover the warning and
+  owner-filter surfaces.
+- The focused test caught a 42 px overflow from the warning heading at the
+  narrowest Tool sidebar; constraining the heading fixed the layout. The first
+  full golden run then reported the four expected Tool-mode deltas, which were
+  reviewed and refreshed after confirming they were the new Workspace rows.
+
+## 2026-07-15 — Completed remaining Freestyle property families
+
+- Re-read `properties_freestyle.py` and compared its registered panels with
+  the existing View Layer and Material descriptors. The showcase had the
+  major Freestyle line-style families but omitted Freestyle Alpha and
+  Freestyle Animation, and the Material context omitted Freestyle Line.
+- Added source-shaped base transparency/modifier affordances, animation
+  action/slot selectors, and Material line color/priority controls. Operators,
+  animation data, and renderer polling remain caller-owned.
+- The source comparison also showed the line-style panels were incorrectly
+  nested under the main Freestyle panel; they are now top-level siblings as
+  Blender registers them, with only Edge Detection and Style Modules nested
+  under Freestyle. A first focused test still queried the old parent and
+  failed with `Bad state: No element`; the regression was updated to assert
+  the corrected hierarchy. One retry used the example test path from the
+  repository root and failed to load the file; the package-root rerun passed.
+
+## 2026-07-15 — Matched the Status Bar source composition
+
+- Re-read `space_statusbar.py` and the local `interface_template_status.cc`.
+  Blender orders the status bar as input status, transient report banner,
+  running jobs, and right-aligned status information; the showcase previously
+  omitted the two middle regions.
+- Added an explicit reusable center slot to `BlenderStatusBar`, then composed
+  the existing `BlenderReportBanner` and `BlenderRunningJobsPanel` there with
+  sample saved-report and asset-preview states. This keeps transient state and
+  job ownership with the host while preserving Blender's visual ordering.
+- Added boot assertions and refreshed the workspace baseline after visually
+  checking the resulting status-bar density.
+
+## 2026-07-15 — Filled remaining top-bar File and Edit submenu entries
+
+- Compared the current `TOPBAR_MT_file` and `TOPBAR_MT_edit` registrations in
+  `space_topbar.py` with the showcase menu descriptors. Added `Operator
+  Search...`, the External Data path-repair/report actions, and both Purge and
+  Manage Unused Data actions in source order. Also completed the Blender
+  System submenu's redraw-timer and cleanup entries.
+- Enumerated the local `bl_app_templates_system` directories and added the
+  missing Storyboarding and VFX choices to File > New and Add Workspace.
+- Extended the top-bar regression to verify those nested descriptors directly
+  while keeping the menu's scrollable presentation unchanged.
+
+## 2026-07-15 — Matched Properties rail scrolling and Output controls
+
+- Replaced the visible Properties-tab scrollbar with edge fades that appear
+  only when the rail has content above or below the viewport.
+- Reduced panel and list resize grips while preserving their full drag hit
+  areas, and added a filled range treatment to bounded numeric fields.
+- Matched the Output group composition with a full-width path, Saving checkbox
+  block, Color Depth choices, and Compression percentage control.
+
+## 2026-07-15 — Stabilized the Preferences temporary-window route
+
+- The focused regression showed that the Edit-menu callback was executing
+  above `BlenderApp`'s `WidgetsApp`, so its state context could not push a
+  dialog route. Added an optional navigator key to the reusable `BlenderApp`
+  shell and used it for the showcase Preferences window.
+- Kept the route push on the next frame because the source-shaped menu closes
+  its popover in the same callback frame; this prevents popover cleanup from
+  dismissing the newly opened temporary window.
+- Refreshed the Preferences golden after the verified panel-navigation state
+  changed its category labels. Flutter's formatter initially hit the SDK
+  cache sandbox boundary; the installed Dart binary formatted the files, with
+  only the known telemetry-file warning remaining.
+
+## 2026-07-15 — Restored top-bar Edit menu completeness
+
+- The complete example suite exposed a real source mismatch while validating
+  the NLA work: local Blender's `TOPBAR_MT_edit` includes `Project Setup...`,
+  but the showcase Edit menu stopped after Preferences. Restored the item in
+  source order and confirmed the focused top-bar regression passes.
+- The same gate surfaced two consistency issues in the existing dirty package
+  changes: `BlenderMenuItem` consumers already used a `checked` field that its
+  model lacked, and the newly registered undo/redo glyphs lacked painter
+  cases. Added those missing visual-model cases and re-ran package analysis
+  successfully.
+
+## 2026-07-15 — Matched Edit menu and temporary Preferences window
+
+- Read `TOPBAR_MT_edit` in `scripts/startup/bl_ui/space_topbar.py` and the
+  Animation preference panels in `scripts/startup/bl_ui/space_userpref.py`
+  from the local Blender checkout. The Edit menu's command order, separators,
+  disabled Redo state, macOS shortcuts, Undo History submenu, checkbox, and
+  Preferences action now follow that source arrangement.
+- Added the reusable `checked` menu-item state and source-backed undo/redo
+  glyphs. `Lock Object Modes` is now an actual persistent showcase toggle
+  instead of an inert text item.
+- Added `BlenderPreferencesWindow`, a temporary-window shell that reuses the
+  existing category/section descriptors, owns its navigation and search state,
+  and presents the source-shaped macOS title bar, sidebar, and scrollable
+  panel content. The Edit menu opens it directly on Animation; Timeline,
+  Keyframes, and F-Curves now use the fields from Blender's corresponding
+  preference panels.
+- The first menu integration attempted to push the temporary window before
+  the Edit popover route had closed, so the popover cleanup dismissed the new
+  route. Deferring the push by one frame and using the showcase navigator key
+  makes the action reliable without coupling reusable menu controls to app
+  navigation.
+- Formatting first failed because the Flutter SDK cache is outside the
+  workspace write sandbox. Re-running the same formatter with the required
+  local SDK permission completed successfully; no source workaround was used.
+
+## 2026-07-15 — Matched NLA header filters and playback footer
+
+- Re-read `space_nla.py` and its shared `space_dopesheet.py`/`space_time.py`
+  helpers in the local Blender checkout. The NLA header has inline selected,
+  hidden, missing-strip, and error filters in addition to the Filters and
+  Snapping popovers; the NLA editor also registers a separate footer with
+  playback controls.
+- Added those inline filter buttons and expanded the NLA Filters popover with
+  F-Curve/collection search, type filters, transform/modifier filters, and
+  data-block sorting. Added a reusable optional footer slot to
+  `BlenderSequencerEditor` and `BlenderNLAEditor`, then wired source-shaped
+  playback, frame, and playhead controls into the showcase NLA editor.
+- Updated the focused NLA regression and golden. The initial footer patch put
+  the optional field on the neighboring base editor constructor; the compile
+  check caught that placement and the API was corrected before verification.
+
+## 2026-07-15 — Matched main Timeline and Dope Sheet headers
+
+- Re-read `space_dopesheet.py` and `space_time.py` in the local Blender
+  checkout. The Dope Sheet header registers mode-specific View, Select,
+  Marker, Channel, Key, and Action menus, while its header buttons expose
+  Filters, Snapping, Proportional Editing, Action selection, and Overlays.
+  Timeline adds Playback, Auto Keying, transport, frame, and Playhead
+  snapping controls.
+- Expanded the main Timeline/Dope Sheet editor header with those source-shaped
+  menu families and controls. The existing bottom animation workbench already
+  had a related surface and remains independently covered.
+- The first implementation put the Action selector in the action scroll
+  region, which squeezed its data-block field at narrow widths. Moving it to
+  the fixed leading region preserves the source-visible selector and keeps
+  the remaining menus/actions horizontally scrollable.
+- Added a focused main-header regression and regenerated
+  `showcase_main_animation_headers.png`.
+
+## 2026-07-15 — Matched File Browser navigation header actions
+
+- Re-read `FILEBROWSER_HT_header` in the local Blender checkout and compared
+  its navigation/action cluster with the reusable `BlenderFileBrowser` header.
+- Added visual Back, Forward, Parent Directory, Refresh, and New Folder
+  controls to both File Browser and Asset Browser variants. Optional callbacks
+  keep navigation, filesystem mutation, and status reporting owned by the
+  embedding application.
+- The focused File/Asset Browser regression initially attempted to find the
+  wrapped tooltip widgets directly; the test now verifies the underlying
+  source action glyphs instead. Both browser goldens were regenerated.
+
+## 2026-07-15 — Revalidated standalone Properties panel composition
+
+- Re-ran the focused `Output properties preserve Blender boolean row composition` golden after the editor source work.
+- The failure was a stale checked-in golden containing only the panel header; the current bounded overlay/list layout rendered the complete Format panel with its numeric and boolean rows.
+- Refreshed `test/goldens/output_format_properties.png` and confirmed the focused golden test passes. No functional Blender data-model behavior was introduced.
+
+## 2026-07-15 — Reviewed residual Blender source-family boundaries
+
+- Rechecked the coverage map against the local Blender source checkout after
+  the Freestyle pass. The remaining `Partial` entries represent visual
+  descriptors whose runtime polling, RNA/data ownership, persistence, or
+  operator execution intentionally belongs to the embedding application.
+- Documented that distinction in the coverage reference so future source
+  audits can target genuinely missing visual anatomy instead of expanding the
+  package into a Blender data-model implementation.
+
+## 2026-07-15 — Added engine-aware Render Properties families
+
+- Re-read `properties_render.py` and followed its engine polling: the existing
+  Eevee-facing tree covered the `RENDER_PT_eevee_*` families, while the
+  Workbench branch registers Sampling, Film, Lighting, Object Color, and
+  Options panels alongside common Simplify, Color Management, and Freestyle.
+- Made the Render Engine selector visual stateful. Selecting Workbench now
+  replaces the Eevee-only Raytracing/Volumes tree with source-shaped Workbench
+  groups and preserves the common panel hierarchy.
+- Added a Workbench regression and golden. The example remains a visual
+  descriptor surface; renderer selection and RNA ownership remain outside the
+  showcase.
+
+## 2026-07-15 — Corrected Preferences panel parent relationships
+
+- Compared the Preferences panel registrations in `space_userpref.py` with
+  the descriptor-backed category sections. Transparent Checkerboard is nested
+  under Themes → User Interface → Editor & Widgets, while Auto Run Python
+  Scripts is nested under Save & Load → Blend Files.
+- Added the missing Transparent Checkerboard visual controls and moved Auto
+  Run Python Scripts out of File Paths → Development into its source parent.
+  The regression initially collapsed the already-expanded Blend Files card;
+  removing that test-only tap verified the intended nested panel.
+
+## 2026-07-15 — Matched Blender Properties context navigation
+
+- Re-read `space_properties.py` and compared its `tabs_attr_infos` order with
+  the showcase rail. The app was missing Particles, Bone, Bone Constraints,
+  and Strip Modifiers, and its remaining context tiles were in a different
+  order.
+- Added the four missing visual contexts, moved the complete rail into
+  Blender's source order, and routed Particles to the existing particle-system
+  descriptor family. The dedicated Particles view unwraps the Physics-only
+  Particle System container so its panels remain top-level. Bone, Bone
+  Constraints, and Strip Modifiers reuse the existing source-shaped data,
+  constraint, and modifier stacks.
+- Added the source context rows that sit above those panels: the particle
+  system list/actions, active-bone data field, and Add Object/Bone Constraint
+  menus. A dense Bone Constraints header initially overflowed in the compact
+  showcase; the shared panel header now bounds action clusters in a horizontal
+  scroll surface.
+- Rechecked the hidden-header context panels in the same source family and
+  moved Render Engine and Scene selectors into their proper top rows instead
+  of presenting Render Engine as a fabricated collapsible panel.
+- Added a source-order regression, made offscreen tab tests scroll the actual
+  Properties rail, and refreshed the affected showcase goldens. Data polling,
+  tab persistence, and operators remain caller-owned.
+
+## 2026-07-15 — Deepened Blender Particles context anatomy
+
+- Re-read `properties_particle.py` after adding the dedicated Particles tab.
+  The source makes Hair Dynamics a sibling of Emission, nests Collisions,
+  Structure, and Volume below it, and nests each force-field Falloff panel
+  below its Type 1 or Type 2 panel.
+- Corrected those descriptor relationships and added representative source
+  families for Vertex Groups, Textures, Hair Shape, Animation, and Custom
+  Properties. The visual surface remains descriptor-driven; particle data,
+  polling, animation, and operators remain caller-owned.
+- Added descriptor-level regression assertions for the root families and the
+  Hair Dynamics and force-field nesting. Full example/package suites and
+  goldens remain the verification gates for this source pass.
+- A first combined format/test command used example-relative paths from the
+  example package directory; formatting reported no files before the test
+  still ran. The formatter was rerun from the repository root successfully.
+
+## 2026-07-15 — Matched View3D Tool paint panel hierarchy
+
+- Re-read the shared brush definitions in `properties_paint_common.py` and
+  their registrations in `space_view3d_toolbar.py`. In the View3D Tool
+  sidebar, Brush Asset and Brush Settings are the peer panels; Advanced,
+  Color Picker, Color Palette, Clone from Paint Slot, Cursor, Texture,
+  Texture Mask, Stroke, and Falloff are nested below Brush Settings, with
+  Stabilize Stroke below Stroke and Front-Face/Normal Falloff below Falloff.
+- Corrected the initial shared-panel interpretation to match that actual
+  View3D hierarchy. Clone Layer remains a context menu, not a panel, and the
+  implementation retains representative source-shaped controls.
+- The first asset selector used a data-block field inside a split property row
+  and overflowed by 4.6 px at the narrow Properties widths. Replaced it with a
+  compact asset button matching Blender's brush selector anatomy, then
+  refreshed the workspace golden.
+- The first full golden run also exposed two existing global-text assertions
+  (`Tool` and `Brush Settings`) after the Tool context became richer; those
+  checks now scope themselves to the Node and Image editor sidebars.
+
+## 2026-07-15 — Added View3D Tool mode-specific panels
+
+- Re-read the mode branches in `space_view3d_toolbar.py`. The source changes
+  the Tool region by mode: mesh Edit Options contain Transform and UVs, Pose
+  has Pose Options, Sculpt has Dyntopo, Remesh, Options/Gravity, and
+  Symmetry, paint modes have symmetry/options families, and Particle Edit has
+  Particle Tool plus nested cut/display options.
+- Connected the existing showcase Mode selector to source-shaped visual state.
+  Object Mode keeps Options/Transform; the other available modes now expose
+  their matching panel labels, nesting, and representative controls without
+  claiming Blender runtime mode or operator behavior.
+- Added a sculpt-mode golden and regression coverage. A first focused run
+  correctly reached the new state but reported the expected missing golden;
+  the golden was then generated and the full example suite passed.
+- One verification attempt used example-relative paths from the repository
+  root and reported a missing-file diagnostic; rerunning from the example
+  package root passed. The example analyzer also surfaced three new
+  `prefer_const_constructors` infos, which were fixed before the final clean
+  analyzer run.
+
+## 2026-07-15 — Added View3D Grease Pencil Tool families
+
+- Re-read the Grease Pencil registrations in `space_view3d_toolbar.py`.
+  Draw mode keeps Advanced and Stroke families under Brush Settings, with
+  Post-Processing, Randomize, and Stabilize Stroke below Stroke; Color is a
+  peer with Palette below it. Weight Paint keeps Falloff under Brush Settings
+  and exposes Options; Vertex Paint exposes Color/Palette and Falloff peers.
+- Added explicit Grease Pencil Draw, Sculpt, Weight Paint, and Vertex Paint
+  mode choices with representative material, brush, color, palette, falloff,
+  cursor, stroke, and option controls. The implementation remains visual and
+  does not claim Blender mode, brush, material, or paint-data behavior.
+- Added Draw and Vertex Paint goldens plus focused hierarchy regressions. An
+  initial Draw test exposed that the Stroke disclosure was below the viewport;
+  the test now uses the sidebar's scroll-aware visibility step before tapping.
+
+## 2026-07-15 — Covered remaining basic View3D Tool branches
+
+- Compared the armature-edit and curves-sculpt registrations in
+  `space_view3d_toolbar.py`. Armature Edit contributes an Options panel with
+  X-axis mirror; Curves Sculpt contributes a Symmetry panel with X/Y/Z mirror
+  controls.
+- Added explicit Armature Edit and Curves Sculpt mode choices and their
+  source-shaped panel bodies, with regression coverage for their collapsed
+  disclosure state and child controls.
+
+## 2026-07-15 — Added View3D Texture Paint utility panels
+
+- Re-read the registration and draw code for `VIEW3D_PT_slots_projectpaint`,
+  `VIEW3D_PT_slots_paint_canvas`, `VIEW3D_PT_slots_color_attributes`,
+  `VIEW3D_PT_slots_vertex_groups`, `VIEW3D_PT_mask`,
+  `VIEW3D_PT_stencil_projectpaint`, and the Image Paint Cavity Mask panel.
+- Added the source-shaped Texture Slots, Canvas, Color Attributes, and
+  Vertex Groups peer panels, plus Masking with nested Stencil Mask and Cavity
+  Mask panels. The controls are representative visual surfaces; list data,
+  image persistence, UV state, and paint operators remain caller-owned.
+- Added a Texture Paint regression and golden. The focused test initially
+  caught that this repository's `BlenderDataBlockField` requires an explicit
+  item list; both placeholder data-block fields now provide one.
+
+## 2026-07-15 — Kept status notification badges above the status surface
+
+- Traced the extension-count badge being obscured to its negative-positioned
+  overflow outside the status button, where the status bar scroll viewport
+  could clip it.
+- Kept the badge as the last child in the icon stack while allocating its
+  bounds inside the 24px button, ensuring it remains visible and topmost next
+  to editor panes.
+
+## 2026-07-15 — Added a direct Components workbench entry point
+
+- Kept `example/lib/main.dart` as the realistic Blender-style workspace, where
+  the component catalog is available from the far-right `Components` tab.
+- Added `example/lib/components_demo.dart` so the searchable workbench can be
+  launched directly with `flutter run -d macos -t lib/components_demo.dart`.
+- Documented both launch paths because the horizontally scrollable workspace
+  header can place the Components tab outside a narrow window's initial view.
+
+## 2026-07-15 — Kept compact search text inside field bounds
+
+- Traced the data-block search clipping to the shared single-line text field:
+  its 20px control height and 3px vertical inset left less room than the body
+  text line after the border was applied.
+- Reduced only the vertical inset to 1px, retaining the compact control height
+  and horizontal padding while allowing search and text-field labels to fit.
+
+## 2026-07-15 — Normalized disclosure arrow geometry
+
+- Compared the local Blender disclosure SVGs and found that their landscape
+  and portrait viewBoxes produce different painted bounds when both are fitted
+  into the same square icon slot.
+- Routed panel disclosure arrows through the package painter and made the down
+  and right chevrons rotationally symmetric so collapsed and expanded states
+  have the same visual scale.
+
+## 2026-07-15 — Expanded top-bar menu families
+
+- Re-read `scripts/startup/bl_ui/space_topbar.py` in the local Blender
+  checkout, including the Blender application menu and the File, Edit, Render,
+  Window, and Help menus.
+- Expanded the showcase top bar with source-ordered command families,
+  separators, New File and Recover submenus, screenshot/workspace commands,
+  and the Blender System submenu.
+- Added a regression that opens each top-bar family and checks representative
+  source labels; the existing File/Import flow remains covered as well.
+
+## 2026-07-15 — Matched the normal Outliner header
+
+- Re-read `scripts/startup/bl_ui/space_outliner.py` and confirmed that the
+  editor-menu row is conditional on the DATA API display mode.
+- Removed the generic View/Select/Collection/Object menu row from the normal
+  showcase Outliner area; its source-shaped display mode, filter, search, and
+  restriction controls remain owned by `BlenderOutliner`.
+- Preserved the source exception by exposing the Edit menu when the Outliner
+  switches to DATA API mode, with keying-set and driver command entries.
+
+## 2026-07-15 — Matched 3D Viewport transform header controls
+
+- Re-read `scripts/startup/bl_ui/space_view3d.py`, especially
+  `VIEW3D_HT_header.draw_xform_template`.
+- Added source-ordered Transform Orientation, Pivot Point, Snap, and
+  Proportional Editing controls to the showcase View3D header before its
+  existing grid/wireframe controls.
+- Added explicit widget keys and regression assertions for the four controls;
+  transform state remains host-owned visual state.
+
+## 2026-07-15 — Matched 3D Viewport display header controls
+
+- Re-read the remainder of `VIEW3D_HT_header.draw` in the local Blender
+  checkout, including object visibility, gizmo, overlay, X-ray, and shading
+  controls and their source SVG assets.
+- Added source-shaped gizmo and overlay popovers, X-Ray, Wireframe/Solid/
+  Material Preview/Rendered controls, shading options, and the object
+  visibility affordance to the showcase View3D header.
+- Added the missing source icon mappings, focused widget assertions, and a
+  regenerated viewport golden; shading selection only drives the showcase
+  renderer's existing visual wireframe state.
+- Added an opt-in scrollable menu/action layout to `BlenderAreaHeader` so the
+  dense View3D header remains usable at the narrow editor widths covered by
+  the example suite; the default layout for other editors is unchanged.
+- The first focused example-test invocation from the repository root could not
+  resolve `package:blender_ui_example`; the verified command runs from the
+  `example` package root. The full suite then caught the narrow-header overflow
+  and confirmed the scrollable layout fix across all example surfaces.
+
+## 2026-07-15 — Matched Timeline and Dope Sheet header families
+
+- Re-read `scripts/startup/bl_ui/space_dopesheet.py` and
+  `scripts/startup/bl_ui/space_time.py` in the local Blender checkout,
+  including the conditional Timeline versus Action menu and header-control
+  branches.
+- Replaced the bottom editor's generic animation menu inventory with source-
+  ordered Timeline View/Marker and Action View/Select/Marker/Channel/Key/Action
+  families, expanded the source item lists, and kept Action playback controls
+  out of the Action header.
+- Added source-shaped Playback, Auto Keying, Playhead, Dope Sheet Snapping,
+  Proportional Editing, Filter, and Overlay popovers with focused assertions;
+  the horizontal toolbar remains scrollable when the source menu families are
+  wider than the available editor width.
+
+## 2026-07-15 — Matched Graph Editor and Drivers header families
+
+- Re-read `scripts/startup/bl_ui/space_graph.py` in the local Blender
+  checkout, including the shared Graph/Drivers header and its distinct menu,
+  normalization, ghost-curve, filter, pivot, snapping, and proportional
+  branches.
+- Added a dedicated Graph/Drivers header path instead of routing those editor
+  types through the generic animation header. It exposes source-shaped
+  View/Select/Marker/Channel/Key menus, with the Marker family omitted for
+  Drivers mode, plus the source curve-control affordances and popovers.
+- Added focused menu/control assertions and a Graph Editor golden; curve
+  evaluation, driver execution, and playback remain host-owned visual state.
+
+## 2026-07-15 — Matched Sequencer and Preview header families
+
+- Re-read `scripts/startup/bl_ui/space_sequencer.py` in the local Blender
+  checkout, including the view-type branches, source menu families, scene and
+  overlap controls, snapping, display/channel controls, gizmos, and nested
+  overlay panels.
+- Added a dedicated Sequencer/Video Editing header path with Sequencer,
+  Preview, and combined view choices; source View/Select/Marker/Add/Strip/Image
+  menu inventories; scene, overlap, snapping, display, channel, gizmo, and
+  overlay controls; and source-shaped overlay subfamilies.
+- Extended the existing Sequencer regression and regenerated its golden;
+  strip evaluation, media loading, and playback remain host-owned visual state.
+
+## 2026-07-15 — Matched NLA Editor header families
+
+- Re-read `scripts/startup/bl_ui/space_nla.py` in the local Blender checkout,
+  including the source View/Select/Marker/Add/Track/Strip menus and Filters/
+  Snapping header controls.
+- Added a dedicated NLA header path with source menu inventories, filter and
+  snapping popovers, and focused assertions while keeping action clips, tracks,
+  and strip operations caller-owned.
+- Regenerated the NLA golden after the header change; the focused regression
+  passed alongside the existing Sequencer coverage.
+
+## 2026-07-15 — Matched Clip Editor header families
+
+- Re-read `scripts/startup/bl_ui/space_clip.py` in the local Blender checkout,
+  including the Tracking/Mask mode branches and Clip/Graph/Dope Sheet view
+  menu conditions.
+- Added source-shaped Clip Editor mode/view selectors, tracking and masking
+  menu families, lock/gizmo/overlay controls, and mask proportional editing;
+  clip tracking and mask operations remain caller-owned.
+- Extended the Clip Editor regression and regenerated its golden after the
+  header pass.
+
+## 2026-07-15 — Matched Image and UV Editor header families
+
+- Re-read `scripts/startup/bl_ui/space_image.py` in the local Blender checkout,
+  including its shared Image/UV menu conditions and transform/display header
+  controls.
+- Expanded the shared Image/UV header with source View/Select/Image/UVs menus,
+  UV sync and selection controls, snapping, proportional editing, image pin,
+  gizmo, and overlay controls while keeping image and UV data caller-owned.
+- Extended the Image/UV regression and regenerated both editor goldens.
+
+## 2026-07-15 — Matched Spreadsheet header family
+
+- Re-read `scripts/startup/bl_ui/space_spreadsheet.py` in the local Blender
+  checkout and confirmed that Spreadsheet has a View-only menu row followed by
+  Only Selected and Use Filter controls.
+- Routed the showcase Spreadsheet through a dedicated header, removed its
+  generic Select menu, and added focused menu/control assertions.
+
+
+## 2026-07-15 — Matched Asset Browser catalog tree
+
+- Re-read `source/blender/editors/space_file/file_panels.cc` and the asset
+  catalog tree surface in the local Blender checkout.
+- Composed `BlenderFileAssetCatalogPanel` into the actual Asset Browser Tools
+  sidebar, including library selection, refresh/bundle actions, and nested
+  Environment/Studio Lighting/Outdoor catalog rows.
+- Bounded the catalog panel within the scrolling sidebar after verification
+  caught the source tree's expected finite-height requirement.
+
+## 2026-07-15 — Expanded Output Properties panel families
+
+- Re-read `scripts/startup/bl_ui/properties_output.py` in the local Blender
+  checkout, including Post Processing, Metadata children, Views, output Color
+  Management, Pixel Density, and conditional Encoding/Video/Audio panels.
+- Added those source-ordered visual groups to the Output Properties context;
+  output writing, codec selection, and engine polling remain caller-owned.
+- Extended the focused Output regression to verify the lower panels through the
+  editor's scroll surface and regenerated its golden.
+
+## 2026-07-15 — Matched status-bar composition
+
+- Re-read `scripts/startup/bl_ui/space_statusbar.py` and
+  `source/blender/editors/interface/templates/interface_template_status.cc`
+  in the local Blender checkout.
+- Replaced the showcase footer's custom Global Search/F3 treatment with
+  source-shaped input-status and status-info surfaces, retaining the live
+  showcase message as host-owned state.
+- Made `BlenderStatusBar` bound its left and right children through horizontal
+  scroll surfaces; narrow shells no longer overflow when source status items
+  and version/extension info are both visible.
+
+## 2026-07-15 — Matched Texture User context
+
+- Re-read `scripts/startup/bl_ui/properties_texture.py` and
+  `source/blender/editors/space_buttons/buttons_texture.cc` in the local
+  Blender checkout.
+- Added Blender's source-shaped Texture User selector, with grouped Material
+  and Modifier users, to the Texture Properties context. Texture datablock
+  selection and user mutation remain caller-owned.
+- Extended the Texture Properties regression and regenerated its golden.
+
+## 2026-07-15 — Matched Preferences Asset Libraries
+
+- Re-read `scripts/startup/bl_ui/space_userpref.py` and
+  `source/blender/editors/space_userpref/userpref_asset_libraries_list.cc` in
+  the local Blender checkout.
+- Replaced the Preferences Assets section's generic buttons and path with the
+  source-shaped selectable Asset Libraries panel, including built-in
+  libraries, local/remote rows, enable state, path or repository URL, import
+  method, relative paths, and Online Essentials.
+- Extended the Preferences regression to enter the Assets category and verify
+  these controls before returning to the existing golden state.
+
+## 2026-07-15 — Matched File Browser header popovers
+
+- Re-read `scripts/startup/bl_ui/space_filebrowser.py` in the local Blender
+  checkout, including the File Browser and Asset Browser Display/Filter
+  popovers and their source-specific property rows.
+- Added source-shaped Display Settings and Filter Settings popovers to
+  `BlenderFileBrowser`, with the Asset Browser variants for display type,
+  asset-ID filters, and remote access. File enumeration and asset filtering
+  remain caller-owned.
+- Extended the File/Asset Browser regression to open both popover families;
+  the focused golden and assertions pass.
+
+## 2026-07-15 — Removed remaining showcase placeholders
+
+- Replaced the Text Editor sidebar's literal `TODO` sample with a second
+  source-neutral search value, changed the Image Editor caption to its actual
+  editor name, and made utility-menu fallback labels use the selected editor's
+  presentation name.
+- The Image Editor golden was updated for the intentional caption change;
+  library analysis and the complete example suite remain clean.
+
+## 2026-07-15 — Matched Spreadsheet header controls
+
+- Re-read `scripts/startup/bl_ui/space_spreadsheet.py` in the local Blender
+  checkout, including selection filtering, generic filtering, and Internal
+  Attributes visibility.
+- Added Spreadsheet header controls for Use Filter, Only Selected, and
+  Internal Attributes state, with a golden/regression covering the updated
+  grid composition. Spreadsheet data extraction and filtering remain
+  caller-owned.
+- During narrow Components-workbench verification, the long Internal
+  Attributes status initially overflowed the header; bounded it with a
+  flexible ellipsized label so the source-shaped header remains responsive.
+
+## 2026-07-15 — Matched utility editor menu contents
+
+- Re-read the current `space_text.py`, `space_console.py`, `space_info.py`,
+  `space_outliner.py`, `space_spreadsheet.py`, and `space_project.py` header
+  menus in the local Blender checkout.
+- Replaced the example's single placeholder option per utility menu with
+  source-shaped entries for navigation, text editing, console operations,
+  report actions, outliner modes, spreadsheet display, and project save/load.
+  These entries remain visual descriptors and dispatch only showcase status.
+
+## 2026-07-15 — Matched Movie Clip Editor sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_clip.py` in the local Blender checkout,
+  including Track, Solve, 2D Stabilization, View, Footage/Proxy, Animation,
+  and Mask panels.
+- Added reusable `BlenderClipEditorSidebar` and composed it with the existing
+  `BlenderMaskProperties` surface. Clip loading, tracking, solving, and mask
+  operations remain caller-owned.
+- Updated the Clip Editor golden/regression to cover the new source families.
+
+## 2026-07-15 — Matched 3D Viewport sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_view3d.py`,
+  `scripts/startup/bl_ui/space_view3d_sidebar.py`, and
+  `scripts/startup/bl_ui/space_view3d_toolbar.py` in the local Blender
+  checkout, including View, View Lock, 3D Cursor, Collections, Item/Transform,
+  Tool, and Global Transform families.
+- Added reusable `BlenderViewportSidebar` and wired it into the showcase 3D
+  Viewport. Viewport state, object transforms, collections, and animation
+  operators remain caller-owned.
+- Added a focused 3D Viewport golden/regression covering the source sidebar
+  families.
+
+## 2026-07-15 — Matched Project editor surfaces
+
+- Re-read `scripts/startup/bl_ui/space_project.py` in the local Blender
+  checkout, including Navigation, General/Project settings, No Project, and
+  Save Project execution surfaces.
+- Added `BlenderProjectEditor`, added Project to the editor selector, and
+  added a golden/regression. Project discovery, saving, and filesystem
+  operations remain caller-owned.
+
+## 2026-07-15 — Matched Text Editor sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_text.py` in the local Blender checkout,
+  including Text Properties and Find & Replace panel contents.
+- Added reusable `BlenderTextEditorSidebar` and wired it into the example Text
+  Editor. The editor canvas remains independently composable while text
+  datablocks, editing, and search execution remain caller-owned.
+- Added a Text Editor golden/regression covering margin, font, indentation,
+  find/replace, and search-option surfaces.
+
+## 2026-07-15 — Matched Dope Sheet and Action sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_dopesheet.py` and
+  `scripts/startup/bl_ui/space_time.py` in the local Blender checkout,
+  including Action, Slot, View, Shape Key, Custom Properties, filters, and
+  snapping families.
+- Added reusable `BlenderDopeSheetSidebar` to the Dope Sheet/Action surface.
+  The timeline canvas remains independent while keyframe editing, action
+  datablocks, slots, and playback settings remain caller-owned.
+- Updated the existing Action golden/regression to cover the new sidebar.
+
+## 2026-07-15 — Matched Sequencer and NLA sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_sequencer.py` and
+  `scripts/startup/bl_ui/space_nla.py` in the local Blender checkout,
+  including cache, proxy, preview/view, safe-area, composition-guide,
+  annotation, strip, action, and transform panel families.
+- Added reusable `BlenderSequencerSidebar` and wired it into Video Sequencer
+  and NLA surfaces. The timeline canvas stays independently composable while
+  media evaluation, proxy generation, strip operations, and animation data
+  remain caller-owned.
+- Added Sequencer and NLA goldens/regressions and recorded the initial
+  formatting telemetry filesystem limitation encountered during verification.
+
+## 2026-07-15 — Matched Blender Preferences navigation and panels
+
+- Re-read `scripts/startup/bl_ui/space_userpref.py` in the local Blender
+  checkout, including its navigation bar and all current preference contexts.
+- Replaced the example's four generic Preferences categories with the source
+  category set and source-ordered panel families for Interface, Editing,
+  Animation, System, Viewport, Themes, File Paths, Save & Load, Input,
+  Navigation, Keymap, Extensions, Add-ons, Assets, Lights, Developer Tools,
+  and Experimental.
+- Added a Preferences golden/regression. Preference persistence and runtime
+  configuration remain outside the visual package.
+
+## 2026-07-15 — Matched File Browser and Asset Browser side panels
+
+- Re-read `scripts/startup/bl_ui/space_filebrowser.py` in the local Blender
+  checkout, including File Browser bookmarks/filter/path panels and Asset
+  Browser library/catalog/metadata/import/preview/tag panels.
+- Added reusable `BlenderFileBrowserSidebar` and wired it into both example
+  browser modes. Nested browser lists use static rows inside the owning sidebar
+  scroll region so the composition matches Blender's region ownership without
+  introducing nested unbounded viewports.
+- Added File Browser and Asset Browser goldens/regressions. File operations,
+  asset catalogs, and metadata persistence remain caller-owned.
+
+## 2026-07-15 — Matched Node Editor sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_node.py` in the local Blender checkout,
+  including Tool, Node, View, Options, and Group sidebar panels.
+- Added reusable `BlenderNodeEditorSidebar` and wired it into shader,
+  compositor, geometry-node, and texture-node editor variants. The canvas and
+  sidebar remain independently composable while node-tree behavior stays
+  caller-owned.
+- Added a Node Editor golden/regression covering the source sidebar families.
+
+## 2026-07-15 — Matched Node Editor header families
+
+- Re-read `scripts/startup/bl_ui/space_node.py` in the local Blender checkout,
+  including the source-specific Shader, Geometry, Compositor, and Texture
+  header branches and the View/Select/Add/Node menu families.
+- Added source-shaped node-tree context/data-block controls, pin and snapping
+  controls, compositor backdrop/gizmo controls, and a nested Node Editor
+  Overlays popover while keeping node-tree behavior caller-owned.
+- Added focused menu/control assertions and regenerated the Node Editor golden.
+  The first pass also caught and fixed an unconstrained data-block dropdown in
+  the shared header action row; the focused test and full example suite pass.
+
+## 2026-07-15 — Matched Image and UV Editor sidebar families
+
+- Re-read `scripts/startup/bl_ui/space_image.py` in the local Blender checkout,
+  including shared paint/tool panels, image/render-slot/UDIM panels, View and
+  Scopes families, UV controls, and image-editor mask panels.
+- Added reusable `BlenderImageEditorSidebar` and wired it into both Image and
+  UV Editor surfaces. The image/UV canvas remains independently composable;
+  image data, paint operations, scopes, UV editing, and masks remain
+  caller-owned.
+- Added Image and UV Editor goldens/regressions covering the source sidebar
+  families.
+
+## 2026-07-15 — Deepened Physics Properties hierarchies
+
+- Re-read the local Blender `properties_particle.py` and the Soft Body, Fluid,
+  Dynamic Paint, Rigid Body, and Rigid Body Constraint source families.
+- Replaced placeholder physics child headers with source-ordered nested panels
+  and representative visual controls, including particle emission, velocity,
+  physics, render, children, and force-field branches plus the soft-body goal,
+  edges, and solver tree.
+- Kept simulation state, modifier creation, polling, and operator execution
+  outside the visual package. The focused Physics regression and golden pass.
+
+## 2026-07-15 — Deepened Paint Common tool panels
+
+- Re-read the source brush panels in `properties_paint_common.py`, including
+  palette, clone, texture mask, stroke, stabilization, falloff, cursor, and
+  clone-layer controls.
+- Replaced the Tool sidebar's header-only brush sections with expandable,
+  source-shaped visual controls while keeping brush assets, image layers, and
+  paint operators caller-owned.
+- Extended the Tool regression to open the Stroke panel and verify its spacing
+  and input-sample controls.
+
+## 2026-07-15 — Matched Sequencer Strip Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_strip.py` and
+  `properties_strip_modifier.py` in the local Blender checkout.
+- Added reusable `BlenderStripProperties` with source-ordered Crop, Effect
+  Strip and text Layout/Style/Outline/Shadow/Box children, Source, Movie Clip,
+  Scene, Sound, Mask, Time, adjustment, Compositing, Transform, Video, Color,
+  Custom Properties, and Modifiers panels.
+- Added the Strip Properties regression and golden. Media loading, strip
+  evaluation, and modifier execution remain caller-owned.
+
+## 2026-07-15 — Audited remaining source-family boundaries
+
+- Added explicit coverage entries for Output, Geometry Nodes physics, Strip,
+  Strip Modifiers, Paint Common, and legacy Grease Pencil Material sources.
+- Integrated the Geometry Nodes Simulation Nodes panel into the Physics context.
+- Added the source-shaped Brush Asset panel and paint child-panel headers to
+  the Tool sidebar. Paint mode state and brush operators remain caller-owned.
+
+## 2026-07-15 — Matched Clip/Mask editor anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_mask_common.py` in the local
+  Blender checkout, including Mask Settings, Mask Layers, Active Spline,
+  Active Point, Animation, Mask Display, Transforms, Mask Tools, and the mask
+  menu families.
+- Added reusable `BlenderMaskProperties` and an optional sidebar slot on
+  `BlenderClipEditor`. The example now wires the source-shaped Mask sidebar
+  into its Clip Editor context, including bounded layer-list actions and the
+  source panel nesting.
+- Added package and example regressions plus the Clip/Mask golden. Mask
+  geometry, tracking, and operator execution remain caller-owned.
+
+## 2026-07-15 — Matched legacy Grease Pencil Material anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_material_gpencil.py` and its
+  shared Grease Pencil material helpers in the local Blender checkout.
+- Added the source-shaped Grease Pencil material branch beneath Material
+  Properties, including Surface, Stroke, Randomize, and Fill panels with
+  stroke mode/style and fill color controls. Legacy material polling, slots,
+  drawing data, and operators remain caller-owned.
+- Extended the Material Properties regression; the existing golden will be
+  refreshed with the next full showcase run.
+
+## 2026-07-15 — Audited shared animation, Grease Pencil, and mask helpers
+
+- Re-read `properties_animviz.py`, `properties_grease_pencil_common.py`, and
+  `properties_mask_common.py` in the local Blender checkout.
+- Confirmed Motion Paths/Display is already represented through the Object and
+  Armature contexts, and the Grease Pencil shared layer/material anatomy is
+  represented through the Grease Pencil Data and Material branches.
+- Recorded the mask helper as the final shared source family audited in this
+  pass; it is now represented by the reusable Clip/Mask sidebar.
+- Verification note: adding Physics to the existing context group initially
+  pushed the Effects tab below the compact showcase rail. Physics now uses a
+  separate rail group, preserving the established context order; the full
+  golden refresh passes. The remaining SVG loader messages for Blender's
+  `sodipodi:namedview`, `defs`, and `inkscape:path-effect` elements are
+  non-fatal source-icon warnings.
+
+## 2026-07-15 — Matched Freestyle Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_freestyle.py` in the local Blender
+  checkout. The source contributes a Render Freestyle panel and a nested View
+  Layer line-set/style hierarchy.
+- Added source-shaped Freestyle controls to Render and View Layer Properties:
+  the render toggle and line-thickness fields, then Edge Detection, Style
+  Modules, Freestyle Line Set, Visibility, Edge Type, Freestyle Strokes,
+  Color, Thickness, Geometry, and Texture families. The stroke branch now
+  includes chaining, splitting, sorting, selection, and dashed-line controls;
+  the modifier branches include the source targets, ranges, and sampling
+  fields that define their visible anatomy.
+- Extended the Render and View Layer regressions with descriptor-level checks
+  for the lazy-built Freestyle hierarchy and refreshed the View Layer golden.
+  The first attempt to scroll to the offscreen Freestyle header failed because
+  the lazy property list had not mounted that item; descriptor-level checks
+  keep the regression deterministic without changing the runtime list.
+  Freestyle engine polling, line-set data, and operators remain caller-owned.
+
+## 2026-07-15 — Matched Tool-sidebar Workspace anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_workspace.py` in the local Blender
+  checkout. The source panel is owned by the 3D View Tool sidebar and nests
+  Filter Add-ons and Custom Properties below Workspace settings.
+- Filled the existing Workspace panel with source-shaped scene pinning, mode,
+  sequencer scene, scene-time synchronization, add-on filter rows, and custom
+  property disclosure controls. Workspace ownership, add-on registration, and
+  filtering remain caller-owned.
+- Extended the Tool Properties regression to verify the nested Workspace
+  anatomy. The example suite remains at 37 tests.
+
+## 2026-07-15 — Matched Physics Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_physics_common.py` and the local
+  Blender Cloth, Soft Body, Fluid, Dynamic Paint, Force Field, Rigid Body,
+  Rigid Body Constraint, and Particle source families.
+- Added the `physics` glyph and Physics Properties context. The source-shaped
+  add-physics grid is followed by the complete Cloth hierarchy, including
+  Physical Properties, Stiffness, Damping, Internal Springs, Pressure, Cache,
+  Shape, Collisions, Property Weights, and Field Weights. The other physics
+  families are represented in source order as collapsed visual panels; physics
+  modifier creation, simulation state, polling, and operators remain
+  caller-owned.
+- Added the Physics regression and golden. The example suite now passes all
+  37 tests.
+
+## 2026-07-15 — Matched Constraint Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_constraint.py` in the local
+  Blender checkout. The source uses a hidden-header Object/Bone Constraints
+  context and instanced type-specific constraint panels.
+- Added a Constraints Properties context using the shared
+  `BlenderConstraintStack` for Copy Location, Child Of, Follow Path, Limit
+  Rotation, and Armature cards, including source-style enable, menu, reorder,
+  remove, target, and influence controls.
+- Added the Constraint regression and golden. The example suite now passes all
+  36 tests.
+
+## 2026-07-15 — Matched Texture Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_texture.py` in the local Blender
+  checkout. The source order is Preview, Texture/Node, a type-specific panel,
+  Mapping, Influence, Colors with Color Ramp, Animation, and Custom Properties.
+- Added a Texture Properties context with source-shaped preview/type controls,
+  procedural Clouds settings, mapping coordinates, influence factors, color
+  processing, and Color Ramp nesting. Texture slots, procedural evaluation,
+  and node ownership remain caller-owned.
+- Added the Texture regression and golden. The example suite now passes all
+  35 tests.
+
+## 2026-07-15 — Matched Collection Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_collection.py` in the local
+  Blender checkout. The source order is Visibility with nested View Layer
+  flags, Importer, Exporters, Instancing, Line Art, and Custom Properties.
+- Added a Collection Properties context with source-shaped visibility flags,
+  importer/exporter path controls, instancing offsets, and Line Art masks.
+  Collection membership, import/export execution, and line-art data remain
+  caller-owned.
+- Added the Collection regression and golden. The example suite now passes
+  all 34 tests.
+
+## 2026-07-15 — Matched View Layer Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_view_layer.py` in the local
+  Blender checkout. The source order is View Layer, Passes with nested Data,
+  Light, Shader AOV, Cryptomatte, and Light Groups panels, followed by Filter,
+  Override, and Custom Properties.
+- Added the `viewLayer` glyph and a dedicated View Layer Properties context
+  with a source-shaped view-layer selector, bounded AOV/light-group lists, and
+  render-pass controls. Render-layer state, engine polling, and operators
+  remain caller-owned.
+- Added the View Layer regression and golden. The example suite now passes
+  all 33 tests.
+
+## 2026-07-15 — Matched ShaderFX Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_shaderfx.py` in the local
+  Blender checkout. The source is a hidden-header Effects panel with an
+  operator enum menu followed by the shader-effect template stack.
+- Added the `shaderfx` glyph, an Effects Properties tab, and a source-shaped
+  Add Effect menu with stacked Drop Shadow and Colorize cards. The shared
+  `BlenderShaderEffectStack` supplies Blender's enable, reorder, remove, and
+  collapsible-panel anatomy while effect data and operators remain
+  caller-owned.
+- Added the ShaderFX regression and golden. The example suite now passes all
+  32 tests.
+
+## 2026-07-15 — Matched active Bone Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_bone.py` in the local Blender
+  checkout. The source order is Transform, Bendy Bones, Relations with Bone
+  Collections, Viewport Display with Custom Shape, Inverse Kinematics, Deform,
+  and Custom Properties.
+- Added the `bone` glyph and an active Bone visual state beneath the Armature
+  hierarchy. The data context preserves the source panel nesting while pose,
+  edit-mode polling, bone transforms, and armature operators remain
+  caller-owned.
+- Added the Bone Properties regression and golden. The example suite now
+  passes all 31 tests.
+
+## 2026-07-15 — Matched dynamic Grease Pencil Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_grease_pencil.py` in the
+  local Blender checkout. The source order is Layers with nested Masks,
+  Transform, Adjustments, Relations, and Display panels, Onion Skinning with
+  Custom Colors/Display children, Settings, Animation, Custom Properties, and
+  Attributes.
+- Added the `greasepencil` glyph, a Grease Pencil object/data path, and the
+  descriptor-driven Grease Pencil Data context. The compact Layers list keeps
+  Blender's action-column anatomy while layer trees, drawing data, and
+  operators remain caller-owned.
+- Added the Grease Pencil Data regression and golden. The example suite now
+  passes all 30 tests.
+
+## 2026-07-15 — Matched dynamic Light Probe Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_lightprobe.py` in the local
+  Blender checkout. The source order is Probe with nested Visibility, Capture,
+  Bake with Resolution/Capture/Offset/Clamping children, Custom Parallax,
+  Viewport Display, Animation, and Custom Properties.
+- Added the `lightprobe` glyph, a Light Probe object/data path, and the
+  descriptor-driven Light Probe Data context. Nested bake controls and
+  source-default-collapsed display/parallax sections remain visual-only;
+  probe capture, baking, engine polling, and RNA ownership remain caller-owned.
+- Added the Light Probe Data regression and golden. The example suite now
+  passes all 29 tests.
+
+## 2026-07-15 — Matched Mesh Data Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_mesh.py` in the local Blender
+  checkout. The source order is a data-block header followed by Vertex Groups,
+  Shape Keys, UV Maps, Color Attributes, Attributes, Texture Space, Remesh,
+  Geometry Data, Animation, and Custom Properties.
+- Added the `mesh` glyph and a Mesh Data Properties tab to the showcase. Added
+  source-shaped list panels with action columns and reusable
+  `BlenderPropertyGroup.content` support so list/tree anatomy remains separate
+  from scalar property descriptors.
+- Added the Mesh Data golden and regression. The first visual run exposed a
+  four-pixel overflow in the five-button list action column; increasing the
+  source-equivalent list slot resolved it. The final example suite passes all
+  17 tests, including the refreshed Mesh Data baseline.
+
+## 2026-07-15 — Matched dynamic Camera Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_camera.py`. Blender changes
+  the Data context with the selected object and exposes Lens, Stereoscopy,
+  Camera, Depth of Field/Aperture, Background Images, Viewport Display with
+  Composition Guides, Safe Areas with Center-Cut Safe Areas, Animation, and
+  Custom Properties.
+- Made the showcase Data tab dynamic: the selected Camera now changes the data
+  header icon/title and uses a source-ordered Camera panel tree, while the
+  default Cube continues to use Mesh Data. This keeps the context-dependent
+  tab model aligned with Blender rather than adding unrelated permanent tabs.
+- Added a Camera Data regression and golden. The example suite now passes all
+  18 tests; camera data and image/operator ownership remain caller-owned.
+
+## 2026-07-15 — Matched dynamic Light Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_light.py`. The Light Data
+  source order is Preview, Light, nested Shadow/Influence/Custom Distance/Beam
+  Shape panels, Animation, and Custom Properties.
+- Extended the dynamic Data context for selected lights with preview, energy,
+  temperature, shadow, influence, distance, beam-shape, animation, and custom
+  property rows. The context keeps engine and light-type branches visually
+  represented without taking ownership of light data.
+- Added a Light Data regression and golden. The example suite now passes all
+  19 tests; the baseline has no layout overflow.
+
+## 2026-07-15 — Matched dynamic Armature Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_armature.py` in the local
+  Blender checkout. The source order is Pose, Viewport Display, Bone
+  Collections, Inverse Kinematics, Motion Paths with Display, Selection Sets,
+  Animation, and Custom Properties.
+- Added the Armature data glyph, an Armature object/data path in the showcase,
+  and a source-ordered Armature Data context. Bone Collections reuses the
+  package tree template inside the Properties panel, preserving its status,
+  visibility, solo, and action-column anatomy without coupling it to Blender's
+  armature model.
+- While refreshing the visual suite, the new outliner node exposed two real
+  narrow-layout defects: nested expansion state was incorrectly discarded on
+  parent rebuilds, and the Bone Collections columns needed a compact layout.
+  The shared tree now reconciles expansion IDs recursively, and the bone
+  collection template tightens indentation and restriction buttons only below
+  the narrow-pane threshold. The example suite now passes all 20 tests with a
+  refreshed Armature Data golden.
+
+## 2026-07-15 — Matched dynamic Curve Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_curve.py` in the local
+  Blender checkout. For a regular Curve data-block, the source order is Shape,
+  Texture Space, Geometry with Bevel and Start & End Mapping children, Path
+  Animation, Animation, and Custom Properties; text-only font and paragraph
+  panels remain subtype-specific.
+- Added the `curve` glyph, a Curve object/data path in the showcase, and a
+  source-ordered Curve Data context. The visual descriptors represent curve
+  dimensions, resolution, twist/fill, taper/bevel, path timing, and action
+  selection without taking ownership of curve RNA or spline operators.
+- Added the Curve Data regression and golden. The outliner-driven test scrolls
+  to the source row at compact heights, and the example suite now passes all
+  21 tests.
+
+## 2026-07-15 — Matched dynamic Lattice Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_lattice.py` in the local
+  Blender checkout. The source exposes one Lattice panel with U/V/W
+  resolution, interpolation, Outside, and Vertex Group rows, followed by
+  Animation and Custom Properties.
+- Added the `lattice` glyph, a Lattice object/data path in the showcase, and a
+  descriptor-driven Lattice Data context. The panel keeps Blender's split-row
+  anatomy while leaving lattice points, shape keys, and deformation operators
+  to the host.
+- Added the Lattice Data regression and golden. The example suite now passes
+  all 22 tests.
+
+## 2026-07-15 — Matched dynamic Metaball Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_metaball.py` in the local
+  Blender checkout. The source order is Metaball, Texture Space, Active
+  Element, Animation, and Custom Properties, with element-type-dependent size
+  rows represented in the active-element group.
+- Added the `metaball` glyph, a Metaball object/data path in the showcase, and a
+  descriptor-driven Metaball Data context. Visual controls remain host-owned;
+  the context does not model meta-ball topology or edit/update execution.
+- Added the Metaball Data regression and golden. The example suite now passes
+  all 23 tests.
+
+## 2026-07-15 — Matched dynamic Curves Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_curves.py` in the local
+  Blender checkout. The source order is Surface, Attributes, Animation, and
+  Custom Properties; the Attributes panel is a list with add, remove, and
+  specials actions.
+- Added the `curves` glyph, a Curves object/data path in the showcase, and a
+  descriptor-driven Curves Data context with a representative source-style
+  attribute list. Surface binding and attribute domain/type ownership remain
+  outside the visual layer.
+- Added the Curves Data regression and golden. The example suite now passes
+  all 24 tests.
+
+## 2026-07-15 — Matched dynamic Point Cloud Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_pointcloud.py` in the local
+  Blender checkout. The source exposes Attributes and Custom Properties; the
+  attribute list includes radius, color, id, velocity, add/remove, and specials
+  affordances.
+- Added the `pointcloud` glyph, a Point Cloud object/data path, and the
+  descriptor-driven Point Cloud Data context. The shared list row now truncates
+  detail text responsively, and the expanded attribute list uses a bounded
+  compact viewport so Properties panels do not nest unbounded scrollables.
+- Added the Point Cloud Data regression and golden. The example suite now
+  passes all 25 tests.
+
+## 2026-07-15 — Matched dynamic Speaker Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_speaker.py` in the local
+  Blender checkout. The source order is Sound, Distance, Cone, Animation, and
+  Custom Properties, with the Distance and Cone panels closed by default.
+- Added the `speaker` glyph, a Speaker object/data path, and the
+  descriptor-driven Speaker Data context with sound, attenuation, distance,
+  cone, and action controls. Audio loading and playback remain host-owned.
+- Added the Speaker Data regression and golden. The example suite now passes
+  all 26 tests.
+
+## 2026-07-15 — Matched dynamic Volume Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_volume.py` in the local
+  Blender checkout. The source order is OpenVDB File, Grids, Render, Viewport
+  Display with Slicing, Animation, and Custom Properties.
+- Added the `volume` glyph, a Volume object/data path, and the
+  descriptor-driven Volume Data context. The Grids list is bounded for the
+  Properties viewport, while OpenVDB loading and engine-dependent branches
+  remain host-owned.
+- Added the Volume Data regression and golden. The example suite now passes
+  all 27 tests.
+
+## 2026-07-15 — Matched dynamic Empty Data anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_empty.py` in the local Blender
+  checkout. The source exposes Empty display controls and a conditional Image
+  panel with offsets, depth, side, visibility, and opacity settings.
+- Added the `empty` glyph, an Empty object/data path, and the descriptor-driven
+  Empty Data context. The image-specific settings are represented visually
+  without owning image loading or viewport display behavior.
+- Added the Empty Data regression and golden. The example suite now passes all
+  28 tests.
+
+## 2026-07-15 — Matched Timeline and Action editor controls
+
+- Re-read `space_time.py` and `space_dopesheet.py`. The bottom animation
+  editor now exposes source-shaped Filters, Snapping, Overlays, and Action-mode
+  Proportional Editing popovers alongside the existing View, Marker, Select,
+  Channel, Key, Action, Playback, and transport controls.
+- Added source labels for summary/selection/error filters, datablock-type
+  filters, snap targets, playhead snapping, overlay visibility, and
+  proportional falloff/size. These controls are visual descriptors; Blender
+  operator execution and animation-state ownership remain host responsibilities.
+- Added `showcase_action_editor.png` and expanded the animation regression to
+  open and verify the Filters and Snapping popovers. Example analysis and the
+  focused golden test pass.
+
+## 2026-07-15 — Matched Material Properties panel anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_material.py` and replaced the
+  Material context placeholder with material-slot controls, active material
+  selection, Preview, Surface, Volume, Displacement, Thickness, Settings,
+  Viewport Display, Line Art, Animation, and Custom Properties panels.
+- Added nested material Settings Surface/Volume controls and representative
+  shader-link, render-method, culling, displacement, viewport, line-art, and
+  animation rows. The slot and selector controls stay descriptor-driven while
+  Blender node ownership and material operators remain host responsibilities.
+- Added `showcase_material_properties.png` and a regression for the complete
+  panel tree and source material-slot selector. The first baseline exposed a
+  too-short slot-action column; increasing it to the source-equivalent list
+  height removed the overflow.
+- Focused example analysis and the Material Properties golden test pass.
+
+## 2026-07-15 — Matched Modifiers Properties anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_data_modifier.py` and replaced the
+  Modifiers context placeholder with the source Add Modifier menu categories:
+  Edit, Generate, Deform, Normals, Physics, and Color.
+- Connected those categories to the existing visual `BlenderModifierStack`
+  with Bevel and Subdivision Surface panels, preserving Blender's enabled,
+  viewport, render, reorder, and remove header affordances and representative
+  settings rows.
+- Added `showcase_modifier_properties.png` and a desktop-width regression. A
+  first narrow-pane run correctly exposed dense modifier-header overflow; the
+  baseline now uses a desktop-width Properties pane where Blender's full action
+  anatomy is representable.
+- Focused example analysis and the Modifier Properties golden test pass.
+
+## 2026-07-15 — Matched World Properties panel anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_world.py` and replaced the World
+  context placeholder with Surface, Volume, Mist Pass, Settings, Viewport
+  Display, Animation, and Custom Properties panels.
+- Added nested Light Probe, Sun, and Shadow settings plus the source data-block
+  selector in the Properties header. World node links, renderer polling, and
+  conversion operators remain visual descriptors owned by the host.
+- Added `showcase_world_properties.png` and a regression for the complete panel
+  tree, nested settings, and header selector. The focused test and example
+  analysis pass.
+
+## 2026-07-15 — Matched Scene Properties panel anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_scene.py` and replaced the Scene
+  context placeholder with source-ordered panels for Scene, Units, Keying Sets,
+  Audio, Gravity, Simulation, Rigid Body World, Light Probes, Animation, and
+  Custom Properties.
+- Added nested Keyframing Settings, Active Keying Set, and Rigid Body World
+  Settings/Cache/Field Weights panels, along with source-shaped unit, audio,
+  gravity-vector, simulation-range, cache, and animation controls.
+- Kept body operators such as Bake Animation, Remove, and Bake All Light Probe
+  Volumes in descriptor rows rather than panel headers after the focused visual
+  test exposed narrow-Properties header overflow. This matches Blender's
+  source placement and keeps the pane responsive.
+- Added `showcase_scene_properties.png` and a regression for the full top-level
+  tree and rigid-body child panels. Example analysis and the focused test pass.
+
+## 2026-07-15 — Matched Render Properties panel anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_render.py` and replaced the
+  Render-context placeholder with a source-ordered Eevee-facing panel tree:
+  Render Engine, Sampling, Light Paths, Raytracing, Volumes, Depth of Field,
+  Motion Blur, Film, Curves, Performance, Grease Pencil, Simplify, and Color
+  Management.
+- Preserved Blender's nested panel relationships and header-toggle treatment
+  for Sampling children, Raytracing features, volume range, Motion Blur,
+  Performance compositor settings, Simplify, and Color Management. The
+  descriptor controls are intentionally visual-only; engine polling and RNA
+  ownership remain outside the example.
+- Added `showcase_render_properties.png` and a regression covering the complete
+  top-level tree, Sampling children, Color Management children, and visible
+  engine/sample controls. The focused test and example analysis pass.
+
+## 2026-07-15 — Matched Object Properties panel anatomy
+
+- Re-read `scripts/startup/bl_ui/properties_object.py` and aligned the example
+  Object context with Blender's panel family: Transform, Delta Transform,
+  Parent Inverse, Relations, Collections, Instancing, Motion Paths, Viewport
+  Display, Shading, Visibility, Line Art, Animation, and Custom Properties.
+- Added source-shaped descriptor rows for parent/display/axis enums, collection
+  membership, instance offset, motion-path display, linking and terminator
+  subpanels, visibility flags, line-art overrides, and custom-property values.
+  The descriptors keep data/RNA ownership with the caller while matching the
+  panel nesting, labels, controls, and source order.
+- Extended the Object Properties regression to inspect the complete descriptor
+  tree, scroll the lazy reorderable list to later rendered headers, and refresh
+  `showcase_object_properties.png`. A deterministic drag sequence is used
+  because rebuilding the lazy list makes `scrollUntilVisible` re-resolve more
+  than one scrollable during the test.
+- Focused example analysis and the Object Properties widget/golden test pass.
+
+## 2026-07-15 — Added the comprehensive Components workbench and app services
+
+- Promoted component discovery from the long bottom-editor catalog into a
+  first-class `Components` workspace. The workbench provides searchable
+  Overview, Controls, Layout, Data & Properties, Editors, and App Services
+  pages while preserving the realistic dockable Layout workspace.
+- Decomposed the new workbench into focused page and section widgets rather
+  than adding more responsibilities to the existing showcase state class.
+- Added optional, dependency-free application infrastructure:
+  `BlenderStateStore`, bounded `BlenderHistoryStore`, typed state and service
+  scopes, a parent-aware `BlenderServiceContainer`, and a reusable
+  `BlenderCommandRegistry`.
+- Used the services to power the workbench itself. All category controls edit
+  one immutable state model, page-header undo/redo acts across categories, and
+  command definitions are shared by direct actions and the Services page.
+- Added package lifecycle, history, scope, circular-dependency, and command
+  tests plus example navigation, search, service interaction, and golden
+  coverage. The first golden run exposed an 11px feature-card text overflow;
+  increasing the responsive grid extent and bounding secondary text fixed it.
+- A workspace integration assertion initially appeared to show failed tab
+  dispatch. The selected index was correct; the test had loaded
+  `DemoWorkbench` through a relative URI while the app used its package URI,
+  producing two Dart type identities. Canonicalizing the test import fixed the
+  assertion. The tab loop now also uses explicit indexed entries and has a
+  direct callback regression.
+- Recorded the optional-service boundary and lifecycle rules in ADR-0005 and
+  added root/example usage documentation.
+- Final verification completed with clean package and example analysis, all 86
+  package tests, all 10 example tests, and the Components visual baseline.
+
+## 2026-07-15 — Matched texture-user jump-button visibility
+
+- Re-read `buttons_texture.cc`. Blender only draws the “Show texture in
+  texture tab” Properties button when a texture is assigned and the current
+  Properties editor is not already on the Texture context.
+- Added `hasTexture` and `inTextureProperties` descriptors to
+  `BlenderTextureUserSelector`, preserving caller-owned disabled behavior while
+  matching Blender's source-level omission states.
+- Extended the texture-user regression for the hidden no-texture state;
+  package analysis and the focused test pass.
+
+## 2026-07-15 — Matched Preferences asset-library row states
+
+- Re-read `userpref_asset_libraries_list.cc`. Blender keeps the fixed
+  `All`/`Essentials` rows visually distinct from custom libraries, uses
+  source-specific local/remote indicators and labels, disables removal for
+  fixed rows, and disables Online Essentials when internet access is not
+  available.
+- Updated `BlenderAssetLibrariesPreferencesPanel` for source-backed built-in
+  row anatomy, filled invalid-library indicators, `Repository URL`, `Import
+  Method`, and `Use Relative Path` labels, fixed-row removal state, and
+  caller-owned Online Essentials enablement.
+- Extended the regression for local and remote settings. The focused package
+  test passes. Package analysis and all 78 package tests pass; the example
+  analysis and all 7 tests pass without golden changes.
+
+## 2026-07-15 — Matched status-info issue and extension states
+
+- Re-read `interface_template_status.cc`. Blender distinguishes blocked
+  extensions from updates, uses `internet_offline.svg` and `uv_sync_select.svg`
+  for offline/checking states, and composes warning text/tooltips for newer
+  files, asset-edit files, and missing color-management configuration.
+- Added the source-backed `sync` glyph and extended `BlenderStatusInfo` with
+  blocked/offline/checking/update visual states plus caller-owned file-issue
+  descriptors. Warning-only issues keep Blender's icon segment without forcing
+  a fabricated message; runtime status discovery and operators remain outside
+  the widget.
+- Expanded the status regression to cover blocked extensions, generated
+  warning text, and the asset-system tooltip. Dart formatting initially caught
+  a delimiter mismatch during the edit; the affected operator-dialog nesting
+  was restored before analysis. Package analysis and all 78 package tests pass;
+  example analysis and all 7 tests pass without golden changes.
+
+## 2026-07-15 — Matched the running-jobs status strip
+
+- Re-read `interface_template_running_jobs.cc`. Blender's template combines a
+  job name/icon with a progress-and-stop row, adds elapsed/remaining timing in
+  the progress tooltip, and can append animation-player and remote asset
+  download rows.
+- Extended `BlenderJobProgress` with the source timing tooltip, optional
+  operation-icon action, exact canceling label, and source stop tooltip.
+  Added `BlenderRunningJobsPanel` for the animation stop control and the
+  separate `Downloading Assets` progress anatomy, plus the source-backed
+  `asset_manager.svg` glyph with a built-in fallback drawing.
+- Added a focused regression for all of these visual states. Early assertions
+  exposed both the stop-action tooltip and the progress-bar status text as
+  additional source-backed surfaces; the test was corrected to assert those
+  intentional duplicates. Package analysis and all 78 package tests pass;
+  example analysis and all 7 tests pass without golden changes. The expected
+  local Blender SVG parser warnings remain non-fatal.
+
 ## 2026-07-15 — Matched the Object Properties transform context
 
 - Re-read Blender's `properties_object.py` and matched the Object context's
@@ -17,7 +1420,7 @@
 - Added the source `DECORATE_UNLOCKED` glyph mapping and optional numeric-field
   suffixes for meters and degrees. The Properties options trigger now uses the
   compact thin down-disclosure glyph rather than the generic filled chevron.
-- Added Object-context interaction and golden coverage, then verified all 75
+- Added Object-context interaction and golden coverage, then verified all 78
   package tests and all 7 example tests. An initial example test invocation
   from the repository root could not resolve `blender_ui_example`; rerunning
   from the example package root is the correct workspace procedure.
@@ -301,6 +1704,33 @@
   The showcase workspace, Output Properties, and Object Properties baselines
   were refreshed for the intentional row/icon change. Package analysis and
   all 74 package tests pass; the example analysis and all 7 tests pass.
+
+## 2026-07-15 — Matched unreadable file-library diagnostics
+
+- Compared `file_draw_invalid_library_hint()` in `space_file/file_draw.cc` with
+  the existing centered asset-availability cards. Blender uses a separate
+  top-left diagnostic layout for unreadable `.blend` libraries: a heading,
+  path, and one icon-marked report row per non-info report.
+- Added `BlenderFileBrowserUnreadableLibraryHint` and the immutable
+  `BlenderFileBrowserReport` descriptor. The host still owns file loading and
+  report generation; the package only preserves the source-defined layout and
+  severity icon mapping.
+- Added a showcase state and a focused widget regression. The package and
+  example verification remain the required gates for this visual-only change;
+  the final run passed all 88 package tests and all 16 example tests.
+
+## 2026-07-15 — Preserved texture-jump disabled reasons
+
+- Rechecked `uiTemplateTextureShow()` in `buttons_texture.cc`. Blender keeps
+  the Properties jump button visible when a texture exists but distinguishes
+  the disabled tooltip for a missing unpinned Properties editor from a missing
+  texture-user match.
+- Added `showTextureDisabledTooltip` to `BlenderTextureUserSelector`, keeping
+  the visual button state and the caller-owned reason separate. The default
+  remains the package's existing generic message for compatibility, while
+  callers can provide Blender's source-specific text.
+- Extended the focused texture-user regression to verify the disabled reason
+  through the public semantics contract.
 
 ## 2026-07-15 — Matched selector and Properties-tab states
 
@@ -1598,3 +3028,12 @@
 - Final verification after this pass: package suite 64 tests, example suite 4
   tests, and clean package/example analysis. Existing SVG fixture parser
   warnings remain non-fatal.
+## 2026-07-15 — Matched utility editor menu families
+
+- Compared `space_console.py` and `space_info.py` in the local Blender checkout
+  with the showcase utility-editor header.
+- Replaced the simplified Info menu with Blender's Select All, Deselect All,
+  Invert Selection, Toggle Selection, Select Box, Delete, and Copy commands.
+- Added the Console delete-word commands and its Area entry to the source-order
+  View/Console families.
+- Recorded the source paths in `docs/reference/blender-ui-coverage.md`.

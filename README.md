@@ -20,6 +20,8 @@ anchored popovers, pulldown and pie menus, dense editor layouts, mutable
 corner-split/docking workspaces,
 and dedicated non-3D surfaces for files, text, console, image, UV, animation,
 nodes, sequencing, clips, spreadsheets, keymaps, reports, and Preferences.
+It also includes optional observable state, undo/redo, scoped dependency, and
+command services for applications that do not need a larger framework.
 
 ## Status
 
@@ -47,6 +49,41 @@ BlenderApp(
 All controls can also be used below an existing `WidgetsApp` by placing a
 `BlenderTheme` above them.
 
+### Optional application services
+
+The built-in services are scoped rather than global, and controls continue to
+accept ordinary values and callbacks.
+
+```dart
+final state = BlenderHistoryStore<AppState>(const AppState());
+final commands = BlenderCommandRegistry();
+final services = BlenderServiceContainer()
+  ..registerSingleton<BlenderHistoryStore<AppState>>(state)
+  ..registerSingleton<BlenderCommandRegistry>(commands);
+
+commands.register(
+  BlenderCommand(
+    id: 'save',
+    label: 'Save',
+    shortcut: 'Ctrl S',
+    execute: saveDocument,
+  ),
+);
+
+BlenderServiceScope(
+  services: services,
+  child: BlenderStateScope<AppState>(
+    store: state,
+    child: const Workspace(),
+  ),
+);
+```
+
+Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
+`BlenderStateScope.read<T>(context)` in event handlers. See
+[`ADR-0005`](docs/decisions/ADR-0005-application-services.md) for ownership and
+lifecycle decisions.
+
 ## Sample application
 
 The repository includes a small Blender-like desktop workspace with a minimal
@@ -61,6 +98,14 @@ The source-driven visual coverage map is maintained in
 [`docs/reference/blender-ui-coverage.md`](docs/reference/blender-ui-coverage.md).
 
 The sample also includes Windows and Linux runners.
+Open its **Components** workspace for a searchable workbench covering controls,
+layouts, data surfaces, editors, and application services.
+
+Launch that workbench directly from `example/` with:
+
+```sh
+flutter run -d macos -t lib/components_demo.dart
+```
 
 ## Local Blender icon development
 

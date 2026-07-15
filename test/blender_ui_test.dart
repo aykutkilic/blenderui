@@ -10,6 +10,18 @@ Widget _harness(Widget child) {
   );
 }
 
+class _TreeFixture {
+  const _TreeFixture(
+    this.id,
+    this.initiallyExpanded, [
+    this.children = const [],
+  ]);
+
+  final String id;
+  final bool initiallyExpanded;
+  final List<_TreeFixture> children;
+}
+
 void main() {
   test('local Blender icon source resolves the sibling checkout', () {
     final path = BlenderIconSource.pathFor('plus.svg');
@@ -30,6 +42,63 @@ void main() {
     await tester.pumpWidget(_harness(const BlenderIcon(BlenderGlyph.plus)));
 
     expect(find.byType(CustomPaint), findsOneWidget);
+  });
+
+  testWidgets('disclosure arrows use normalized built-in geometry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const Row(
+          children: <Widget>[
+            BlenderIcon(BlenderGlyph.panelDisclosureDown, size: 9),
+            BlenderIcon(BlenderGlyph.panelDisclosureRight, size: 9),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.byType(CustomPaint), findsNWidgets(2));
+  });
+
+  testWidgets('single-line search text fits its compact field', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 220,
+          child: BlenderSearchField(
+            controller: controller,
+            placeholder: 'Search data-blocks',
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(EditableText)).height,
+      greaterThanOrEqualTo(15),
+    );
+  });
+
+  testWidgets('status notification badge stays inside its topmost button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const BlenderStatusInfo(
+          extensionStatus: BlenderExtensionStatus.updates,
+          extensionCount: 2,
+        ),
+      ),
+    );
+
+    final statusInfo = tester.getRect(find.byType(BlenderStatusInfo));
+    final badge = tester.getRect(find.text('2'));
+    expect(badge.left, greaterThanOrEqualTo(statusInfo.left));
+    expect(badge.right, lessThanOrEqualTo(statusInfo.right));
+    expect(badge.top, greaterThanOrEqualTo(statusInfo.top));
   });
 
   testWidgets('button invokes its callback on pointer activation', (
@@ -74,6 +143,145 @@ void main() {
         hasTapAction: true,
       ),
     );
+  });
+
+  testWidgets('menu items support independent persistent check states', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        BlenderMenu<String>(
+          items: const <BlenderMenuItem<String>>[
+            BlenderMenuItem<String>(
+              value: 'lock-object-modes',
+              label: 'Lock Object Modes',
+              checked: true,
+            ),
+            BlenderMenuItem<String>(
+              value: 'redo',
+              label: 'Redo',
+              enabled: false,
+            ),
+          ],
+          onSelected: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Lock Object Modes'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('menu-row-Lock Object Modes')),
+        matching: find.byType(BlenderIcon),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<BlenderIcon>(
+            find.descendant(
+              of: find.byKey(
+                const ValueKey<String>('menu-row-Lock Object Modes'),
+              ),
+              matching: find.byType(BlenderIcon),
+            ),
+          )
+          .glyph,
+      BlenderGlyph.check,
+    );
+  });
+
+  testWidgets('preferences window owns category navigation and filtering', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 900,
+          height: 620,
+          child: const BlenderPreferencesWindow(
+            categories: <String>['Interface', 'Animation'],
+            initialCategory: 'Animation',
+            sections: <BlenderPreferenceSection>[
+              BlenderPreferenceSection(
+                id: 'timeline',
+                category: 'Animation',
+                title: 'Timeline',
+                child: const Text('Minimum Grid Spacing'),
+              ),
+              BlenderPreferenceSection(
+                id: 'display',
+                category: 'Interface',
+                title: 'Display',
+                child: const Text('Resolution Scale'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Minimum Grid Spacing'), findsOneWidget);
+
+    await tester.tap(find.text('Interface'));
+    await tester.pump();
+    expect(find.text('Display'), findsOneWidget);
+    expect(find.text('Resolution Scale'), findsOneWidget);
+  });
+
+  test('property factory preserves caller-owned update callbacks', () {
+    var value = false;
+    final descriptor = BlenderPropertyFactory.boolean(
+      'enabled',
+      'Enabled',
+      value,
+      onChanged: (next) => value = next,
+    );
+
+    descriptor.onChanged!(true);
+    expect(value, isTrue);
+    expect(descriptor.id, 'enabled');
+  });
+
+  test('tree state shares expansion and flattening across nested models', () {
+    const roots = <_TreeFixture>[
+      _TreeFixture('root', true, <_TreeFixture>[_TreeFixture('child', false)]),
+    ];
+    final expanded = BlenderTreeState.initialExpanded<_TreeFixture>(
+      roots,
+      idOf: (item) => item.id,
+      childrenOf: (item) => item.children,
+      initiallyExpanded: (item) => item.initiallyExpanded,
+    );
+    final entries = BlenderTreeState.flatten<_TreeFixture>(
+      roots,
+      idOf: (item) => item.id,
+      childrenOf: (item) => item.children,
+      expanded: expanded,
+    );
+
+    expect(expanded, <String>{'root'});
+    expect(entries.map((entry) => entry.value.id), <String>['root', 'child']);
+    expect(entries.map((entry) => entry.depth), <int>[0, 1]);
+  });
+
+  testWidgets('tab bars report the selected tab index', (tester) async {
+    int? selected;
+    await tester.pumpWidget(
+      _harness(
+        BlenderTabBar(
+          tabs: const <String>['Layout', 'Modeling', 'Components'],
+          selectedIndex: 0,
+          onChanged: (value) => selected = value,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Components'));
+    await tester.pump();
+    expect(selected, 2);
   });
 
   testWidgets('labeled selection controls remain within compact columns', (
@@ -1295,6 +1503,61 @@ void main() {
     expect(canceled, isTrue);
   });
 
+  testWidgets('running jobs panel includes source status rows', (tester) async {
+    var renderOpened = false;
+    var animationStopped = false;
+    var assetsCanceled = false;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 420,
+          child: BlenderRunningJobsPanel(
+            jobs: <BlenderJobProgress>[
+              BlenderJobProgress(
+                name: 'Rendering',
+                progress: .42,
+                icon: BlenderGlyph.scene,
+                onIconPressed: () => renderOpened = true,
+                iconTooltip: 'Show the render window',
+                remainingTime: '00:18',
+                elapsedTime: '00:07',
+              ),
+              const BlenderJobProgress(
+                name: 'Preparing',
+                progress: .8,
+                active: false,
+              ),
+            ],
+            onStopAnimation: () => animationStopped = true,
+            assetDownloadProgress: .25,
+            onCancelAssetDownloads: () => assetsCanceled = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Rendering'), findsOneWidget);
+    expect(find.text('42%'), findsOneWidget);
+    expect(find.text('Canceling...'), findsNWidgets(2));
+    expect(find.text('Anim Player'), findsOneWidget);
+    expect(find.text('Downloading Assets'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.assetManager,
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(BlenderTooltip), findsNWidgets(3));
+
+    await tester.tap(find.byType(BlenderIconButton).first);
+    await tester.tap(find.text('Anim Player'));
+    await tester.tap(find.byType(BlenderIconButton).last);
+    expect(renderOpened, isTrue);
+    expect(animationStopped, isTrue);
+    expect(assetsCanceled, isTrue);
+  });
+
   testWidgets('attribute search opens and selects an attribute', (
     tester,
   ) async {
@@ -1630,6 +1893,120 @@ void main() {
     expect(find.text('Theme'), findsWidgets);
   });
 
+  testWidgets('Preferences sections expose reorder handles in stable order', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 600,
+          height: 420,
+          child: BlenderPreferencesEditor(
+            categories: <String>['Input'],
+            selectedCategory: 'Input',
+            sections: <BlenderPreferenceSection>[
+              BlenderPreferenceSection(
+                id: 'keyboard',
+                category: 'Input',
+                title: 'Keyboard',
+                child: SizedBox.shrink(),
+              ),
+              BlenderPreferenceSection(
+                id: 'mouse',
+                category: 'Input',
+                title: 'Mouse',
+                child: SizedBox.shrink(),
+              ),
+              BlenderPreferenceSection(
+                id: 'tablet',
+                category: 'Input',
+                title: 'Tablet',
+                child: SizedBox.shrink(),
+              ),
+              BlenderPreferenceSection(
+                id: 'touchpad',
+                category: 'Input',
+                title: 'Touchpad',
+                child: SizedBox.shrink(),
+              ),
+              BlenderPreferenceSection(
+                id: 'ndof',
+                category: 'Input',
+                title: 'NDOF',
+                child: SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final titles = <String>['Keyboard', 'Mouse', 'Tablet', 'Touchpad', 'NDOF'];
+    for (var index = 0; index < titles.length - 1; index++) {
+      expect(
+        tester.getTopLeft(find.text(titles[index])).dy,
+        lessThan(tester.getTopLeft(find.text(titles[index + 1])).dy),
+      );
+    }
+    for (final id in <String>[
+      'keyboard',
+      'mouse',
+      'tablet',
+      'touchpad',
+      'ndof',
+    ]) {
+      expect(
+        find.byKey(ValueKey<String>('preference-section-handle-$id')),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('Clip Editor exposes source-shaped Mask Properties', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 720,
+          height: 420,
+          child: BlenderClipEditor(
+            markers: <BlenderClipMarker>[
+              BlenderClipMarker(id: 'mask-point', position: Offset(80, 70)),
+            ],
+            maskSidebar: BlenderMaskProperties(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Movie Clip Editor'), findsOneWidget);
+    expect(find.text('Mask'), findsOneWidget);
+    expect(find.text('Mask Settings'), findsOneWidget);
+    expect(find.text('Mask Layers'), findsOneWidget);
+    expect(find.text('Active Spline'), findsOneWidget);
+    expect(find.text('Active Point'), findsOneWidget);
+    expect(find.text('Mask Display'), findsOneWidget);
+    expect(find.text('Transforms'), findsOneWidget);
+    expect(find.text('Mask Layer'), findsOneWidget);
+    final maskEditor = tester.widget<BlenderPropertiesEditor>(
+      find.byType(BlenderPropertiesEditor),
+    );
+    expect(
+      maskEditor.groups.map((group) => group.title),
+      containsAll(<String>[
+        'Mask Settings',
+        'Mask Layers',
+        'Active Spline',
+        'Active Point',
+        'Animation',
+        'Mask Display',
+        'Transforms',
+        'Mask Tools',
+      ]),
+    );
+  });
+
   testWidgets('info editor renders report severity and timestamp', (
     tester,
   ) async {
@@ -1754,6 +2131,39 @@ void main() {
             )
             .dy,
       ),
+    );
+  });
+
+  testWidgets('Properties tab rail replaces its scrollbar with edge fades', (
+    tester,
+  ) async {
+    final tabs = <BlenderPropertyTab>[
+      for (var index = 0; index < 12; index++)
+        BlenderPropertyTab(
+          id: 'tab-$index',
+          label: 'Tab $index',
+          glyph: BlenderGlyph.properties,
+        ),
+    ];
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 36,
+          height: 100,
+          child: BlenderPropertyTabs(
+            tabs: tabs,
+            selectedIndex: 0,
+            onChanged: _ignoreInt,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(RawScrollbar), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('property-tabs-scroll')),
+      findsOneWidget,
     );
   });
 
@@ -2014,6 +2424,31 @@ void main() {
     expect(decoration.border, isNull);
     expect(surface.constraints?.minHeight, 20);
     expect(surface.constraints?.maxHeight, 20);
+  });
+
+  testWidgets('bounded number fields render a proportional range fill', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 180,
+          child: BlenderNumberField(
+            value: 36,
+            min: 0,
+            max: 100,
+            decimalDigits: 0,
+            suffix: '%',
+            onChanged: _ignoreDouble,
+          ),
+        ),
+      ),
+    );
+
+    final fill = tester.widget<FractionallySizedBox>(
+      find.byType(FractionallySizedBox),
+    );
+    expect(fill.widthFactor, closeTo(.36, .001));
   });
 
   testWidgets('collapsed panels retain Blender rounded surfaces', (
@@ -2655,10 +3090,12 @@ void main() {
           child: BlenderStatusInfo(
             statusText: 'Scene 1',
             versionText: 'Blender 4.5.0',
-            extensionStatus: BlenderExtensionStatus.updates,
+            extensionStatus: BlenderExtensionStatus.blocked,
             extensionCount: 3,
             onExtensionPressed: () => extensionsOpened = true,
-            warningMessage: 'Color Management',
+            newerBlenderVersion: 'Blender 4.6.0',
+            assetEditFile: true,
+            missingColorManagement: true,
             onWarningPressed: () => warningOpened = true,
           ),
         ),
@@ -2666,11 +3103,18 @@ void main() {
     );
 
     expect(find.text('Scene 1'), findsOneWidget);
-    expect(find.text('Blender 4.5.0'), findsOneWidget);
-    expect(find.text('Color Management'), findsOneWidget);
-    expect(find.bySemanticsLabel('Extension updates'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Extension updates'));
-    await tester.tap(find.text('Color Management'));
+    expect(find.text('Blender 4.5.0'), findsNothing);
+    expect(find.bySemanticsLabel('Extensions blocked'), findsOneWidget);
+    expect(find.text('Blender 4.6.0 Color Management'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is BlenderTooltip && widget.message.contains('asset system'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.bySemanticsLabel('Extensions blocked'));
+    await tester.tap(find.text('Blender 4.6.0 Color Management'));
     expect(extensionsOpened, isTrue);
     expect(warningOpened, isTrue);
   });
@@ -2822,6 +3266,34 @@ void main() {
     expect(opened, isTrue);
   });
 
+  testWidgets('unreadable library hint preserves path and report severity', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 520,
+          height: 220,
+          child: BlenderFileBrowserUnreadableLibraryHint(
+            path: '/assets/library.blend',
+            reports: const <BlenderFileBrowserReport>[
+              BlenderFileBrowserReport(
+                message: 'The library could not be read.',
+                level: BlenderNoticeLevel.error,
+              ),
+              BlenderFileBrowserReport(message: 'Try another file.'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Unreadable Blender library file:'), findsOneWidget);
+    expect(find.text('/assets/library.blend'), findsOneWidget);
+    expect(find.text('The library could not be read.'), findsOneWidget);
+    expect(find.text('Try another file.'), findsOneWidget);
+  });
+
   testWidgets('asset-library preferences preserve built-in and remote states', (
     tester,
   ) async {
@@ -2871,14 +3343,37 @@ void main() {
     expect(find.byType(BlenderCheckbox), findsNWidgets(3));
     expect(find.bySemanticsLabel('Path'), findsOneWidget);
     expect(find.text('Link'), findsOneWidget);
-    expect(find.text('Default Import Method'), findsOneWidget);
-    expect(find.text('Relative Path'), findsOneWidget);
+    expect(find.text('Import Method'), findsOneWidget);
+    expect(find.text('Use Relative Path'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
-        (widget) => widget is BlenderIcon && widget.glyph == BlenderGlyph.error,
+        (widget) =>
+            widget is BlenderIcon && widget.glyph == BlenderGlyph.errorFilled,
       ),
       findsOneWidget,
     );
+
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 720,
+          height: 460,
+          child: BlenderAssetLibrariesPreferencesPanel(
+            selectedId: 'remote',
+            libraries: const <BlenderAssetLibraryPreference>[
+              BlenderAssetLibraryPreference(
+                id: 'remote',
+                name: 'Remote Repository',
+                isRemote: true,
+                remoteUrl: 'https://assets.example.test',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.bySemanticsLabel('Repository URL'), findsOneWidget);
+    expect(find.text('Use Relative Path'), findsNothing);
   });
 
   testWidgets(
@@ -2927,6 +3422,39 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Show texture in Texture tab'));
       expect(shown, isTrue);
       expect(selected, isNull);
+
+      await tester.pumpWidget(
+        _harness(
+          SizedBox(
+            width: 520,
+            child: BlenderTextureUserSelector(
+              users: const <BlenderTextureUser>[
+                BlenderTextureUser(id: 'base', name: 'Base Color'),
+              ],
+              hasTexture: false,
+              onShowTexture: () {},
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(BlenderIconButton), findsNothing);
+
+      await tester.pumpWidget(
+        _harness(
+          SizedBox(
+            width: 520,
+            child: BlenderTextureUserSelector(
+              users: const <BlenderTextureUser>[
+                BlenderTextureUser(id: 'base', name: 'Base Color'),
+              ],
+              showTextureEnabled: false,
+              showTextureDisabledTooltip: 'No texture user found',
+              onShowTexture: () {},
+            ),
+          ),
+        ),
+      );
+      expect(find.bySemanticsLabel('No texture user found'), findsOneWidget);
     },
   );
 

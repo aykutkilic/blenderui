@@ -62,13 +62,16 @@ export 'src/editors.dart'
     show
         BlenderPropertyEditorBuilder,
         BlenderFileBrowser,
+        BlenderFileBrowserSidebar,
         BlenderFileEntry,
         BlenderGraphLink,
         BlenderGraphNode,
         BlenderNodeSocket,
         BlenderNodeSocketDefinition,
         BlenderNodeEditor,
+        BlenderNodeEditorSidebar,
         BlenderNodeGraphModel,
+        BlenderViewportSidebar,
         BlenderOutliner,
         BlenderOutlinerDisplayMode,
         BlenderOutlinerDisplayModePresentation,
@@ -127,22 +130,32 @@ export 'src/non3d_editors.dart'
         BlenderConsoleLine,
         BlenderConsoleLineKind,
         BlenderImageEditor,
+        BlenderImageEditorSidebar,
         BlenderClipEditor,
+        BlenderClipEditorSidebar,
         BlenderClipMarker,
+        BlenderMaskProperties,
+        BlenderStripProperties,
         BlenderCurveChannel,
         BlenderCurveEditor,
         BlenderDopeSheetEditor,
+        BlenderDopeSheetSidebar,
         BlenderInfoEditor,
         BlenderInfoReport,
         BlenderKeymapEditor,
         BlenderKeymapEntry,
         BlenderNLAEditor,
+        BlenderPreferenceCategoryGroup,
         BlenderPreferenceSection,
         BlenderPreferencesEditor,
+        BlenderPreferencesWindow,
+        BlenderProjectEditor,
         BlenderSequencerEditor,
+        BlenderSequencerSidebar,
         BlenderSequencerStrip,
         BlenderSpreadsheetColumn,
         BlenderSpreadsheetEditor,
+        BlenderTextEditorSidebar,
         BlenderSpreadsheetRow,
         BlenderTextEditor,
         BlenderUVEdge,
@@ -159,6 +172,28 @@ export 'src/property_templates.dart'
         BlenderCurveProfilePreset,
         BlenderLayerItem,
         BlenderLayerSelector;
+export 'src/property_forms.dart'
+    show
+        BlenderPropertyFactory,
+        BlenderSidebarSection,
+        BlenderSidebarSections,
+        BlenderStaticPropertyField,
+        blenderFormColumn;
+export 'src/overlay_host.dart' show BlenderEnsureOverlay;
+export 'src/services.dart'
+    show
+        BlenderCommand,
+        BlenderCommandCallback,
+        BlenderCommandRegistry,
+        BlenderHistoryStore,
+        BlenderServiceContainer,
+        BlenderServiceDisposable,
+        BlenderServiceFactory,
+        BlenderServiceScope,
+        BlenderStateEquality,
+        BlenderStateScope,
+        BlenderStateStore,
+        BlenderStateUpdater;
 export 'src/specialized_templates.dart'
     show
         BlenderAssetShelfPopover,
@@ -166,6 +201,8 @@ export 'src/specialized_templates.dart'
         BlenderAssetLibraryPreference,
         BlenderAssetLibrariesPreferencesPanel,
         BlenderActionSelector,
+        BlenderActionPanelItem,
+        BlenderActionPanelStack,
         BlenderBoneCollection,
         BlenderBoneCollectionTree,
         BlenderCacheFilePanel,
@@ -211,6 +248,8 @@ export 'src/specialized_templates.dart'
         BlenderFileBrowserHint,
         BlenderFileBrowserHintAction,
         BlenderFileBrowserLibraryPathHint,
+        BlenderFileBrowserReport,
+        BlenderFileBrowserUnreadableLibraryHint,
         BlenderFileOperatorPanel,
         BlenderShaderEffectDescriptor,
         BlenderShaderEffectStack,
@@ -225,6 +264,7 @@ export 'src/theme.dart'
         BlenderTextTheme,
         BlenderTheme,
         BlenderThemeData;
+export 'src/tree_state.dart' show BlenderTreeEntry, BlenderTreeState;
 export 'src/templates.dart'
     show
         BlenderColorRamp,
@@ -232,6 +272,7 @@ export 'src/templates.dart'
         BlenderCurveMapping,
         BlenderIconLabel,
         BlenderJobProgress,
+        BlenderRunningJobsPanel,
         BlenderLinkLabel,
         BlenderMatrixField,
         BlenderMatrixTransformPanel,

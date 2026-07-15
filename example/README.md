@@ -15,6 +15,10 @@ The sample includes:
 - a resizable quick-controls sidebar
 - timeline and shader-node tabs
 - a UI Catalog tab covering reusable controls and templates
+- a first-class Components workspace with searchable Overview, Controls,
+  Layout, Data & Properties, Editors, and App Services categories
+- live examples powered by the package's scoped state store, undo/redo history,
+  dependency container, and command registry
 - centered alert and operator-property dialogs in the UI Catalog
 - operator redo popups with compact property rows and disabled-state styling
 - collection importer/exporter panels with file paths, reordering, presets, and export actions
@@ -44,6 +48,12 @@ Scene Collection and Properties column, and bottom Timeline. The viewport uses
 a small perspective projection by design; it exercises orbit, zoom, gizmo, and
 grid feedback without implementing a scene graph or detailed 3D renderer.
 
+The Components workspace is the fastest way to evaluate the library. Its
+left-hand search filters whole feature categories, each page contains focused
+interactive examples, and every edit participates in a shared undoable demo
+state. The App Services page demonstrates how the same command can be invoked
+from several UI surfaces without introducing process-wide state.
+
 Drag inside the viewport to orbit, scroll to zoom, and double-click to reset.
 Drag from any editor corner to split that area or move it onto an edge or the
 center of another area; existing divider lines remain directly resizable.
@@ -52,6 +62,16 @@ Run it from this directory with:
 
 ```sh
 flutter run -d macos
+```
+
+That command opens the realistic Blender workspace. Select the far-right
+**Components** workspace tab to open the searchable component workbench. The
+workspace header scrolls horizontally when the tabs do not fit.
+
+To launch the component workbench directly, use:
+
+```sh
+flutter run -d macos -t lib/components_demo.dart
 ```
 
 Use `-d windows` or `-d linux` on the corresponding desktop platform.

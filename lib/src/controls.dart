@@ -46,6 +46,7 @@ class BlenderButton extends StatefulWidget {
     this.trailing,
     this.enabled = true,
     this.selected = false,
+    this.checked = false,
     this.variant = BlenderButtonVariant.regular,
     this.width,
     this.padding,
@@ -58,6 +59,13 @@ class BlenderButton extends StatefulWidget {
   final Widget? trailing;
   final bool enabled;
   final bool selected;
+
+  /// Displays a checkbox in the menu row.
+  ///
+  /// This is intentionally separate from [selected]: selection describes a
+  /// choice within a menu, while a checked item represents a persistent
+  /// toggle such as Blender's "Lock Object Modes" preference.
+  final bool checked;
   final BlenderButtonVariant variant;
   final double? width;
   final EdgeInsets? padding;
@@ -701,7 +709,10 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
         animation: node,
         builder: (context, child) => Container(
           height: widget.maxLines == 1 ? theme.density.controlHeight : null,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          // Keep the single-line text metrics inside Blender's compact
+          // control height. Three pixels of vertical inset leaves the body
+          // line clipped once the border is accounted for.
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(
             color: widget.backgroundColor ?? theme.colors.textField,
             border: Border.all(
@@ -997,41 +1008,79 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
         onHorizontalDragCancel: widget.enabled
             ? () => setState(() => _dragging = false)
             : null,
-        child: Container(
-          key: const ValueKey<String>('blender-number-field-surface'),
-          height: theme.density.controlHeight,
-          padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
-          decoration: BoxDecoration(
-            color: _dragging
-                ? theme.colors.textField
-                : widget.backgroundColor ?? theme.colors.button,
-            borderRadius: BorderRadius.circular(theme.shapes.controlRadius),
-          ),
-          child: Row(
-            children: <Widget>[
-              if (_hovered)
-                _BlenderNumberStepper(
-                  label: '‹',
-                  onPressed: () => _setValue(widget.value - widget.step),
-                ),
-              Expanded(
-                child: Text(
-                  '${_format(widget.value)}${widget.suffix ?? ''}',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.body.copyWith(
-                    color: widget.enabled
-                        ? theme.colors.foreground
-                        : theme.colors.foregroundDisabled,
-                  ),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final range = widget.min != null && widget.max != null
+                ? widget.max! - widget.min!
+                : 0.0;
+            final fraction = range > 0
+                ? ((widget.value - widget.min!) / range)
+                      .clamp(0.0, 1.0)
+                      .toDouble()
+                : 0.0;
+            final radius = BorderRadius.circular(theme.shapes.controlRadius);
+            return Container(
+              key: const ValueKey<String>('blender-number-field-surface'),
+              height: theme.density.controlHeight,
+              padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
+              decoration: BoxDecoration(
+                color: _dragging
+                    ? theme.colors.textField
+                    : widget.backgroundColor ?? theme.colors.button,
+                borderRadius: radius,
               ),
-              if (_hovered)
-                _BlenderNumberStepper(
-                  label: '›',
-                  onPressed: () => _setValue(widget.value + widget.step),
-                ),
-            ],
-          ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (range > 0)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: fraction,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: widget.enabled
+                                ? theme.colors.buttonSelected
+                                : theme.colors.borderSubtle,
+                            borderRadius: BorderRadius.only(
+                              topLeft: radius.topLeft,
+                              bottomLeft: radius.bottomLeft,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Row(
+                    children: <Widget>[
+                      if (_hovered)
+                        _BlenderNumberStepper(
+                          label: '‹',
+                          onPressed: () =>
+                              _setValue(widget.value - widget.step),
+                        ),
+                      Expanded(
+                        child: Text(
+                          '${_format(widget.value)}${widget.suffix ?? ''}',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.body.copyWith(
+                            color: widget.enabled
+                                ? theme.colors.foreground
+                                : theme.colors.foregroundDisabled,
+                          ),
+                        ),
+                      ),
+                      if (_hovered)
+                        _BlenderNumberStepper(
+                          label: '›',
+                          onPressed: () =>
+                              _setValue(widget.value + widget.step),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1656,6 +1705,7 @@ class BlenderMenuItem<T> {
     this.icon,
     this.enabled = true,
     this.selected = false,
+    this.checked = false,
     this.shortcut,
     this.separator = false,
     this.submenu,
@@ -1666,6 +1716,7 @@ class BlenderMenuItem<T> {
   final Widget? icon;
   final bool enabled;
   final bool selected;
+  final bool checked;
   final String? shortcut;
   final bool separator;
   final List<BlenderMenuItem<T>>? submenu;
@@ -1676,6 +1727,7 @@ class BlenderMenuItem<T> {
     Widget? icon,
     bool? enabled,
     bool? selected,
+    bool? checked,
     String? shortcut,
     bool? separator,
     List<BlenderMenuItem<T>>? submenu,
@@ -1686,6 +1738,7 @@ class BlenderMenuItem<T> {
       icon: icon ?? this.icon,
       enabled: enabled ?? this.enabled,
       selected: selected ?? this.selected,
+      checked: checked ?? this.checked,
       shortcut: shortcut ?? this.shortcut,
       separator: separator ?? this.separator,
       submenu: submenu ?? this.submenu,
@@ -1791,6 +1844,10 @@ class BlenderMenu<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final hasSelectionMarkers = items.any((candidate) => candidate.selected);
+    final hasLeadingMarkers = items.any(
+      (candidate) =>
+          candidate.selected || candidate.checked || candidate.icon != null,
+    );
     return ConstrainedBox(
       constraints: const BoxConstraints(
         minWidth: 220,
@@ -1820,32 +1877,54 @@ class BlenderMenu<T> extends StatelessWidget {
                 ),
               );
             }
-            final leading = hasSelectionMarkers
+            final leading = hasLeadingMarkers
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      SizedBox(
-                        width: 15,
-                        child: item.selected
-                            ? const BlenderIcon(BlenderGlyph.check, size: 12)
-                            : null,
-                      ),
-                      if (item.icon != null) ...<Widget>[
-                        const SizedBox(width: 4),
-                        item.icon!,
-                      ],
+                      if (hasSelectionMarkers)
+                        SizedBox(
+                          width: 15,
+                          child: item.selected
+                              ? const BlenderIcon(BlenderGlyph.check, size: 12)
+                              : null,
+                        ),
+                      if (item.checked)
+                        _BlenderMenuCheck(enabled: item.enabled)
+                      else if (item.icon != null)
+                        SizedBox(width: 16, height: 16, child: item.icon!),
                     ],
                   )
-                : item.icon;
+                : null;
             return _BlenderMenuRow<T>(
               item: item,
               leading: leading,
-              leadingWidth: hasSelectionMarkers && item.icon != null ? 40 : 22,
+              leadingWidth: hasLeadingMarkers
+                  ? (hasSelectionMarkers ? 35 : 18)
+                  : 0,
               onSelected: onSelected,
             );
           },
         ),
       ),
+    );
+  }
+}
+
+class _BlenderMenuCheck extends StatelessWidget {
+  const _BlenderMenuCheck({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    final color = enabled
+        ? theme.colors.foreground
+        : theme.colors.foregroundDisabled;
+    return SizedBox(
+      width: 16,
+      height: 16,
+      child: BlenderIcon(BlenderGlyph.check, size: 15, color: color),
     );
   }
 }
@@ -1890,8 +1969,10 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
         ),
         child: Row(
           children: <Widget>[
-            SizedBox(width: widget.leadingWidth, child: widget.leading),
-            const SizedBox(width: 7),
+            if (widget.leadingWidth > 0) ...<Widget>[
+              SizedBox(width: widget.leadingWidth, child: widget.leading),
+              const SizedBox(width: 7),
+            ],
             Expanded(
               child: Text(
                 widget.item.label,

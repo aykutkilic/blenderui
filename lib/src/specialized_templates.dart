@@ -8,6 +8,7 @@ import 'icons.dart';
 import 'layout.dart';
 import 'templates.dart';
 import 'theme.dart';
+import 'tree_state.dart';
 
 /// Blender's operator property rows are shared by redo popups and
 /// confirmation dialogs. Keeping the input as the package's property
@@ -642,82 +643,38 @@ class BlenderConstraintStack extends StatelessWidget {
     required this.constraints,
     this.title = 'Constraints',
     this.emptyLabel = 'No constraints',
+    this.actionSize = 21,
   });
 
   final List<BlenderConstraintDescriptor> constraints;
   final String title;
   final String emptyLabel;
-
-  List<Widget> _actions(BlenderConstraintDescriptor constraint) {
-    return <Widget>[
-      if (constraint.onToggleEnabled != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.eye,
-          selected: constraint.enabled,
-          onPressed: constraint.onToggleEnabled,
-          tooltip: 'Enable constraint',
-          size: 21,
-        ),
-      if (constraint.onMenu != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.more,
-          onPressed: constraint.onMenu,
-          tooltip: 'Constraint options',
-          size: 21,
-        ),
-      if (constraint.onMoveUp != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.stepBack,
-          onPressed: constraint.onMoveUp,
-          tooltip: 'Move constraint up',
-          size: 21,
-        ),
-      if (constraint.onMoveDown != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.stepForward,
-          onPressed: constraint.onMoveDown,
-          tooltip: 'Move constraint down',
-          size: 21,
-        ),
-      if (constraint.onRemove != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.close,
-          onPressed: constraint.onRemove,
-          tooltip: 'Remove constraint',
-          size: 21,
-        ),
-    ];
-  }
+  final double actionSize;
 
   @override
   Widget build(BuildContext context) {
-    final theme = BlenderTheme.of(context);
-    return BlenderPanel(
+    return BlenderActionPanelStack(
       title: title,
-      child: constraints.isEmpty
-          ? Text(
-              emptyLabel,
-              style: theme.textTheme.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final constraint in constraints)
-                  BlenderPanel(
-                    title: constraint.name,
-                    headerLeading: BlenderIcon(constraint.icon, size: 14),
-                    collapsible: true,
-                    initiallyExpanded: constraint.initiallyExpanded,
-                    headerActions: _actions(constraint),
-                    child: Opacity(
-                      opacity: constraint.enabled ? 1 : .5,
-                      child: constraint.child,
-                    ),
-                  ),
-              ],
-            ),
+      emptyLabel: emptyLabel,
+      actionSize: actionSize,
+      enableTooltip: 'Enable constraint',
+      menuTooltip: 'Constraint options',
+      items: <BlenderActionPanelItem>[
+        for (final constraint in constraints)
+          BlenderActionPanelItem(
+            id: constraint.id,
+            title: constraint.name,
+            child: constraint.child,
+            icon: constraint.icon,
+            enabled: constraint.enabled,
+            initiallyExpanded: constraint.initiallyExpanded,
+            onToggleEnabled: constraint.onToggleEnabled,
+            onMenu: constraint.onMenu,
+            onMoveUp: constraint.onMoveUp,
+            onMoveDown: constraint.onMoveDown,
+            onRemove: constraint.onRemove,
+          ),
+      ],
     );
   }
 }
@@ -763,69 +720,150 @@ class BlenderShaderEffectStack extends StatelessWidget {
   final String title;
   final String emptyLabel;
 
-  List<Widget> _actions(BlenderShaderEffectDescriptor effect) {
-    return <Widget>[
+  @override
+  Widget build(BuildContext context) {
+    return BlenderActionPanelStack(
+      title: title,
+      emptyLabel: emptyLabel,
+      enableTooltip: 'Enable shader effect',
+      items: <BlenderActionPanelItem>[
+        for (final effect in effects)
+          BlenderActionPanelItem(
+            id: effect.id,
+            title: effect.name,
+            child: effect.child,
+            icon: effect.icon,
+            enabled: effect.enabled,
+            initiallyExpanded: effect.initiallyExpanded,
+            onToggleEnabled: effect.onToggleEnabled,
+            onMoveUp: effect.onMoveUp,
+            onMoveDown: effect.onMoveDown,
+            onRemove: effect.onRemove,
+          ),
+      ],
+    );
+  }
+}
+
+/// Common descriptor for Blender stacks whose entries are collapsible panels
+/// with enable, menu, move, and remove affordances.
+@immutable
+class BlenderActionPanelItem {
+  const BlenderActionPanelItem({
+    required this.id,
+    required this.title,
+    required this.child,
+    this.icon = BlenderGlyph.link,
+    this.enabled = true,
+    this.initiallyExpanded = true,
+    this.onToggleEnabled,
+    this.onMenu,
+    this.onMoveUp,
+    this.onMoveDown,
+    this.onRemove,
+  });
+
+  final String id;
+  final String title;
+  final Widget child;
+  final BlenderGlyph icon;
+  final bool enabled;
+  final bool initiallyExpanded;
+  final VoidCallback? onToggleEnabled;
+  final VoidCallback? onMenu;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+  final VoidCallback? onRemove;
+}
+
+/// Shared rendering engine for constraint-, effect-, and modifier-like stacks.
+class BlenderActionPanelStack extends StatelessWidget {
+  const BlenderActionPanelStack({
+    super.key,
+    required this.items,
+    this.title,
+    this.emptyLabel = 'No items',
+    this.actionSize = 21,
+    this.enableTooltip = 'Enable item',
+    this.menuTooltip = 'Item options',
+  });
+
+  final List<BlenderActionPanelItem> items;
+  final String? title;
+  final String emptyLabel;
+  final double actionSize;
+  final String enableTooltip;
+  final String menuTooltip;
+
+  List<Widget> _actions(BlenderActionPanelItem item) => <Widget>[
+    if (item.onToggleEnabled != null)
       BlenderIconButton(
         glyph: BlenderGlyph.eye,
-        selected: effect.enabled,
-        onPressed: effect.onToggleEnabled,
-        tooltip: 'Enable shader effect',
-        size: 21,
+        selected: item.enabled,
+        onPressed: item.onToggleEnabled,
+        tooltip: enableTooltip,
+        size: actionSize,
       ),
-      if (effect.onMoveUp != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.stepBack,
-          onPressed: effect.onMoveUp,
-          tooltip: 'Move shader effect up',
-          size: 21,
-        ),
-      if (effect.onMoveDown != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.stepForward,
-          onPressed: effect.onMoveDown,
-          tooltip: 'Move shader effect down',
-          size: 21,
-        ),
-      if (effect.onRemove != null)
-        BlenderIconButton(
-          glyph: BlenderGlyph.close,
-          onPressed: effect.onRemove,
-          tooltip: 'Remove shader effect',
-          size: 21,
-        ),
-    ];
-  }
+    if (item.onMenu != null)
+      BlenderIconButton(
+        glyph: BlenderGlyph.more,
+        onPressed: item.onMenu,
+        tooltip: menuTooltip,
+        size: actionSize,
+      ),
+    if (item.onMoveUp != null)
+      BlenderIconButton(
+        glyph: BlenderGlyph.stepBack,
+        onPressed: item.onMoveUp,
+        tooltip: 'Move item up',
+        size: actionSize,
+      ),
+    if (item.onMoveDown != null)
+      BlenderIconButton(
+        glyph: BlenderGlyph.stepForward,
+        onPressed: item.onMoveDown,
+        tooltip: 'Move item down',
+        size: actionSize,
+      ),
+    if (item.onRemove != null)
+      BlenderIconButton(
+        glyph: BlenderGlyph.close,
+        onPressed: item.onRemove,
+        tooltip: 'Remove item',
+        size: actionSize,
+      ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return BlenderPanel(
-      title: title,
-      child: effects.isEmpty
-          ? Text(
-              emptyLabel,
-              style: theme.textTheme.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final effect in effects)
-                  BlenderPanel(
-                    title: effect.name,
-                    headerLeading: BlenderIcon(effect.icon, size: 14),
-                    collapsible: true,
-                    initiallyExpanded: effect.initiallyExpanded,
-                    headerActions: _actions(effect),
-                    child: Opacity(
-                      opacity: effect.enabled ? 1 : .5,
-                      child: effect.child,
-                    ),
-                  ),
-              ],
+    final content = items.isEmpty
+        ? Text(
+            emptyLabel,
+            style: theme.textTheme.caption.copyWith(
+              color: theme.colors.foregroundMuted,
             ),
-    );
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final item in items)
+                BlenderPanel(
+                  title: item.title,
+                  headerLeading: BlenderIcon(item.icon, size: 14),
+                  collapsible: true,
+                  initiallyExpanded: item.initiallyExpanded,
+                  headerActions: _actions(item),
+                  child: Opacity(
+                    opacity: item.enabled ? 1 : .5,
+                    child: item.child,
+                  ),
+                ),
+            ],
+          );
+    return title == null
+        ? content
+        : BlenderPanel(title: title!, child: content);
   }
 }
 
@@ -919,36 +957,32 @@ class BlenderNodeTreeInterface extends StatefulWidget {
 class _BlenderNodeTreeInterfaceState extends State<BlenderNodeTreeInterface> {
   late final Set<String> _expanded = _initialExpanded(widget.items);
 
-  static Set<String> _initialExpanded(List<BlenderNodeInterfaceItem> items) {
-    final expanded = <String>{};
-    void visit(BlenderNodeInterfaceItem item) {
-      final panel = item.panel;
-      if (panel == null) return;
-      if (panel.initiallyExpanded) expanded.add(panel.id);
-      for (final child in panel.children) {
-        visit(child);
-      }
-    }
-
-    for (final item in items) {
-      visit(item);
-    }
-    return expanded;
-  }
+  static Set<String> _initialExpanded(List<BlenderNodeInterfaceItem> items) =>
+      BlenderTreeState.initialExpanded<BlenderNodeInterfaceItem>(
+        items,
+        idOf: (item) => item.panel?.id ?? 'socket:${item.socket!.id}',
+        childrenOf: (item) =>
+            item.panel?.children ?? const <BlenderNodeInterfaceItem>[],
+        initiallyExpanded: (item) => item.panel?.initiallyExpanded ?? false,
+      );
 
   List<_NodeInterfaceVisibleItem> _flatten(
     List<BlenderNodeInterfaceItem> items,
     int depth,
   ) {
-    final result = <_NodeInterfaceVisibleItem>[];
-    for (final item in items) {
-      result.add(_NodeInterfaceVisibleItem(item, depth));
-      final panel = item.panel;
-      if (panel != null && _expanded.contains(panel.id)) {
-        result.addAll(_flatten(panel.children, depth + 1));
-      }
-    }
-    return result;
+    return <_NodeInterfaceVisibleItem>[
+      for (final entry in BlenderTreeState.flatten<BlenderNodeInterfaceItem>(
+        items,
+        idOf: (item) => item.panel?.id ?? 'socket:${item.socket!.id}',
+        childrenOf: (item) =>
+            item.panel?.children ?? const <BlenderNodeInterfaceItem>[],
+        expanded: _expanded,
+      ))
+        _NodeInterfaceVisibleItem(
+          item: entry.value,
+          depth: entry.depth + depth,
+        ),
+    ];
   }
 
   Widget _socketDot(Color color, {required bool output}) {
@@ -1090,7 +1124,7 @@ class _BlenderNodeTreeInterfaceState extends State<BlenderNodeTreeInterface> {
 }
 
 class _NodeInterfaceVisibleItem {
-  const _NodeInterfaceVisibleItem(this.item, this.depth);
+  const _NodeInterfaceVisibleItem({required this.item, required this.depth});
 
   final BlenderNodeInterfaceItem item;
   final int depth;
@@ -1138,11 +1172,13 @@ class BlenderBoneCollectionTree extends StatefulWidget {
     required this.collections,
     this.title = 'Bone Collections',
     this.emptyLabel = 'No bone collections',
+    this.showPanel = true,
   });
 
   final List<BlenderBoneCollection> collections;
   final String title;
   final String emptyLabel;
+  final bool showPanel;
 
   @override
   State<BlenderBoneCollectionTree> createState() =>
@@ -1152,33 +1188,30 @@ class BlenderBoneCollectionTree extends StatefulWidget {
 class _BlenderBoneCollectionTreeState extends State<BlenderBoneCollectionTree> {
   late final Set<String> _expanded = _initialExpanded(widget.collections);
 
-  static Set<String> _initialExpanded(List<BlenderBoneCollection> items) {
-    final expanded = <String>{};
-    void visit(BlenderBoneCollection item) {
-      if (item.initiallyExpanded) expanded.add(item.id);
-      for (final child in item.children) {
-        visit(child);
-      }
-    }
-
-    for (final item in items) {
-      visit(item);
-    }
-    return expanded;
-  }
+  static Set<String> _initialExpanded(List<BlenderBoneCollection> items) =>
+      BlenderTreeState.initialExpanded<BlenderBoneCollection>(
+        items,
+        idOf: (item) => item.id,
+        childrenOf: (item) => item.children,
+        initiallyExpanded: (item) => item.initiallyExpanded,
+      );
 
   List<_BoneCollectionVisibleItem> _flatten(
     List<BlenderBoneCollection> items,
     int depth,
   ) {
-    final result = <_BoneCollectionVisibleItem>[];
-    for (final item in items) {
-      result.add(_BoneCollectionVisibleItem(item, depth));
-      if (_expanded.contains(item.id)) {
-        result.addAll(_flatten(item.children, depth + 1));
-      }
-    }
-    return result;
+    return <_BoneCollectionVisibleItem>[
+      for (final entry in BlenderTreeState.flatten<BlenderBoneCollection>(
+        items,
+        idOf: (item) => item.id,
+        childrenOf: (item) => item.children,
+        expanded: _expanded,
+      ))
+        _BoneCollectionVisibleItem(
+          collection: entry.value,
+          depth: entry.depth + depth,
+        ),
+    ];
   }
 
   Widget _row(BuildContext context, _BoneCollectionVisibleItem visible) {
@@ -1187,78 +1220,93 @@ class _BlenderBoneCollectionTreeState extends State<BlenderBoneCollectionTree> {
     final expandable = collection.children.isNotEmpty;
     return SizedBox(
       height: theme.density.rowHeight,
-      child: Row(
-        children: <Widget>[
-          SizedBox(width: 8 + visible.depth * 14),
-          if (expandable)
-            BlenderDisclosureButton(
-              expanded: _expanded.contains(collection.id),
-              onPressed: () => setState(() {
-                if (_expanded.contains(collection.id)) {
-                  _expanded.remove(collection.id);
-                } else {
-                  _expanded.add(collection.id);
-                }
-              }),
-              size: 18,
-            )
-          else
-            const SizedBox(width: 18),
-          Expanded(
-            child: GestureDetector(
-              onTap: collection.enabled ? collection.onActivate : null,
-              child: Text(
-                collection.name,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.label.copyWith(
-                  color: collection.enabled
-                      ? (collection.active
-                            ? theme.colors.accentHover
-                            : theme.colors.foreground)
-                      : theme.colors.foregroundDisabled,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Properties can become substantially narrower than a standalone
+          // Bone Collections editor. Keep the source-like columns visible,
+          // but tighten their footprint before the row can overflow.
+          final compact = constraints.maxWidth < 120;
+          final depthIndent = compact
+              ? 4.0 + visible.depth * 10
+              : 8.0 + visible.depth * 14;
+          final disclosureSize = compact ? 16.0 : 18.0;
+          final statusSize = compact ? 14.0 : 15.0;
+          final restrictionSize = compact ? 18.0 : 21.0;
+          return Row(
+            children: <Widget>[
+              SizedBox(width: depthIndent),
+              if (expandable)
+                BlenderDisclosureButton(
+                  expanded: _expanded.contains(collection.id),
+                  onPressed: () => setState(() {
+                    if (_expanded.contains(collection.id)) {
+                      _expanded.remove(collection.id);
+                    } else {
+                      _expanded.add(collection.id);
+                    }
+                  }),
+                  size: disclosureSize,
+                )
+              else
+                SizedBox(width: disclosureSize),
+              Expanded(
+                child: GestureDetector(
+                  onTap: collection.enabled ? collection.onActivate : null,
+                  child: Text(
+                    collection.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.label.copyWith(
+                      color: collection.enabled
+                          ? (collection.active
+                                ? theme.colors.accentHover
+                                : theme.colors.foreground)
+                          : theme.colors.foregroundDisabled,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          BlenderIcon(
-            collection.active
-                ? BlenderGlyph.checkCircle
-                : collection.hasSelectedBones
-                ? BlenderGlyph.radio
-                : BlenderGlyph.minus,
-            size: 15,
-            color: collection.hasSelectedBones || collection.active
-                ? theme.colors.accentHover
-                : theme.colors.foregroundMuted,
-          ),
-          BlenderIconButton(
-            glyph: BlenderGlyph.eye,
-            selected: collection.visible,
-            enabled: collection.enabled,
-            onPressed: collection.onVisibilityChanged == null
-                ? null
-                : () => collection.onVisibilityChanged!(!collection.visible),
-            tooltip: 'Show bone collection',
-            size: 21,
-          ),
-          BlenderIconButton(
-            glyph: BlenderGlyph.radio,
-            selected: collection.solo,
-            enabled: collection.enabled,
-            onPressed: collection.onSoloChanged == null
-                ? null
-                : () => collection.onSoloChanged!(!collection.solo),
-            tooltip: 'Solo bone collection',
-            size: 21,
-          ),
-          if (collection.onRemove != null)
-            BlenderIconButton(
-              glyph: BlenderGlyph.close,
-              onPressed: collection.onRemove,
-              tooltip: 'Remove bone collection',
-              size: 21,
-            ),
-        ],
+              BlenderIcon(
+                collection.active
+                    ? BlenderGlyph.checkCircle
+                    : collection.hasSelectedBones
+                    ? BlenderGlyph.radio
+                    : BlenderGlyph.minus,
+                size: statusSize,
+                color: collection.hasSelectedBones || collection.active
+                    ? theme.colors.accentHover
+                    : theme.colors.foregroundMuted,
+              ),
+              BlenderIconButton(
+                glyph: BlenderGlyph.eye,
+                selected: collection.visible,
+                enabled: collection.enabled,
+                onPressed: collection.onVisibilityChanged == null
+                    ? null
+                    : () =>
+                          collection.onVisibilityChanged!(!collection.visible),
+                tooltip: 'Show bone collection',
+                size: restrictionSize,
+              ),
+              BlenderIconButton(
+                glyph: BlenderGlyph.radio,
+                selected: collection.solo,
+                enabled: collection.enabled,
+                onPressed: collection.onSoloChanged == null
+                    ? null
+                    : () => collection.onSoloChanged!(!collection.solo),
+                tooltip: 'Solo bone collection',
+                size: restrictionSize,
+              ),
+              if (collection.onRemove != null)
+                BlenderIconButton(
+                  glyph: BlenderGlyph.close,
+                  onPressed: collection.onRemove,
+                  tooltip: 'Remove bone collection',
+                  size: restrictionSize,
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1266,23 +1314,26 @@ class _BlenderBoneCollectionTreeState extends State<BlenderBoneCollectionTree> {
   @override
   Widget build(BuildContext context) {
     final rows = _flatten(widget.collections, 0);
-    return BlenderPanel(
-      title: widget.title,
-      child: rows.isEmpty
-          ? Text(
-              widget.emptyLabel,
-              style: BlenderTheme.of(context).textTheme.caption,
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[for (final row in rows) _row(context, row)],
-            ),
-    );
+    final content = rows.isEmpty
+        ? Text(
+            widget.emptyLabel,
+            style: BlenderTheme.of(context).textTheme.caption,
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[for (final row in rows) _row(context, row)],
+          );
+    return widget.showPanel
+        ? BlenderPanel(title: widget.title, child: content)
+        : content;
   }
 }
 
 class _BoneCollectionVisibleItem {
-  const _BoneCollectionVisibleItem(this.collection, this.depth);
+  const _BoneCollectionVisibleItem({
+    required this.collection,
+    required this.depth,
+  });
 
   final BlenderBoneCollection collection;
   final int depth;
@@ -2369,7 +2420,7 @@ class _BlenderPreviewPanelState extends State<BlenderPreviewPanel> {
                   child: Center(
                     child: BlenderIcon(
                       BlenderGlyph.dragHandle,
-                      size: 14,
+                      size: 10,
                       color: theme.colors.foregroundMuted,
                     ),
                   ),
@@ -2531,7 +2582,7 @@ class BlenderReportBanner extends StatelessWidget {
 }
 
 /// The extension/update portion of Blender's status-info template.
-enum BlenderExtensionStatus { hidden, offline, checking, updates }
+enum BlenderExtensionStatus { hidden, offline, checking, updates, blocked }
 
 /// A compact status-info strip matching `uiTemplateStatusInfo`.
 ///
@@ -2551,6 +2602,9 @@ class BlenderStatusInfo extends StatelessWidget {
     this.warningMessage,
     this.warningTooltip,
     this.onWarningPressed,
+    this.newerBlenderVersion,
+    this.assetEditFile = false,
+    this.missingColorManagement = false,
   });
 
   final String? statusText;
@@ -2562,6 +2616,36 @@ class BlenderStatusInfo extends StatelessWidget {
   final String? warningMessage;
   final String? warningTooltip;
   final VoidCallback? onWarningPressed;
+  final String? newerBlenderVersion;
+  final bool assetEditFile;
+  final bool missingColorManagement;
+
+  String? get _effectiveWarningMessage {
+    if (warningMessage != null && warningMessage!.isNotEmpty) {
+      return warningMessage;
+    }
+    final parts = <String>[
+      if (newerBlenderVersion != null && newerBlenderVersion!.isNotEmpty)
+        newerBlenderVersion!,
+      if (missingColorManagement) 'Color Management',
+    ];
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  String? get _effectiveWarningTooltip {
+    if (warningTooltip != null && warningTooltip!.isNotEmpty) {
+      return warningTooltip;
+    }
+    final parts = <String>[
+      if (newerBlenderVersion != null && newerBlenderVersion!.isNotEmpty)
+        'File saved by newer Blender\n($newerBlenderVersion), expect loss of data',
+      if (assetEditFile)
+        'This file is managed by the Blender asset system and cannot be overridden',
+      if (missingColorManagement)
+        'Displays, views or color spaces in this file were missing and have been changed',
+    ];
+    return parts.isEmpty ? null : parts.join('\n\n');
+  }
 
   Widget _separator(BuildContext context) {
     final theme = BlenderTheme.of(context);
@@ -2574,43 +2658,52 @@ class BlenderStatusInfo extends StatelessWidget {
   Widget _extension(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final glyph = switch (extensionStatus) {
-      BlenderExtensionStatus.offline => BlenderGlyph.linkBroken,
-      BlenderExtensionStatus.checking => BlenderGlyph.refresh,
-      BlenderExtensionStatus.updates => BlenderGlyph.info,
+      BlenderExtensionStatus.offline => BlenderGlyph.internetOffline,
+      BlenderExtensionStatus.checking => BlenderGlyph.sync,
+      BlenderExtensionStatus.updates => BlenderGlyph.internet,
+      BlenderExtensionStatus.blocked => BlenderGlyph.warningFilled,
       BlenderExtensionStatus.hidden => BlenderGlyph.info,
     };
     final label = switch (extensionStatus) {
       BlenderExtensionStatus.offline => 'Extensions offline',
       BlenderExtensionStatus.checking => 'Checking extensions',
       BlenderExtensionStatus.updates => 'Extension updates',
+      BlenderExtensionStatus.blocked => 'Extensions blocked',
       BlenderExtensionStatus.hidden => 'Extensions',
     };
-    final icon = Stack(
-      clipBehavior: Clip.none,
-      children: <Widget>[
-        BlenderIcon(glyph, size: 15),
-        if (extensionCount > 0)
+    final icon = SizedBox(
+      width: 24,
+      height: theme.density.controlHeight,
+      child: Stack(
+        children: <Widget>[
           Positioned(
-            right: -7,
-            top: -6,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colors.accent,
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Text(
-                  '$extensionCount',
-                  style: theme.textTheme.caption.copyWith(
-                    color: theme.colors.foreground,
-                    fontSize: 9,
+            left: 0,
+            top: (theme.density.controlHeight - 15) / 2,
+            child: BlenderIcon(glyph, size: 15),
+          ),
+          if (extensionCount > 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.accent,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text(
+                    '$extensionCount',
+                    style: theme.textTheme.caption.copyWith(
+                      color: theme.colors.foreground,
+                      fontSize: 9,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
     final button = Semantics(
       container: true,
@@ -2632,7 +2725,7 @@ class BlenderStatusInfo extends StatelessWidget {
         : BlenderTooltip(message: label, child: button);
   }
 
-  Widget _warning(BuildContext context) {
+  Widget _warning(BuildContext context, String? message) {
     final theme = BlenderTheme.of(context);
     final content = Row(
       mainAxisSize: MainAxisSize.min,
@@ -2642,33 +2735,34 @@ class BlenderStatusInfo extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             child: BlenderIcon(
-              BlenderGlyph.warning,
+              BlenderGlyph.warningFilled,
               size: 14,
               color: theme.colors.foreground,
             ),
           ),
         ),
-        Flexible(
-          child: ColoredBox(
-            color: theme.colors.warning.withValues(alpha: .22),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              child: Text(
-                warningMessage!,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.caption.copyWith(
-                  color: theme.colors.foreground,
+        if (message != null && message.isNotEmpty)
+          Flexible(
+            child: ColoredBox(
+              color: theme.colors.warning.withValues(alpha: .22),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                child: Text(
+                  message,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.caption.copyWith(
+                    color: theme.colors.foreground,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
       ],
     );
     final semantic = Semantics(
       container: true,
       button: onWarningPressed != null,
-      label: warningMessage,
+      label: message ?? 'File warning',
       child: content,
     );
     final interactive = onWarningPressed == null
@@ -2682,9 +2776,10 @@ class BlenderStatusInfo extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 160),
       child: interactive,
     );
-    return warningTooltip == null
+    final tooltip = _effectiveWarningTooltip;
+    return tooltip == null
         ? bounded
-        : BlenderTooltip(message: warningTooltip!, child: bounded);
+        : BlenderTooltip(message: tooltip, child: bounded);
   }
 
   @override
@@ -2702,13 +2797,18 @@ class BlenderStatusInfo extends StatelessWidget {
       if (children.isNotEmpty) children.add(_separator(context));
       children.add(_extension(context));
     }
-    if (showVersion && versionText != null && versionText!.isNotEmpty) {
+    final effectiveWarning = _effectiveWarningMessage;
+    final hasWarning = effectiveWarning != null || assetEditFile;
+    if (showVersion &&
+        versionText != null &&
+        versionText!.isNotEmpty &&
+        newerBlenderVersion == null) {
       if (children.isNotEmpty) children.add(_separator(context));
       children.add(Text(versionText!));
     }
-    if (warningMessage != null && warningMessage!.isNotEmpty) {
+    if (hasWarning) {
       if (children.isNotEmpty) children.add(const SizedBox(width: 8));
-      children.add(_warning(context));
+      children.add(_warning(context, effectiveWarning));
     }
     return DefaultTextStyle(
       style: BlenderTheme.of(context).textTheme.caption,
@@ -3016,6 +3116,93 @@ class BlenderFileBrowserLibraryPathHint extends StatelessWidget {
   }
 }
 
+/// A top-left diagnostic state for an unreadable Blender library file.
+///
+/// Blender renders the path first and then places non-info reports below it,
+/// with an info or warning icon beside each message. File loading and report
+/// ownership remain with the host application.
+@immutable
+class BlenderFileBrowserReport {
+  const BlenderFileBrowserReport({
+    required this.message,
+    this.level = BlenderNoticeLevel.info,
+  });
+
+  final String message;
+  final BlenderNoticeLevel level;
+}
+
+class BlenderFileBrowserUnreadableLibraryHint extends StatelessWidget {
+  const BlenderFileBrowserUnreadableLibraryHint({
+    super.key,
+    required this.path,
+    required this.reports,
+    this.title = 'Unreadable Blender library file:',
+    this.width = 420,
+  });
+
+  final String title;
+  final String path;
+  final List<BlenderFileBrowserReport> reports;
+  final double width;
+
+  BlenderGlyph _reportIcon(BlenderFileBrowserReport report) {
+    return report.level == BlenderNoticeLevel.info
+        ? BlenderGlyph.statusInfo
+        : BlenderGlyph.warningFilled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: width),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(title, style: theme.textTheme.body),
+              const SizedBox(height: 3),
+              Text(
+                path,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.body,
+              ),
+              if (reports.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 18),
+                for (
+                  var index = 0;
+                  index < reports.length;
+                  index++
+                ) ...<Widget>[
+                  if (index > 0) const SizedBox(height: 5),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      BlenderIcon(_reportIcon(reports[index]), size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          reports[index].message,
+                          style: theme.textTheme.body,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The asset-library selector and catalog tree in Blender's file tools pane.
 class BlenderFileAssetCatalogPanel extends StatelessWidget {
   const BlenderFileAssetCatalogPanel({
@@ -3182,6 +3369,7 @@ class BlenderAssetLibraryPreference {
     this.importMethod = 'Link',
     this.useRelativePath = false,
     this.includeOnlineEssentials = false,
+    this.onlineEssentialsEnabled = true,
   });
 
   final String id;
@@ -3196,6 +3384,7 @@ class BlenderAssetLibraryPreference {
   final String importMethod;
   final bool useRelativePath;
   final bool includeOnlineEssentials;
+  final bool onlineEssentialsEnabled;
 }
 
 /// Blender Preferences' Asset Libraries panel.
@@ -3309,14 +3498,16 @@ class _BlenderAssetLibrariesPreferencesPanelState
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             child: Row(
               children: <Widget>[
-                BlenderIcon(
-                  icon,
-                  size: 14,
-                  color: library.isRemote
-                      ? theme.colors.accentHover
-                      : theme.colors.iconFolder,
-                ),
-                const SizedBox(width: 6),
+                if (!library.builtIn) ...<Widget>[
+                  BlenderIcon(
+                    icon,
+                    size: 14,
+                    color: library.isRemote
+                        ? theme.colors.accentHover
+                        : theme.colors.iconFolder,
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Expanded(
                   child: Text(
                     library.name,
@@ -3339,7 +3530,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
                   Padding(
                     padding: const EdgeInsets.only(left: 5),
                     child: BlenderIcon(
-                      BlenderGlyph.error,
+                      BlenderGlyph.errorFilled,
                       size: 14,
                       color: theme.colors.error,
                     ),
@@ -3366,7 +3557,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
     BlenderAssetLibraryPreference library,
   ) {
     final controller = _pathControllers[library.id];
-    final pathLabel = library.isRemote ? 'URL' : 'Path';
+    final pathLabel = library.isRemote ? 'Repository URL' : 'Path';
     final importItems = <BlenderMenuItem<String>>[
       if (!library.isRemote)
         const BlenderMenuItem<String>(value: 'Link', label: 'Link'),
@@ -3384,7 +3575,9 @@ class _BlenderAssetLibrariesPreferencesPanelState
           BlenderCheckbox(
             value: library.includeOnlineEssentials,
             label: 'Include Online Essentials',
-            onChanged: widget.onIncludeOnlineEssentialsChanged,
+            onChanged: library.onlineEssentialsEnabled
+                ? widget.onIncludeOnlineEssentialsChanged
+                : null,
           ),
         if (controller != null && !library.builtIn)
           BlenderTextField(
@@ -3393,7 +3586,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
             onChanged: (value) => widget.onPathChanged?.call(library, value),
             trailing: library.invalid
                 ? BlenderIcon(
-                    BlenderGlyph.error,
+                    BlenderGlyph.errorFilled,
                     size: 14,
                     color: BlenderTheme.of(context).colors.error,
                   )
@@ -3405,7 +3598,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
         if (!library.builtIn) ...<Widget>[
           const SizedBox(height: 5),
           BlenderPropertyRow(
-            label: 'Default Import Method',
+            label: 'Import Method',
             editor: BlenderDropdown<String>(
               value:
                   importItems.any((item) => item.value == library.importMethod)
@@ -3419,7 +3612,7 @@ class _BlenderAssetLibrariesPreferencesPanelState
           ),
           if (!library.isRemote)
             BlenderPropertyRow(
-              label: 'Relative Path',
+              label: 'Use Relative Path',
               editor: BlenderCheckbox(
                 value: library.useRelativePath,
                 label: '',
@@ -3469,7 +3662,9 @@ class _BlenderAssetLibrariesPreferencesPanelState
                     ),
                     BlenderIconButton(
                       glyph: BlenderGlyph.minus,
-                      onPressed: widget.onRemove,
+                      onPressed: selected != null && !selected.builtIn
+                          ? widget.onRemove
+                          : null,
                       tooltip: 'Remove asset library',
                       size: 24,
                     ),
@@ -3517,6 +3712,9 @@ class BlenderTextureUserSelector extends StatelessWidget {
     this.onChanged,
     this.onShowTexture,
     this.showTextureEnabled = true,
+    this.showTextureDisabledTooltip = 'No texture user available',
+    this.hasTexture = true,
+    this.inTextureProperties = false,
     this.noUsersLabel = 'No textures in context',
   });
 
@@ -3525,6 +3723,9 @@ class BlenderTextureUserSelector extends StatelessWidget {
   final ValueChanged<BlenderTextureUser>? onChanged;
   final VoidCallback? onShowTexture;
   final bool showTextureEnabled;
+  final String showTextureDisabledTooltip;
+  final bool hasTexture;
+  final bool inTextureProperties;
   final String noUsersLabel;
 
   List<BlenderMenuItem<String>> _menuItems() {
@@ -3592,7 +3793,9 @@ class BlenderTextureUserSelector extends StatelessWidget {
                   },
           ),
         ),
-        if (onShowTexture != null) ...<Widget>[
+        if (onShowTexture != null &&
+            hasTexture &&
+            !inTextureProperties) ...<Widget>[
           const SizedBox(width: 4),
           BlenderIconButton(
             glyph: BlenderGlyph.properties,
@@ -3600,7 +3803,7 @@ class BlenderTextureUserSelector extends StatelessWidget {
             enabled: showTextureEnabled,
             tooltip: showTextureEnabled
                 ? 'Show texture in Texture tab'
-                : 'No texture user available',
+                : showTextureDisabledTooltip,
             size: 24,
           ),
         ],
@@ -4383,20 +4586,13 @@ class _BlenderGreasePencilLayerTreeState
     _emptySearchController = TextEditingController();
   }
 
-  static Set<String> _initialExpanded(List<BlenderGreasePencilLayer> layers) {
-    final expanded = <String>{};
-    void visit(BlenderGreasePencilLayer layer) {
-      if (layer.isGroup && layer.initiallyExpanded) expanded.add(layer.id);
-      for (final child in layer.children) {
-        visit(child);
-      }
-    }
-
-    for (final layer in layers) {
-      visit(layer);
-    }
-    return expanded;
-  }
+  static Set<String> _initialExpanded(List<BlenderGreasePencilLayer> layers) =>
+      BlenderTreeState.initialExpanded<BlenderGreasePencilLayer>(
+        layers,
+        idOf: (layer) => layer.id,
+        childrenOf: (layer) => layer.children,
+        initiallyExpanded: (layer) => layer.isGroup && layer.initiallyExpanded,
+      );
 
   @override
   void didUpdateWidget(BlenderGreasePencilLayerTree oldWidget) {
@@ -4414,23 +4610,19 @@ class _BlenderGreasePencilLayerTreeState
     List<BlenderGreasePencilLayer> layers,
     String query,
   ) {
-    final result = <_GreasePencilVisibleLayer>[];
-    void visit(BlenderGreasePencilLayer layer, int depth) {
-      final matches =
-          query.isEmpty ||
-          layer.name.toLowerCase().contains(query.toLowerCase());
-      if (matches) result.add(_GreasePencilVisibleLayer(layer, depth));
-      if (query.isEmpty || _expanded.contains(layer.id)) {
-        for (final child in layer.children) {
-          visit(child, depth + 1);
-        }
-      }
-    }
-
-    for (final layer in layers) {
-      visit(layer, 0);
-    }
-    return result;
+    final normalizedQuery = query.toLowerCase();
+    return <_GreasePencilVisibleLayer>[
+      for (final entry in BlenderTreeState.flatten<BlenderGreasePencilLayer>(
+        layers,
+        idOf: (layer) => layer.id,
+        childrenOf: (layer) => layer.children,
+        expanded: _expanded,
+        include: (layer) =>
+            query.isEmpty || layer.name.toLowerCase().contains(normalizedQuery),
+        expandWhen: (layer) => query.isEmpty || _expanded.contains(layer.id),
+      ))
+        _GreasePencilVisibleLayer(layer: entry.value, depth: entry.depth),
+    ];
   }
 
   Widget _restrictionButton({
@@ -4582,7 +4774,7 @@ class _BlenderGreasePencilLayerTreeState
 }
 
 class _GreasePencilVisibleLayer {
-  const _GreasePencilVisibleLayer(this.layer, this.depth);
+  const _GreasePencilVisibleLayer({required this.layer, required this.depth});
 
   final BlenderGreasePencilLayer layer;
   final int depth;

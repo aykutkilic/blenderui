@@ -753,7 +753,7 @@ class _BlenderScopeViewState extends State<BlenderScopeView> {
                   child: Center(
                     child: BlenderIcon(
                       BlenderGlyph.grip,
-                      size: 14,
+                      size: 10,
                       color: theme.colors.foregroundMuted,
                     ),
                   ),
@@ -975,8 +975,12 @@ class BlenderJobProgress extends StatelessWidget {
     required this.progress,
     this.icon = BlenderGlyph.refresh,
     this.onCancel,
-    this.cancelLabel = 'Stop job',
+    this.cancelLabel = 'Stop this job',
     this.active = true,
+    this.onIconPressed,
+    this.iconTooltip,
+    this.remainingTime,
+    this.elapsedTime,
   });
 
   final String name;
@@ -985,6 +989,16 @@ class BlenderJobProgress extends StatelessWidget {
   final VoidCallback? onCancel;
   final String cancelLabel;
   final bool active;
+  final VoidCallback? onIconPressed;
+  final String? iconTooltip;
+  final String? remainingTime;
+  final String? elapsedTime;
+
+  String? get _progressTooltip {
+    if (remainingTime == null && elapsedTime == null) return null;
+    return 'Time Remaining: ${remainingTime ?? 'Unknown'}\n'
+        'Time Elapsed: ${elapsedTime ?? 'Unknown'}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -993,29 +1007,48 @@ class BlenderJobProgress extends StatelessWidget {
     final status = active
         ? '${(clampedProgress * 100).round()}%'
         : 'Canceling...';
+    Widget jobIcon = BlenderIcon(
+      icon,
+      size: 14,
+      color: theme.colors.foregroundMuted,
+    );
+    if (onIconPressed != null) {
+      jobIcon = BlenderIconButton(
+        glyph: icon,
+        onPressed: onIconPressed,
+        tooltip: iconTooltip,
+        size: 22,
+        iconSize: 14,
+      );
+    }
+    Widget progressBar = SizedBox(
+      width: 92,
+      child: BlenderProgressBar(
+        value: clampedProgress,
+        label: status,
+        height: 16,
+      ),
+    );
+    final tooltip = _progressTooltip;
+    if (tooltip != null) {
+      progressBar = BlenderTooltip(message: tooltip, child: progressBar);
+    }
     return Semantics(
       label: name,
       value: status,
       child: Row(
         children: <Widget>[
-          BlenderIcon(icon, size: 14, color: theme.colors.foregroundMuted),
+          jobIcon,
           const SizedBox(width: 5),
           Expanded(
             child: Text(
-              active ? name : '$name — Canceling...',
+              active ? name : 'Canceling...',
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.label,
             ),
           ),
           const SizedBox(width: 6),
-          SizedBox(
-            width: 92,
-            child: BlenderProgressBar(
-              value: clampedProgress,
-              label: status,
-              height: 16,
-            ),
-          ),
+          progressBar,
           if (onCancel != null) ...<Widget>[
             const SizedBox(width: 2),
             BlenderIconButton(
@@ -1027,6 +1060,94 @@ class BlenderJobProgress extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The complete running-jobs strip used by Blender headers and status areas.
+///
+/// Blender's native template can also expose animation playback and remote
+/// asset downloads next to the ordinary job row. These are intentionally
+/// caller-owned visual states; the package does not model Blender's job
+/// manager or cancellation system.
+class BlenderRunningJobsPanel extends StatelessWidget {
+  const BlenderRunningJobsPanel({
+    super.key,
+    this.jobs = const <BlenderJobProgress>[],
+    this.onStopAnimation,
+    this.animationLabel = 'Anim Player',
+    this.assetDownloadProgress,
+    this.onCancelAssetDownloads,
+    this.assetDownloadsLabel = 'Downloading Assets',
+  });
+
+  final List<BlenderJobProgress> jobs;
+  final VoidCallback? onStopAnimation;
+  final String animationLabel;
+  final double? assetDownloadProgress;
+  final VoidCallback? onCancelAssetDownloads;
+  final String assetDownloadsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (var index = 0; index < jobs.length; index++) ...<Widget>[
+          if (index > 0) const SizedBox(height: 2),
+          jobs[index],
+        ],
+        if (onStopAnimation != null) ...<Widget>[
+          if (jobs.isNotEmpty) const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: BlenderButton(
+              label: animationLabel,
+              onPressed: onStopAnimation,
+              leading: BlenderIcon(
+                BlenderGlyph.errorFilled,
+                size: 14,
+                color: theme.colors.foregroundMuted,
+              ),
+              width: 92,
+            ),
+          ),
+        ],
+        if (assetDownloadProgress != null) ...<Widget>[
+          if (jobs.isNotEmpty || onStopAnimation != null)
+            const SizedBox(height: 4),
+          Text(assetDownloadsLabel, style: theme.textTheme.label),
+          const SizedBox(height: 2),
+          Row(
+            children: <Widget>[
+              BlenderIcon(
+                BlenderGlyph.assetManager,
+                size: 14,
+                color: theme.colors.foregroundMuted,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: BlenderProgressBar(
+                  value: assetDownloadProgress!,
+                  label:
+                      '${(assetDownloadProgress!.clamp(0, 1) * 100).round()}%',
+                  height: 16,
+                ),
+              ),
+              if (onCancelAssetDownloads != null) ...<Widget>[
+                const SizedBox(width: 2),
+                BlenderIconButton(
+                  glyph: BlenderGlyph.close,
+                  onPressed: onCancelAssetDownloads,
+                  tooltip: 'Cancel all asset downloads',
+                  size: 22,
+                ),
+              ],
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
