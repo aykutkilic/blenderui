@@ -3156,3 +3156,11 @@
   compatible `onReorder` callback and its required downward-move index
   adjustment. This keeps the same behavior on newer Flutter releases while
   allowing the pinned CI toolchain to compile the web demo.
+
+## 2026-07-16 — Align the Pages URL with the repository name
+
+- Confirmed that the `blenderui` project follows the same GitHub Pages pattern
+  as the existing `cloakofdeath-flutter` demo: the public path is derived from
+  the repository name.
+- Changed the Flutter web base href and documentation from the requested
+  `/flutterui/` path to the native `/blenderui/` project path.

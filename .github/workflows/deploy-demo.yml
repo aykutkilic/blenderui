@@ -38,7 +38,7 @@ jobs:
 
       - name: Build web demo
         working-directory: example
-        run: flutter build web --release --base-href /flutterui/
+        run: flutter build web --release --base-href /blenderui/
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

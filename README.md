@@ -133,7 +133,7 @@ or run it from `example/` with:
 flutter run -d macos
 ```
 
-Try the live [web demo](https://aykutkilic.github.io/flutterui/) in your
+Try the live [web demo](https://aykutkilic.github.io/blenderui/) in your
 browser. It is built from the same `example/` application and deployed from
 `main` with GitHub Pages.
 
