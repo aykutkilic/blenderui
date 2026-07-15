@@ -1063,3 +1063,51 @@ class BlenderPlaybackControls extends StatelessWidget {
     );
   }
 }
+
+/// The compact time-jump controls registered by Blender's Timeline header.
+///
+/// The host owns the frame-jump callbacks and the contents of the anchored
+/// `TIME_PT_jump` popover; this widget preserves the source ordering and
+/// control density.
+class BlenderTimeJumpControls extends StatelessWidget {
+  const BlenderTimeJumpControls({
+    super.key,
+    this.onBackward,
+    this.onForward,
+    required this.popover,
+  });
+
+  final VoidCallback? onBackward;
+  final VoidCallback? onForward;
+  final Widget Function(BuildContext context, VoidCallback close) popover;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        BlenderIconButton(
+          glyph: BlenderGlyph.stepBack,
+          onPressed: onBackward,
+          tooltip: 'Jump backward',
+          size: 22,
+        ),
+        BlenderIconButton(
+          glyph: BlenderGlyph.stepForward,
+          onPressed: onForward,
+          tooltip: 'Jump forward',
+          size: 22,
+        ),
+        BlenderPopover(
+          child: const BlenderIconButton(
+            glyph: BlenderGlyph.panelDisclosureDown,
+            tooltip: 'Time jump settings',
+            size: 22,
+            iconSize: 9,
+          ),
+          popover: popover,
+        ),
+      ],
+    );
+  }
+}

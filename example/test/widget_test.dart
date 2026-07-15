@@ -86,6 +86,7 @@ void main() {
     await tester.tap(find.text('3D Viewport'));
     await tester.pump();
 
+    await tester.ensureVisible(find.text('Timeline').last);
     await tester.tap(
       find.ancestor(
         of: find.text('Timeline'),
@@ -3929,6 +3930,10 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey<String>('animation-time-jump-controls')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey<String>('animation-playhead-snapping-button')),
       findsOneWidget,
     );
@@ -4115,6 +4120,10 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey<String>('main-animation-time-jump-controls')),
+      findsOneWidget,
+    );
+    expect(
       find.ancestor(
         of: find.text('Select'),
         matching: find.byType(BlenderMenuButton<String>),
@@ -4126,6 +4135,41 @@ void main() {
       find.byType(ShowcaseApp),
       matchesGoldenFile('goldens/showcase_main_animation_headers.png'),
     );
+  });
+
+  testWidgets('Timeline header popovers expose source time settings', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final timeJumpControls = find.byKey(
+      const ValueKey<String>('animation-time-jump-controls'),
+    );
+    await tester.ensureVisible(timeJumpControls);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: timeJumpControls,
+        matching: find.byType(BlenderPopover),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Time Jump'), findsOneWidget);
+    expect(find.text('Jump Unit'), findsOneWidget);
+    expect(find.text('Delta'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    final playheadSnap = find.byKey(
+      const ValueKey<String>('animation-playhead-snapping-button'),
+    );
+    await tester.ensureVisible(playheadSnap);
+    await tester.pumpAndSettle();
+    await tester.tap(playheadSnap);
+    await tester.pumpAndSettle();
+    expect(find.text('Playhead'), findsOneWidget);
+    expect(find.text('Frame Step'), findsOneWidget);
   });
 
   testWidgets('viewport responds to orbit and zoom gestures', (tester) async {

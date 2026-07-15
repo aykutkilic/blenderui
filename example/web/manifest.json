@@ -1,11 +1,11 @@
 {
-    "name": "blender_ui_example",
-    "short_name": "blender_ui_example",
+    "name": "blender_ui demo",
+    "short_name": "blender_ui",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Interactive Blender-inspired Flutter UI showcase.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

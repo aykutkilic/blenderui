@@ -1221,6 +1221,46 @@ class BlenderDialog extends StatelessWidget {
   final double width;
   final bool small;
 
+  Widget _buildActions(BuildContext context, BlenderThemeData theme) {
+    Widget buildAction(BlenderDialogAction action) {
+      return BlenderButton(
+        label: action.label,
+        selected: action.primary,
+        enabled: action.enabled,
+        onPressed: action.enabled ? action.onPressed : null,
+      );
+    }
+
+    // wm_block_dialog_create() uses a split layout for its Cancel/Confirm
+    // pair. Equal columns keep the buttons anchored to both sides of the
+    // dialog instead of collapsing them into two small right-aligned pills.
+    if (actions.length == 2) {
+      return Row(
+        children: <Widget>[
+          Expanded(child: buildAction(actions[0])),
+          SizedBox(width: theme.density.spacing),
+          Expanded(child: buildAction(actions[1])),
+        ],
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 6,
+        runSpacing: 6,
+        children: <Widget>[
+          for (final action in actions)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 88),
+              child: buildAction(action),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
@@ -1258,26 +1298,7 @@ class BlenderDialog extends StatelessWidget {
       ],
       if (actions.isNotEmpty) ...<Widget>[
         SizedBox(height: small ? 8 : 14),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 6,
-            runSpacing: 6,
-            children: <Widget>[
-              for (final action in actions)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 88),
-                  child: BlenderButton(
-                    label: action.label,
-                    selected: action.primary,
-                    enabled: action.enabled,
-                    onPressed: action.enabled ? action.onPressed : null,
-                  ),
-                ),
-            ],
-          ),
-        ),
+        _buildActions(context, theme),
       ],
     ];
     final dialogBody = icon == null

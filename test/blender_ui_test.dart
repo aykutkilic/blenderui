@@ -23,6 +23,149 @@ class _TreeFixture {
 }
 
 void main() {
+  testWidgets(
+    'application shell scopes state and services around a dockable workspace',
+    (tester) async {
+      final application = BlenderApplicationController<int>(
+        initialState: 7,
+        workspace: const BlenderDockAreaNode<String>(id: 'main', value: 'main'),
+      );
+      addTearDown(application.dispose);
+
+      await tester.pumpWidget(
+        BlenderWorkspaceShell<int>(
+          controller: application,
+          topBar: const Text('Application menu'),
+          statusBar: const Text('Ready'),
+          areaBuilder: (context, area) {
+            final state = BlenderStateScope.watch<int>(context);
+            final commands = BlenderServiceScope.read<BlenderCommandRegistry>(
+              context,
+            );
+            return Text(
+              '${area.value}:${state.value}:${commands.commands.length}',
+            );
+          },
+        ),
+      );
+
+      expect(find.text('Application menu'), findsOneWidget);
+      expect(find.text('main:7:0'), findsOneWidget);
+      expect(find.text('Ready'), findsOneWidget);
+      expect(find.byType(BlenderDockingWorkspace<String>), findsOneWidget);
+      expect(application.services.contains<BlenderHistoryStore<int>>(), isTrue);
+      expect(application.services.contains<BlenderCommandRegistry>(), isTrue);
+    },
+  );
+
+  testWidgets('preferences helper presents reusable preference descriptors', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Builder(
+          builder: (context) => BlenderButton(
+            label: 'Preferences',
+            onPressed: () => showBlenderPreferencesWindow(
+              context,
+              configuration: const BlenderPreferencesConfiguration(
+                categories: <String>['Interface'],
+                sections: <BlenderPreferenceSection>[
+                  BlenderPreferenceSection(
+                    id: 'display',
+                    category: 'Interface',
+                    title: 'Display',
+                    child: Text('Resolution Scale'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Preferences'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BlenderPreferencesWindow), findsOneWidget);
+    expect(find.text('Resolution Scale'), findsOneWidget);
+  });
+
+  testWidgets('transform property fields keep caller-owned callbacks', (
+    tester,
+  ) async {
+    var value = 1.0;
+    var locked = false;
+    await tester.pumpWidget(
+      _harness(
+        StatefulBuilder(
+          builder: (context, setState) => BlenderTransformAxisField(
+            value: value,
+            decimalDigits: 2,
+            locked: locked,
+            onChanged: (next) => setState(() => value = next),
+            onLockChanged: () => setState(() => locked = !locked),
+            onKeyframe: () {},
+            lockButtonKey: const ValueKey<String>('transform-lock'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('transform-lock')));
+    await tester.pump();
+
+    expect(locked, isTrue);
+  });
+
+  testWidgets('application menu bar presents descriptor-backed menus', (
+    tester,
+  ) async {
+    String? selected;
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderApplicationMenuBar<String>(
+          leading: const <Widget>[Text('Brand')],
+          trailing: const <Widget>[Text('Document')],
+          menus: <BlenderApplicationMenu<String>>[
+            BlenderApplicationMenu<String>(
+              label: 'File',
+              items: const <BlenderMenuItem<String>>[
+                BlenderMenuItem<String>(value: 'save', label: 'Save'),
+              ],
+              onSelected: (value) => selected = value,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.ancestor(
+        of: find.text('File'),
+        matching: find.byType(BlenderMenuButton<String>),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+
+    expect(selected, 'save');
+    expect(find.text('Brand'), findsOneWidget);
+    expect(find.text('Document'), findsOneWidget);
+  });
+
+  test('property values return immutable vector updates', () {
+    final values = <double>[1, 2, 3];
+    final locks = <bool>[false, true];
+
+    expect(BlenderPropertyValues.replaceAt(values, 1, 8), <double>[1, 8, 3]);
+    expect(values, <double>[1, 2, 3]);
+    expect(BlenderPropertyValues.toggleAt(locks, 1), <bool>[false, false]);
+    expect(locks, <bool>[false, true]);
+  });
+
   test('local Blender icon source resolves the sibling checkout', () {
     final path = BlenderIconSource.pathFor('plus.svg');
 
@@ -2571,6 +2714,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Adjust the move operation.'), findsOneWidget);
     expect(find.text('Apply'), findsOneWidget);
+    final cancelButton = find.ancestor(
+      of: find.text('Cancel'),
+      matching: find.byType(BlenderButton),
+    );
+    final applyButton = find.ancestor(
+      of: find.text('Apply'),
+      matching: find.byType(BlenderButton),
+    );
+    expect(cancelButton, findsOneWidget);
+    expect(applyButton, findsOneWidget);
+    expect(
+      tester.getRect(cancelButton).width,
+      closeTo(tester.getRect(applyButton).width, 0.1),
+    );
+    expect(
+      tester.getRect(cancelButton).left,
+      lessThan(tester.getRect(applyButton).left),
+    );
     await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
     expect(confirmed, isTrue);

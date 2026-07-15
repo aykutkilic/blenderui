@@ -2,7 +2,164 @@ import 'package:flutter/widgets.dart';
 
 import 'controls.dart';
 import 'editors.dart';
+import 'icons.dart';
 import 'layout.dart';
+import 'theme.dart';
+
+/// Immutable list updates used by vector and multi-axis property editors.
+///
+/// Applications retain ownership of the resulting value and persistence; this
+/// helper prevents editor catalogs from reimplementing safe copy/update logic.
+abstract final class BlenderPropertyValues {
+  static List<T> replaceAt<T>(List<T> values, int index, T value) {
+    RangeError.checkValidIndex(index, values);
+    return List<T>.of(values)..[index] = value;
+  }
+
+  static List<bool> toggleAt(List<bool> values, int index) {
+    RangeError.checkValidIndex(index, values);
+    return List<bool>.of(values)..[index] = !values[index];
+  }
+}
+
+/// A compact numeric transform axis editor with lock and keyframe decorators.
+///
+/// Values and editing callbacks remain caller-owned so the field works with
+/// any transform model, property system, or animation service.
+class BlenderTransformAxisField extends StatelessWidget {
+  const BlenderTransformAxisField({
+    super.key,
+    required this.value,
+    required this.decimalDigits,
+    required this.locked,
+    required this.onChanged,
+    required this.onLockChanged,
+    required this.onKeyframe,
+    this.suffix,
+    this.lockButtonKey,
+    this.keyframeButtonKey,
+  });
+
+  final double value;
+  final int decimalDigits;
+  final bool locked;
+  final ValueChanged<double> onChanged;
+  final VoidCallback onLockChanged;
+  final VoidCallback onKeyframe;
+  final String? suffix;
+  final Key? lockButtonKey;
+  final Key? keyframeButtonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: BlenderNumberField(
+            value: value,
+            step: decimalDigits == 0 ? 1 : .1,
+            decimalDigits: decimalDigits,
+            suffix: suffix,
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Semantics(
+          button: true,
+          label: locked ? 'Unlock transform axis' : 'Lock transform axis',
+          child: BlenderIconButton(
+            key: lockButtonKey,
+            glyph: locked ? BlenderGlyph.lock : BlenderGlyph.unlock,
+            selected: locked,
+            tooltip: locked ? 'Unlock transform axis' : 'Lock transform axis',
+            size: 20,
+            onPressed: onLockChanged,
+          ),
+        ),
+        BlenderKeyframeButton(
+          key: keyframeButtonKey,
+          color: theme.colors.foreground,
+          onPressed: onKeyframe,
+        ),
+      ],
+    );
+  }
+}
+
+/// A compact rotation-mode selector with an animation keyframe decorator.
+class BlenderRotationModeField extends StatelessWidget {
+  const BlenderRotationModeField({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.onKeyframe,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onKeyframe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: BlenderDropdown<String>(
+            value: value,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'XYZ Euler', label: 'XYZ Euler'),
+              BlenderMenuItem<String>(value: 'XZY Euler', label: 'XZY Euler'),
+              BlenderMenuItem<String>(value: 'YXZ Euler', label: 'YXZ Euler'),
+              BlenderMenuItem<String>(value: 'Quaternion', label: 'Quaternion'),
+              BlenderMenuItem<String>(value: 'Axis Angle', label: 'Axis Angle'),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 23),
+        BlenderKeyframeButton(
+          color: BlenderTheme.of(context).colors.foreground,
+          onPressed: onKeyframe,
+        ),
+      ],
+    );
+  }
+}
+
+/// A small animation decorator that invokes the caller's keyframe action.
+class BlenderKeyframeButton extends StatelessWidget {
+  const BlenderKeyframeButton({
+    super.key,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Insert keyframe',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: SizedBox(
+          width: 14,
+          height: 20,
+          child: Center(
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: const SizedBox.square(dimension: 5),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Shared constructors for descriptor-backed Blender property forms.
 ///

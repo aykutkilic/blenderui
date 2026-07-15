@@ -14,8 +14,17 @@ export 'src/advanced_controls.dart'
         BlenderPropertyTabs,
         BlenderPropertyState,
         BlenderPlaybackControls,
+        BlenderTimeJumpControls,
         BlenderSegmentedControl,
         BlenderSeparator;
+export 'src/application.dart'
+    show
+        BlenderApplicationController,
+        BlenderApplicationMenu,
+        BlenderApplicationMenuBar,
+        BlenderPreferencesConfiguration,
+        BlenderWorkspaceShell,
+        showBlenderPreferencesWindow;
 export 'src/controls.dart'
     show
         BlenderButton,
@@ -178,6 +187,10 @@ export 'src/property_forms.dart'
         BlenderSidebarSection,
         BlenderSidebarSections,
         BlenderStaticPropertyField,
+        BlenderTransformAxisField,
+        BlenderRotationModeField,
+        BlenderKeyframeButton,
+        BlenderPropertyValues,
         blenderFormColumn;
 export 'src/overlay_host.dart' show BlenderEnsureOverlay;
 export 'src/services.dart'

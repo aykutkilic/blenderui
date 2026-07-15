@@ -1,5 +1,54 @@
 # Development history
 
+## 2026-07-15 — Introduced reusable application-shell composition
+
+- Added `BlenderApplicationController<T>` to own the reusable lifecycle for
+  history-backed state, command services, scoped dependencies, and docking.
+- Added `BlenderWorkspaceShell<T>` and a descriptor-driven Preferences helper
+  so applications can compose a basic Blender-style shell without rebuilding
+  app/theme, scopes, docking, and temporary-window plumbing in every demo.
+- Migrated the showcase's app frame, workspace controller, and Preferences
+  presentation to these public APIs. Domain-specific editor catalogs, viewport
+  behavior, and menu callbacks deliberately remain in the demo.
+- Began splitting demo-only composition into focused files with
+  `ShowcaseStatusBar`; it contains only sample data and callbacks while the
+  status-bar layout itself remains a library primitive.
+- Moved the transform-axis number/lock/keyframe row and rotation-mode field
+  out of the showcase into public property-form components. Their state and
+  animation callbacks remain app-owned, while their dense visual composition
+  can now be reused by other applications.
+- Added the descriptor-driven `BlenderApplicationMenuBar` framework block.
+  It centralizes top-bar menu presentation while leaving menu values and
+  command dispatch with the application.
+- Moved the showcase implementation from `example/lib/main.dart` to
+  `example/lib/showcase/showcase_app.dart`; `main.dart` is now launcher-only.
+  This establishes a stable module boundary for subsequent catalog and editor
+  composition extraction without changing the demo import used by tests.
+- Documented the public framework composition in the README, including the
+  ownership boundary: the library owns app framing and reusable interaction
+  blocks, while applications own domain state, commands, catalogs, and
+  persistence.
+- Moved immutable multi-axis property-list update logic into
+  `BlenderPropertyValues`, removing another catalog-level implementation detail
+  from the showcase while keeping sample object state in the demo.
+- Added focused shell and Preferences presentation regressions. Flutter tool
+  commands require access to the local SDK cache; if sandboxed they can fail
+  while attempting to update its engine stamp, so verification uses the
+  narrowly scoped local Flutter toolchain permission.
+
+## 2026-07-15 — Matched Blender operator-dialog action split
+
+- Re-read Blender's local `wm_operators.cc` dialog construction. The native
+  `wm_block_dialog_create()` places the Cancel/Confirm pair in a two-column
+  split, with each action spanning one side of the dialog.
+- Updated the shared `BlenderDialog` shell to use the same equal-width row for
+  its two-action dialogs. One-action and custom multi-action dialogs retain the
+  compact right-aligned layout, so this remains a visual correction rather
+  than an API or behavior change.
+- Added a focused geometry regression to the operator-property popup test.
+  The test passed; the Dart formatter also emitted the known telemetry-file
+  permission warning without affecting formatting.
+
 ## 2026-07-15 — Matched Sequencer/NLA source panel branches
 
 - Re-read the local `space_sequencer.py` and `space_nla.py` registrations.
@@ -3082,3 +3131,18 @@
   before that command runs. Once allowed, the dry run confirmed the archive;
   its remaining advisory is the expected uncommitted working-tree state before
   a release commit.
+
+## 2026-07-15 — Publish the Flutter showcase on GitHub Pages
+
+- Added the `Deploy Flutter demo` workflow for the existing `example/` web
+  target. It builds with `/flutterui/` as the base href and deploys the
+  generated artifact through GitHub Pages.
+- Added the public demo link to the root README and replaced the generated web
+  title, description, and manifest names with `blender_ui` showcase metadata.
+- Recorded the deployment boundary and the required GitHub Pages Actions
+  source setting in `doc/decisions/2026-07-15-github-pages-demo.md`.
+- Local release validation passed with `flutter build web --release
+  --base-href /flutterui/`, `actionlint`, and `git diff --check`.
+- The local `gh` token was invalid when Pages status was queried, so the live
+  repository setting and first remote deployment still require authenticated
+  GitHub access.

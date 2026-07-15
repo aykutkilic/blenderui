@@ -23,10 +23,11 @@ and nested-tree traversal across independent editor surfaces.
 
 ## Planned module boundaries
 
-`example/lib/showcase/` separates state, source-shaped catalogs, editor
-composition, and menu descriptors. `lib/src/` keeps shared form and tree
-primitives in cohesive files; future feature extraction moves public exports
-and focused tests with the feature.
+`lib/src/application.dart` owns the reusable application composition seam:
+controller lifecycle, scoped state/services, docking, and Preferences
+presentation. `example/lib/` keeps source-shaped catalogs, application data,
+editor composition, and menu callbacks. Future feature extraction moves public
+exports and focused tests with the feature.
 
 ## Verification and tooling notes
 

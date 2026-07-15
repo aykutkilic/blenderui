@@ -84,6 +84,45 @@ Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
 [`ADR-0005`](doc/decisions/ADR-0005-application-services.md) for ownership and
 lifecycle decisions.
 
+### Application framework
+
+For a conventional desktop application, the library can compose the app shell,
+top-level menus, dockable panes, scoped state/history, commands, and optional
+Preferences window. The application supplies its domain state, area widgets,
+menu descriptors, and persistence policy.
+
+```dart
+final app = BlenderApplicationController<ProjectState>(
+  initialState: const ProjectState(),
+  workspace: const BlenderDockAreaNode<String>(
+    id: 'main',
+    value: 'editor',
+  ),
+);
+
+BlenderWorkspaceShell<ProjectState>(
+  controller: app,
+  topBar: BlenderApplicationMenuBar<String>(
+    menus: <BlenderApplicationMenu<String>>[
+      BlenderApplicationMenu<String>(
+        label: 'File',
+        items: fileMenuItems,
+        onSelected: handleFileCommand,
+      ),
+    ],
+  ),
+  areaBuilder: (context, area) => switch (area.value) {
+    'editor' => const ProjectEditor(),
+    _ => const SizedBox(),
+  },
+);
+```
+
+Use `BlenderPreferencesConfiguration` with
+`showBlenderPreferencesWindow(...)` when a menu command opens Preferences.
+The framework deliberately does not persist preferences or define a project
+model; that data remains application-owned.
+
 ## Sample application
 
 The repository includes a small Blender-like desktop workspace with a minimal
@@ -93,6 +132,10 @@ or run it from `example/` with:
 ```sh
 flutter run -d macos
 ```
+
+Try the live [web demo](https://aykutkilic.github.io/flutterui/) in your
+browser. It is built from the same `example/` application and deployed from
+`main` with GitHub Pages.
 
 The source-driven visual coverage map is maintained in
 [`doc/reference/blender-ui-coverage.md`](doc/reference/blender-ui-coverage.md).
