@@ -1144,8 +1144,12 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
           itemCount: visibleSections.length,
-          onReorderItem: (oldIndex, newIndex) =>
-              _reorderSections(visibleSections, oldIndex, newIndex),
+          onReorder: (oldIndex, newIndex) {
+            if (newIndex > oldIndex) {
+              newIndex -= 1;
+            }
+            _reorderSections(visibleSections, oldIndex, newIndex);
+          },
           itemBuilder: (context, index) {
             final section = visibleSections[index];
             return KeyedSubtree(

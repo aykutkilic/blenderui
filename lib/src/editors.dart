@@ -522,8 +522,12 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
           itemCount: groups.length,
-          onReorderItem: (oldIndex, newIndex) =>
-              _reorderGroups(groups, oldIndex, newIndex),
+          onReorder: (oldIndex, newIndex) {
+            if (newIndex > oldIndex) {
+              newIndex -= 1;
+            }
+            _reorderGroups(groups, oldIndex, newIndex);
+          },
           proxyDecorator: (child, index, animation) => AnimatedBuilder(
             animation: animation,
             child: child,

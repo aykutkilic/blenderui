@@ -3146,3 +3146,13 @@
 - The local `gh` token was invalid when Pages status was queried, so the live
   repository setting and first remote deployment still require authenticated
   GitHub access.
+
+## 2026-07-16 — Restore Flutter 3.41 web-build compatibility
+
+- The first GitHub Pages build reached Flutter compilation but failed because
+  `ReorderableList.onReorderItem` is newer than the package's declared Flutter
+  `>=3.41.0` floor.
+- Updated the properties and Preferences reorderable lists to use the
+  compatible `onReorder` callback and its required downward-move index
+  adjustment. This keeps the same behavior on newer Flutter releases while
+  allowing the pinned CI toolchain to compile the web demo.
