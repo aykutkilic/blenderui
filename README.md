@@ -5,6 +5,9 @@ applications. It provides dense controls, keyboard and mouse interactions,
 resizable regions, and generic editor surfaces without depending on Material or
 Cupertino.
 
+<img width="1276" height="800" alt="image" src="https://github.com/user-attachments/assets/5821db20-4a98-48bc-8701-75ab79741f36" />
+
+
 The package is implemented as ordinary Flutter widgets wherever possible. A
 small number of dense surfaces use custom painting and viewport-aware layout so
 large outliners, timelines, and node graphs remain responsive.
