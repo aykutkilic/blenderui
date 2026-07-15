@@ -1,5 +1,21 @@
 # Development history
 
+## 2026-07-15 — Matched Node Editor context branches and panel hierarchy
+
+- Re-read Blender's local `space_node.py`. Shader, Geometry, Compositor, and
+  Texture node trees share the header but poll different sidebar panels:
+  geometry-only Object Types/Modes/Options, compositor Backdrop/Performance,
+  and Group/Animation panels separate from the Node, Properties, and Texture
+  Mapping families.
+- Made `BlenderNodeEditorSidebar` context-aware and corrected the previous
+  flattening: Node Properties, Custom Properties, Texture Mapping, View
+  Backdrop/Annotation, and Group Animation now occupy their source sibling
+  relationships. Shader fixtures no longer display geometry-only cards.
+- Expanded the Node header's View, Select, and Node menu descriptors with
+  backdrop zoom, same-type activation, frame/link/group operations, and
+  show/hide families. Added a regression for the source-dependent panel set
+  and refreshed `showcase_node_editor.png` after visual review.
+
 ## 2026-07-15 — Matched Image/UV editor source menus and panel regions
 
 - Re-read Blender's local `space_image.py`. The Image/UV header exposes
