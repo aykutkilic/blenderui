@@ -16729,10 +16729,26 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           label: 'Show Strip Curves',
         ),
         BlenderMenuItem<String>(value: 'Show Markers', label: 'Show Markers'),
+        BlenderMenuItem<String>(
+          value: 'Show Local Markers',
+          label: 'Show Local Markers',
+        ),
         BlenderMenuItem<String>(value: 'Show Seconds', label: 'Show Seconds'),
         BlenderMenuItem<String>(
           value: 'Show Locked Time',
           label: 'Show Locked Time',
+        ),
+        BlenderMenuItem<String>(
+          value: 'Set Preview Range',
+          label: 'Set Preview Range',
+        ),
+        BlenderMenuItem<String>(
+          value: 'Clear Preview Range',
+          label: 'Clear Preview Range',
+        ),
+        BlenderMenuItem<String>(
+          value: 'Set NLA Preview Range',
+          label: 'Set NLA Preview Range',
         ),
         BlenderMenuItem<String>(value: 'Area', label: 'Area'),
       ],
@@ -16778,8 +16794,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         BlenderMenuItem<String>(value: 'Transform', label: 'Transform'),
         BlenderMenuItem<String>(value: 'Snap', label: 'Snap'),
         BlenderMenuItem<String>(value: 'Duplicate', label: 'Duplicate'),
+        BlenderMenuItem<String>(
+          value: 'Linked Duplicate',
+          label: 'Linked Duplicate',
+        ),
+        BlenderMenuItem<String>(value: 'Make Meta', label: 'Make Meta'),
+        BlenderMenuItem<String>(value: 'Remove Meta', label: 'Remove Meta'),
         BlenderMenuItem<String>(value: 'Split', label: 'Split'),
         BlenderMenuItem<String>(value: 'Mute', label: 'Mute'),
+        BlenderMenuItem<String>(value: 'Bake Action', label: 'Bake Action'),
+        BlenderMenuItem<String>(value: 'Apply Scale', label: 'Apply Scale'),
         BlenderMenuItem<String>(value: 'Delete', label: 'Delete'),
       ],
       _ => const <BlenderMenuItem<String>>[],

@@ -1370,7 +1370,7 @@ void main() {
 
     expect(find.byType(BlenderSequencerSidebar), findsOneWidget);
     expect(find.text('Action'), findsWidgets);
-    expect(find.text('NLA Tracks'), findsOneWidget);
+    expect(find.text('Slot'), findsOneWidget);
     for (final label in <String>[
       'View',
       'Select',

@@ -2675,16 +2675,6 @@ class BlenderSequencerSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final panels = nlaEditor
         ? <Widget>[
-            _panel('Active Tool', <Widget>[
-              _choice('Tool', 'Select', <String>['Select', 'Move', 'Scale']),
-            ], expanded: true),
-            _panel('View', <Widget>[
-              _check('NLA Tracks'),
-              _check('Markers'),
-              _check('Local Markers', value: false),
-              _check('Seconds'),
-              _check('Locked Time', value: false),
-            ], expanded: true),
             _panel('Strip', <Widget>[
               _panel('Action', <Widget>[
                 _choice('Action', 'Walk Cycle', <String>[
@@ -2694,13 +2684,12 @@ class BlenderSequencerSidebar extends StatelessWidget {
                 ]),
                 _number('Frame Start', 1),
                 _number('Frame End', 120),
+                _check('Use Frame Range'),
+                _check('Cyclic'),
               ], expanded: true),
-              _panel('Transform', <Widget>[
-                _number('Scale', 1),
-                _number('Repeat', 1),
-              ]),
-              _panel('Custom Properties', <Widget>[
-                _number('example_value', 1),
+              _panel('Slot', <Widget>[
+                _choice('Name', 'Walk Cycle', <String>['Walk Cycle', 'None']),
+                _choice('Type', 'Object', <String>['Object', 'World', 'Scene']),
               ]),
             ], expanded: true),
           ]
@@ -2781,6 +2770,10 @@ class BlenderSequencerSidebar extends StatelessWidget {
               ]),
               _panel('Annotation', <Widget>[
                 _check('Show Annotation', value: false),
+                _panel('Onion Skin', <Widget>[
+                  _check('Use Onion Skin', value: false),
+                  _number('Opacity', .5),
+                ]),
               ]),
             ], expanded: true),
             _panel('Strip', <Widget>[

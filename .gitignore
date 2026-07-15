@@ -125,3 +125,14 @@ test/failures/
 *.iml
 example/test/failures/
 example/pubspec.lock
+
+# Flutter's desktop runner templates intentionally track these registrants.
+# Keep that choice explicit so pub's package validation does not report
+# checked-in, ignored files.
+!example/linux/flutter/generated_plugin_registrant.cc
+!example/linux/flutter/generated_plugin_registrant.h
+!example/linux/flutter/generated_plugins.cmake
+!example/macos/Flutter/GeneratedPluginRegistrant.swift
+!example/windows/flutter/generated_plugin_registrant.cc
+!example/windows/flutter/generated_plugin_registrant.h
+!example/windows/flutter/generated_plugins.cmake

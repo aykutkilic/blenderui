@@ -1,5 +1,17 @@
 # Development history
 
+## 2026-07-15 — Matched Sequencer/NLA source panel branches
+
+- Re-read the local `space_sequencer.py` and `space_nla.py` registrations.
+  NLA's Filters and Snapping are header popovers, while its source sidebar
+  exposes Strip/Action and Slot; the previous NLA Tracks, View, and Transform
+  cards were context-menu or non-source extras.
+- Corrected the NLA sidebar and expanded its View/Strip menu descriptors with
+  local-marker, preview-range, linked-duplicate, meta, bake, and scale items.
+  Sequencer Annotation now includes the registered Onion Skin child panel.
+- Refreshed and reviewed the Sequencer and NLA visual baselines; the focused
+  regression passes after the source hierarchy update.
+
 ## 2026-07-15 — Matched Node Editor context branches and panel hierarchy
 
 - Re-read Blender's local `space_node.py`. Shader, Geometry, Compositor, and
@@ -2679,7 +2691,7 @@
 - The sample smoke test exposed a 4-pixel narrow-header overflow in the
   existing data-block selector; its icon/chevron pair now uses a fitted group
   at constrained widths. Both regressions are fixed in shared primitives and
-  documented in `docs/reference/blender-ui-coverage.md`.
+  documented in `doc/reference/blender-ui-coverage.md`.
 - The example analyzer also caught two stale `const` separators that depended
   on the runtime Blender theme; those separators are now non-const while
   unrelated constant header controls remain const.
@@ -3052,4 +3064,21 @@
   Invert Selection, Toggle Selection, Select Box, Delete, and Copy commands.
 - Added the Console delete-word commands and its Area entry to the source-order
   View/Console families.
-- Recorded the source paths in `docs/reference/blender-ui-coverage.md`.
+- Recorded the source paths in `doc/reference/blender-ui-coverage.md`.
+
+## 2026-07-15 — Initial pub.dev release preparation
+
+- Kept the initial public version at `0.1.0`: the library already provides a
+  cohesive, usable surface, while semantic versioning still signals API
+  evolution before `1.0.0`.
+- Renamed the top-level documentation directory from `docs/` to pub's
+  conventional `doc/`, and updated repository links.
+- Made the checked-in Flutter desktop runner registrants explicit exceptions
+  in `.gitignore`; pub's dry-run validator otherwise reports their deliberate
+  presence as ignored files.
+- Release validation is `flutter pub publish --dry-run`; its first run
+  identified the two packaging issues resolved above.
+- The local Flutter SDK needs permission to update its shared engine stamp
+  before that command runs. Once allowed, the dry run confirmed the archive;
+  its remaining advisory is the expected uncommitted working-tree state before
+  a release commit.

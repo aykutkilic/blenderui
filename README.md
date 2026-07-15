@@ -81,7 +81,7 @@ BlenderServiceScope(
 
 Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
 `BlenderStateScope.read<T>(context)` in event handlers. See
-[`ADR-0005`](docs/decisions/ADR-0005-application-services.md) for ownership and
+[`ADR-0005`](doc/decisions/ADR-0005-application-services.md) for ownership and
 lifecycle decisions.
 
 ## Sample application
@@ -95,7 +95,7 @@ flutter run -d macos
 ```
 
 The source-driven visual coverage map is maintained in
-[`docs/reference/blender-ui-coverage.md`](docs/reference/blender-ui-coverage.md).
+[`doc/reference/blender-ui-coverage.md`](doc/reference/blender-ui-coverage.md).
 
 The sample also includes Windows and Linux runners.
 Open its **Components** workspace for a searchable workbench covering controls,
@@ -123,5 +123,5 @@ release builds retain the fallback behavior.
 This is not an official Blender project and does not embed Blender source
 code, icons, fonts, logos, or artwork. Blender is used as a documented visual
 and interaction reference only. The package and its independently created
-assets are MIT licensed. See `docs/reference/blender-ui-reference.md` for the
+assets are MIT licensed. See `doc/reference/blender-ui-reference.md` for the
 reference snapshot and provenance notes.

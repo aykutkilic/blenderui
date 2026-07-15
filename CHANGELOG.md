@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.0
+## 0.1.0 — 2026-07-15
+
+Initial public release, prepared for publication on pub.dev.
 
 - Initial Blender-inspired Flutter desktop UI toolkit.
 - Added theme tokens, independent vector icons, core controls, layout
