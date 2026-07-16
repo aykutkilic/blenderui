@@ -23,6 +23,80 @@ class _TreeFixture {
 }
 
 void main() {
+  testWidgets('multi-column menu trigger reuses compact editor-menu geometry', (
+    tester,
+  ) async {
+    String? selected;
+    const groups = <BlenderMultiColumnMenuGroup<String>>[
+      BlenderMultiColumnMenuGroup<String>(
+        id: 'authoring',
+        title: 'Authoring',
+        items: <BlenderMultiColumnMenuItem<String>>[
+          BlenderMultiColumnMenuItem<String>(
+            id: 'page',
+            value: 'page',
+            label: 'Page Editor',
+            glyph: BlenderGlyph.file,
+          ),
+          BlenderMultiColumnMenuItem<String>(
+            id: 'level',
+            value: 'level',
+            label: 'Level Editor',
+            glyph: BlenderGlyph.grid,
+          ),
+        ],
+      ),
+      BlenderMultiColumnMenuGroup<String>(
+        id: 'properties',
+        title: 'Properties',
+        items: <BlenderMultiColumnMenuItem<String>>[
+          BlenderMultiColumnMenuItem<String>(
+            id: 'settings',
+            value: 'settings',
+            label: 'Settings',
+            glyph: BlenderGlyph.settings,
+          ),
+        ],
+      ),
+    ];
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Center(
+          child: BlenderMultiColumnMenuTrigger<String>(
+            menuId: 'type-picker-menu',
+            groups: groups,
+            onSelected: (value) => selected = value,
+            child: BlenderButton(
+              key: const ValueKey<String>('type-picker-trigger'),
+              label: 'Choose type',
+              width: 120,
+              onPressed: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Choose type'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    final menu = find.byKey(const ValueKey<String>('type-picker-menu'));
+    expect(menu, findsOneWidget);
+    expect(tester.getSize(menu).width, lessThanOrEqualTo(820));
+    expect(tester.getSize(menu).height, lessThan(120));
+    expect(
+      find.byKey(const ValueKey<String>('type-picker-menu-group-authoring')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('type-picker-menu-item-level')),
+    );
+    await tester.pumpAndSettle();
+    expect(selected, 'level');
+  });
+
   testWidgets('BlenderApp supplies the themed default text foreground', (
     tester,
   ) async {

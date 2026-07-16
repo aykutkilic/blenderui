@@ -804,72 +804,220 @@ class _BlenderEditorTypeMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = BlenderTheme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = math.min(820, constraints.maxWidth).toDouble();
-        return SizedBox(
-          width: width,
-          height: 280,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.colors.menuBackground,
-              border: Border.all(color: theme.colors.borderSubtle),
-              borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+    return SizedBox(
+      height: 280,
+      child: BlenderMultiColumnMenu<BlenderEditorType>(
+        groups: <BlenderMultiColumnMenuGroup<BlenderEditorType>>[
+          for (final category in _categories)
+            BlenderMultiColumnMenuGroup<BlenderEditorType>(
+              id: category.title,
+              title: category.title,
+              items: <BlenderMultiColumnMenuItem<BlenderEditorType>>[
+                for (final item in category.items)
+                  BlenderMultiColumnMenuItem<BlenderEditorType>(
+                    id: item.name,
+                    value: item,
+                    label: item.label,
+                    glyph: item.glyph,
+                    trailingLabel: item.shortcut,
+                  ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  for (
-                    var index = 0;
-                    index < _categories.length;
-                    index++
-                  ) ...<Widget>[
-                    if (index > 0) const SizedBox(width: 12),
-                    Expanded(
-                      child: _BlenderEditorTypeCategory(
-                        title: _categories[index].title,
-                        items: _categories[index].items,
-                        selected: selected,
-                        onSelected: onSelected,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+        ],
+        selected: selected,
+        onSelected: onSelected,
+      ),
     );
   }
 }
 
-class _BlenderEditorTypeCategory extends StatelessWidget {
-  const _BlenderEditorTypeCategory({
+/// A descriptor for one category in a compact Blender-style menu.
+///
+/// Applications provide their own values and labels; BlenderUI owns the
+/// shared geometry, highlighting, and menu chrome used by editor-type menus.
+class BlenderMultiColumnMenuGroup<T> {
+  const BlenderMultiColumnMenuGroup({
+    required this.id,
     required this.title,
     required this.items,
-    required this.selected,
-    required this.onSelected,
   });
 
+  final String id;
   final String title;
-  final List<BlenderEditorType> items;
-  final BlenderEditorType selected;
-  final ValueChanged<BlenderEditorType> onSelected;
+  final List<BlenderMultiColumnMenuItem<T>> items;
+}
+
+/// A selectable entry in a [BlenderMultiColumnMenuGroup].
+class BlenderMultiColumnMenuItem<T> {
+  const BlenderMultiColumnMenuItem({
+    required this.id,
+    required this.value,
+    required this.label,
+    required this.glyph,
+    this.trailingLabel,
+    this.enabled = true,
+  });
+
+  final String id;
+  final T value;
+  final String label;
+  final BlenderGlyph glyph;
+  final String? trailingLabel;
+  final bool enabled;
+}
+
+/// The compact, four-or-more-column menu used for Blender editor types and
+/// application-owned type pickers.
+///
+/// It intentionally uses the same 24px rows, 11px labels, and 12px column
+/// gaps as Blender's editor-type popover. It is data-driven so applications do
+/// not need to fork a visual control merely to present a different catalogue.
+class BlenderMultiColumnMenu<T> extends StatelessWidget {
+  const BlenderMultiColumnMenu({
+    super.key,
+    required this.groups,
+    required this.onSelected,
+    this.selected,
+    this.menuId,
+    this.semanticLabel,
+    this.maxWidth = 820,
+  });
+
+  final List<BlenderMultiColumnMenuGroup<T>> groups;
+  final T? selected;
+  final ValueChanged<T>? onSelected;
+  final String? menuId;
+  final String? semanticLabel;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Semantics(
+      label: semanticLabel ?? 'Multi-column menu',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.min(maxWidth, constraints.maxWidth).toDouble();
+          return SizedBox(
+            width: width,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colors.menuBackground,
+                border: Border.all(color: theme.colors.borderSubtle),
+                borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    for (
+                      var index = 0;
+                      index < groups.length;
+                      index++
+                    ) ...<Widget>[
+                      if (index > 0) const SizedBox(width: 12),
+                      Expanded(
+                        child: _BlenderMultiColumnMenuCategory<T>(
+                          group: groups[index],
+                          selected: selected,
+                          onSelected: onSelected,
+                          menuId: menuId,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Anchors a [BlenderMultiColumnMenu] to an application-provided trigger.
+///
+/// The trigger remains application-owned (for example, an icon button in a
+/// workspace footer), while popover behavior and compact menu styling stay in
+/// BlenderUI.
+class BlenderMultiColumnMenuTrigger<T> extends StatelessWidget {
+  const BlenderMultiColumnMenuTrigger({
+    super.key,
+    required this.child,
+    required this.groups,
+    required this.onSelected,
+    this.selected,
+    this.menuId,
+    this.semanticLabel,
+    this.maxWidth = 820,
+    this.offset = const Offset(0, 4),
+    this.targetAnchor = Alignment.bottomLeft,
+    this.followerAnchor = Alignment.topLeft,
+  });
+
+  final Widget child;
+  final List<BlenderMultiColumnMenuGroup<T>> groups;
+  final ValueChanged<T> onSelected;
+  final T? selected;
+  final String? menuId;
+  final String? semanticLabel;
+  final double maxWidth;
+  final Offset offset;
+  final Alignment targetAnchor;
+  final Alignment followerAnchor;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlenderPopover(
+      offset: offset,
+      targetAnchor: targetAnchor,
+      followerAnchor: followerAnchor,
+      child: IgnorePointer(child: child),
+      popover: (context, close) => BlenderMultiColumnMenu<T>(
+        key: menuId == null ? null : ValueKey<String>(menuId!),
+        groups: groups,
+        selected: selected,
+        menuId: menuId,
+        semanticLabel: semanticLabel,
+        maxWidth: maxWidth,
+        onSelected: (value) {
+          onSelected(value);
+          close();
+        },
+      ),
+    );
+  }
+}
+
+class _BlenderMultiColumnMenuCategory<T> extends StatelessWidget {
+  const _BlenderMultiColumnMenuCategory({
+    required this.group,
+    required this.selected,
+    required this.onSelected,
+    required this.menuId,
+  });
+
+  final BlenderMultiColumnMenuGroup<T> group;
+  final T? selected;
+  final ValueChanged<T>? onSelected;
+  final String? menuId;
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     return Column(
+      key: menuId == null
+          ? null
+          : ValueKey<String>('$menuId-group-${group.id}'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(bottom: 5),
           child: Text(
-            title,
+            group.title,
             style: theme.textTheme.heading.copyWith(fontSize: 11),
           ),
         ),
@@ -878,48 +1026,58 @@ class _BlenderEditorTypeCategory extends StatelessWidget {
           child: ColoredBox(color: theme.colors.borderSubtle),
         ),
         const SizedBox(height: 4),
-        for (final item in items)
-          _BlenderEditorTypeMenuItem(
-            value: item,
-            selected: item == selected,
-            onTap: () => onSelected(item),
+        for (final item in group.items)
+          _BlenderMultiColumnMenuEntry<T>(
+            item: item,
+            selected: item.value == selected,
+            enabled: item.enabled && onSelected != null,
+            onTap: onSelected == null ? null : () => onSelected!(item.value),
+            itemKey: menuId == null
+                ? null
+                : ValueKey<String>('$menuId-item-${item.id}'),
           ),
       ],
     );
   }
 }
 
-class _BlenderEditorTypeMenuItem extends StatefulWidget {
-  const _BlenderEditorTypeMenuItem({
-    required this.value,
+class _BlenderMultiColumnMenuEntry<T> extends StatefulWidget {
+  const _BlenderMultiColumnMenuEntry({
+    required this.item,
     required this.selected,
+    required this.enabled,
     required this.onTap,
+    required this.itemKey,
   });
 
-  final BlenderEditorType value;
+  final BlenderMultiColumnMenuItem<T> item;
   final bool selected;
-  final VoidCallback onTap;
+  final bool enabled;
+  final VoidCallback? onTap;
+  final Key? itemKey;
 
   @override
-  State<_BlenderEditorTypeMenuItem> createState() =>
-      _BlenderEditorTypeMenuItemState();
+  State<_BlenderMultiColumnMenuEntry<T>> createState() =>
+      _BlenderMultiColumnMenuEntryState<T>();
 }
 
-class _BlenderEditorTypeMenuItemState
-    extends State<_BlenderEditorTypeMenuItem> {
+class _BlenderMultiColumnMenuEntryState<T>
+    extends State<_BlenderMultiColumnMenuEntry<T>> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    final highlighted = widget.selected || _hovered;
+    final highlighted = widget.selected || (_hovered && widget.enabled);
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      cursor: widget.enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      onEnter: widget.enabled ? (_) => setState(() => _hovered = true) : null,
+      onExit: widget.enabled ? (_) => setState(() => _hovered = false) : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
+        onTap: widget.enabled ? widget.onTap : null,
         child: Container(
+          key: widget.itemKey,
           height: 24,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
@@ -928,21 +1086,28 @@ class _BlenderEditorTypeMenuItemState
           ),
           child: Row(
             children: <Widget>[
-              BlenderIcon(widget.value.glyph, size: 15),
+              BlenderIcon(
+                widget.item.glyph,
+                size: 15,
+                color: widget.enabled ? null : theme.colors.foregroundDisabled,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  widget.value.label,
+                  widget.item.label,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.body.copyWith(
                     fontSize: 11,
                     height: 1.1,
+                    color: widget.enabled
+                        ? null
+                        : theme.colors.foregroundDisabled,
                   ),
                 ),
               ),
-              if (widget.value.shortcut != null)
+              if (widget.item.trailingLabel != null)
                 Text(
-                  widget.value.shortcut!,
+                  widget.item.trailingLabel!,
                   style: theme.textTheme.caption.copyWith(fontSize: 9),
                 ),
             ],
