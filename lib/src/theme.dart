@@ -456,12 +456,20 @@ class BlenderApp extends StatelessWidget {
     this.title = 'Blender UI',
     this.theme = const BlenderThemeData(),
     this.navigatorKey,
+    this.locale,
+    this.supportedLocales = const <Locale>[Locale('en', 'US')],
+    this.localizationsDelegates,
+    this.builder,
   });
 
   final Widget home;
   final String title;
   final BlenderThemeData theme;
   final GlobalKey<NavigatorState>? navigatorKey;
+  final Locale? locale;
+  final List<Locale> supportedLocales;
+  final Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates;
+  final TransitionBuilder? builder;
 
   @override
   Widget build(BuildContext context) {
@@ -472,10 +480,16 @@ class BlenderApp extends StatelessWidget {
         title: title,
         home: home,
         navigatorKey: navigatorKey,
-        builder: (context, child) => DefaultTextStyle(
-          style: theme.textTheme.body.copyWith(color: theme.colors.foreground),
-          child: child ?? const SizedBox.shrink(),
-        ),
+        locale: locale,
+        supportedLocales: supportedLocales,
+        localizationsDelegates: localizationsDelegates,
+        builder: (context, child) {
+          final themedChild = DefaultTextStyle(
+            style: theme.textTheme.body.copyWith(color: theme.colors.foreground),
+            child: child ?? const SizedBox.shrink(),
+          );
+          return builder?.call(context, themedChild) ?? themedChild;
+        },
         pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) =>
             PageRouteBuilder<T>(
               settings: settings,
