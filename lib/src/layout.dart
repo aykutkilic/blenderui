@@ -937,60 +937,6 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
   }
 }
 
-/// Anchors a [BlenderMultiColumnMenu] to an application-provided trigger.
-///
-/// The trigger remains application-owned (for example, an icon button in a
-/// workspace footer), while popover behavior and compact menu styling stay in
-/// BlenderUI.
-class BlenderMultiColumnMenuTrigger<T> extends StatelessWidget {
-  const BlenderMultiColumnMenuTrigger({
-    super.key,
-    required this.child,
-    required this.groups,
-    required this.onSelected,
-    this.selected,
-    this.menuId,
-    this.semanticLabel,
-    this.maxWidth = 820,
-    this.offset = const Offset(0, 4),
-    this.targetAnchor = Alignment.bottomLeft,
-    this.followerAnchor = Alignment.topLeft,
-  });
-
-  final Widget child;
-  final List<BlenderMultiColumnMenuGroup<T>> groups;
-  final ValueChanged<T> onSelected;
-  final T? selected;
-  final String? menuId;
-  final String? semanticLabel;
-  final double maxWidth;
-  final Offset offset;
-  final Alignment targetAnchor;
-  final Alignment followerAnchor;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlenderPopover(
-      offset: offset,
-      targetAnchor: targetAnchor,
-      followerAnchor: followerAnchor,
-      child: IgnorePointer(child: child),
-      popover: (context, close) => BlenderMultiColumnMenu<T>(
-        key: menuId == null ? null : ValueKey<String>(menuId!),
-        groups: groups,
-        selected: selected,
-        menuId: menuId,
-        semanticLabel: semanticLabel,
-        maxWidth: maxWidth,
-        onSelected: (value) {
-          onSelected(value);
-          close();
-        },
-      ),
-    );
-  }
-}
-
 class _BlenderMultiColumnMenuCategory<T> extends StatelessWidget {
   const _BlenderMultiColumnMenuCategory({
     required this.group,

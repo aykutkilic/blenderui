@@ -134,7 +134,6 @@ export 'src/layout.dart'
         BlenderMultiColumnMenu,
         BlenderMultiColumnMenuGroup,
         BlenderMultiColumnMenuItem,
-        BlenderMultiColumnMenuTrigger,
         BlenderOverlap,
         BlenderPanel,
         BlenderPanelHeader,

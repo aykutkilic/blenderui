@@ -23,7 +23,7 @@ class _TreeFixture {
 }
 
 void main() {
-  testWidgets('multi-column menu trigger reuses compact editor-menu geometry', (
+  testWidgets('multi-column menu reuses compact editor-menu geometry', (
     tester,
   ) async {
     String? selected;
@@ -63,23 +63,15 @@ void main() {
     await tester.pumpWidget(
       BlenderApp(
         home: Center(
-          child: BlenderMultiColumnMenuTrigger<String>(
+          child: BlenderMultiColumnMenu<String>(
+            key: const ValueKey<String>('type-picker-menu'),
             menuId: 'type-picker-menu',
             groups: groups,
             onSelected: (value) => selected = value,
-            child: BlenderButton(
-              key: const ValueKey<String>('type-picker-trigger'),
-              label: 'Choose type',
-              width: 120,
-              onPressed: () {},
-            ),
           ),
         ),
       ),
     );
-
-    await tester.tap(find.text('Choose type'), warnIfMissed: false);
-    await tester.pumpAndSettle();
 
     final menu = find.byKey(const ValueKey<String>('type-picker-menu'));
     expect(menu, findsOneWidget);
@@ -93,7 +85,7 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey<String>('type-picker-menu-item-level')),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(selected, 'level');
   });
 
@@ -1715,6 +1707,41 @@ void main() {
     await tester.pump();
 
     expect(selected?.id, 'cube');
+  });
+
+  testWidgets('tree labels and disclosures share the optical row center', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          height: 80,
+          child: BlenderTree<String>(
+            roots: const <BlenderTreeNode<String>>[
+              BlenderTreeNode<String>(
+                id: 'collection',
+                label: 'Collection',
+                children: <BlenderTreeNode<String>>[
+                  BlenderTreeNode<String>(id: 'child', label: 'Child'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final row = tester.getCenter(
+      find.byKey(const ValueKey<String>('tree-row-collection')),
+    );
+    final label = tester.getCenter(
+      find.byKey(const ValueKey<String>('tree-label-collection')),
+    );
+    final disclosure = tester.getCenter(
+      find.byKey(const ValueKey<String>('tree-disclosure-collection')),
+    );
+    expect(label.dy, closeTo(row.dy + 1, 0.1));
+    expect(disclosure.dy, closeTo(row.dy + 1, 0.1));
   });
 
   testWidgets('tree disclosures use Blender thin arrow glyphs', (tester) async {

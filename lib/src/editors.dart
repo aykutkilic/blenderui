@@ -936,6 +936,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                     : (details) =>
                           node.onContextMenuRequested!(details.globalPosition),
                 child: DecoratedBox(
+                  key: ValueKey<String>('tree-row-${node.id}'),
                   decoration: BoxDecoration(
                     color: selected
                         ? theme.colors.selection
@@ -969,112 +970,126 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                             ),
                           ),
                         ),
-                      Padding(
-                        padding: EdgeInsets.only(
-                          left: entry.depth * widget.indent,
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            SizedBox(
-                              width: widget.indent,
-                              child: hasChildren
-                                  ? GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () => _toggleExpanded(node.id),
-                                      child: Center(
-                                        child: BlenderTooltip(
-                                          message: _expanded.contains(node.id)
-                                              ? 'Collapse'
-                                              : 'Expand',
-                                          child: BlenderIcon(
-                                            key: ValueKey<String>(
-                                              'tree-disclosure-${node.id}',
+                      // Flutter centers a text line box, while Blender aligns
+                      // tree labels and icons to its optical row center. Keep
+                      // the shared Tree (and therefore Outliner) one logical
+                      // pixel below the geometric guide center so nested row
+                      // content does not look vertically raised.
+                      Transform.translate(
+                        offset: const Offset(0, 1),
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: entry.depth * widget.indent,
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              SizedBox(
+                                width: widget.indent,
+                                child: hasChildren
+                                    ? GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () => _toggleExpanded(node.id),
+                                        child: Center(
+                                          child: BlenderTooltip(
+                                            message: _expanded.contains(node.id)
+                                                ? 'Collapse'
+                                                : 'Expand',
+                                            child: BlenderIcon(
+                                              key: ValueKey<String>(
+                                                'tree-disclosure-${node.id}',
+                                              ),
+                                              _expanded.contains(node.id)
+                                                  ? BlenderGlyph
+                                                        .panelDisclosureDown
+                                                  : BlenderGlyph
+                                                        .panelDisclosureRight,
+                                              size: 9,
                                             ),
-                                            _expanded.contains(node.id)
-                                                ? BlenderGlyph
-                                                      .panelDisclosureDown
-                                                : BlenderGlyph
-                                                      .panelDisclosureRight,
-                                            size: 9,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              if (node.icon != null) ...<Widget>[
+                                BlenderIcon(
+                                  node.icon!,
+                                  size: 14,
+                                  color: node.iconColor,
+                                ),
+                                SizedBox(width: theme.density.spacing),
+                              ],
+                              Expanded(
+                                child: Row(
+                                  children: <Widget>[
+                                    Flexible(
+                                      child: Text(
+                                        key: ValueKey<String>(
+                                          'tree-label-${node.id}',
+                                        ),
+                                        node.label,
+                                        maxLines: 1,
+                                        style: theme.textTheme.label.copyWith(
+                                          color: node.selectable
+                                              ? theme.colors.foreground
+                                              : theme.colors.foregroundMuted,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (node.dropHint != null)
+                                      Flexible(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 4,
+                                          ),
+                                          child: Text(
+                                            node.dropHint!,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.caption
+                                                .copyWith(
+                                                  color: theme.colors.accent,
+                                                ),
                                           ),
                                         ),
                                       ),
-                                    )
-                                  : null,
-                            ),
-                            if (node.icon != null) ...<Widget>[
-                              BlenderIcon(
-                                node.icon!,
-                                size: 14,
-                                color: node.iconColor,
+                                  ],
+                                ),
                               ),
-                              SizedBox(width: theme.density.spacing),
+                              if (hasChildren && !_expanded.contains(node.id))
+                                _BlenderCollapsedTreeSummary(
+                                  children: node.children,
+                                ),
+                              if (widget.showVisibility)
+                                BlenderIconButton(
+                                  glyph: BlenderGlyph.eye,
+                                  selected: false,
+                                  onPressed: widget.onVisibilityChanged == null
+                                      ? null
+                                      : () => widget.onVisibilityChanged!(node),
+                                  tooltip: node.visible ? 'Hide' : 'Show',
+                                  size: 20,
+                                ),
+                              if (widget.showLock)
+                                BlenderIconButton(
+                                  glyph: BlenderGlyph.lock,
+                                  selected: false,
+                                  onPressed: widget.onLockChanged == null
+                                      ? null
+                                      : () => widget.onLockChanged!(node),
+                                  tooltip: node.locked ? 'Unlock' : 'Lock',
+                                  size: 20,
+                                ),
+                              if (node.actionIcon != null &&
+                                  (_hoveredNodeId == node.id ||
+                                      node.dropTarget))
+                                BlenderIconButton(
+                                  glyph: node.actionIcon!,
+                                  onPressed: node.onAction,
+                                  tooltip: node.actionTooltip,
+                                  size: 20,
+                                ),
                             ],
-                            Expanded(
-                              child: Row(
-                                children: <Widget>[
-                                  Flexible(
-                                    child: Text(
-                                      node.label,
-                                      maxLines: 1,
-                                      style: theme.textTheme.label.copyWith(
-                                        color: node.selectable
-                                            ? theme.colors.foreground
-                                            : theme.colors.foregroundMuted,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (node.dropHint != null)
-                                    Flexible(
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(left: 4),
-                                        child: Text(
-                                          node.dropHint!,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.caption
-                                              .copyWith(
-                                                color: theme.colors.accent,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            if (hasChildren && !_expanded.contains(node.id))
-                              _BlenderCollapsedTreeSummary(
-                                children: node.children,
-                              ),
-                            if (widget.showVisibility)
-                              BlenderIconButton(
-                                glyph: BlenderGlyph.eye,
-                                selected: false,
-                                onPressed: widget.onVisibilityChanged == null
-                                    ? null
-                                    : () => widget.onVisibilityChanged!(node),
-                                tooltip: node.visible ? 'Hide' : 'Show',
-                                size: 20,
-                              ),
-                            if (widget.showLock)
-                              BlenderIconButton(
-                                glyph: BlenderGlyph.lock,
-                                selected: false,
-                                onPressed: widget.onLockChanged == null
-                                    ? null
-                                    : () => widget.onLockChanged!(node),
-                                tooltip: node.locked ? 'Unlock' : 'Lock',
-                                size: 20,
-                              ),
-                            if (node.actionIcon != null &&
-                                (_hoveredNodeId == node.id || node.dropTarget))
-                              BlenderIconButton(
-                                glyph: node.actionIcon!,
-                                onPressed: node.onAction,
-                                tooltip: node.actionTooltip,
-                                size: 20,
-                              ),
-                          ],
+                          ),
                         ),
                       ),
                     ],

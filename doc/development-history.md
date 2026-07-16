@@ -3,10 +3,10 @@
 ## 2026-07-16 — Added a reusable compact multi-column menu
 
 - Extracted the geometry and interaction model of the editor-type selector
-  into descriptor-driven `BlenderMultiColumnMenu` and
-  `BlenderMultiColumnMenuTrigger` primitives. Applications provide categories,
-  values, labels, and glyphs while BlenderUI owns the anchored popover, compact
-  24px rows, 11px labels, spacing, selection, and hover behavior.
+  into the descriptor-driven `BlenderMultiColumnMenu` surface. Applications
+  provide categories, values, labels, and glyphs while BlenderUI retains the
+  existing `BlenderPopover` for anchoring and owns the compact 24px rows, 11px
+  labels, spacing, selection, and hover behavior.
 - Refactored `BlenderEditorTypeSelector` to use the shared primitive, keeping
   the existing editor menu as the regression surface rather than maintaining a
   lookalike implementation. Added a widget regression for an app-owned picker
