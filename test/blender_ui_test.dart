@@ -233,6 +233,24 @@ void main() {
     );
   });
 
+  testWidgets('text fields support masked preference values', (tester) async {
+    final controller = TextEditingController(text: 'secret-token');
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 220,
+          child: BlenderTextField(controller: controller, obscureText: true),
+        ),
+      ),
+    );
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable.obscureText, isTrue);
+    expect(editable.obscuringCharacter, '•');
+  });
+
   testWidgets('status notification badge stays inside its topmost button', (
     tester,
   ) async {
@@ -352,6 +370,18 @@ void main() {
           height: 620,
           child: const BlenderPreferencesWindow(
             categories: <String>['Interface', 'Animation'],
+            categoryGroups: <BlenderPreferenceCategoryGroup>[
+              BlenderPreferenceCategoryGroup(
+                id: 'workspace',
+                label: 'Workspace',
+                categories: <String>['Interface'],
+              ),
+              BlenderPreferenceCategoryGroup(
+                id: 'motion',
+                label: 'Motion',
+                categories: <String>['Animation'],
+              ),
+            ],
             initialCategory: 'Animation',
             sections: <BlenderPreferenceSection>[
               BlenderPreferenceSection(
@@ -373,6 +403,8 @@ void main() {
     );
 
     expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Motion'), findsOneWidget);
     expect(find.text('Timeline'), findsOneWidget);
     expect(find.text('Minimum Grid Spacing'), findsOneWidget);
 
@@ -380,6 +412,16 @@ void main() {
     await tester.pump();
     expect(find.text('Display'), findsOneWidget);
     expect(find.text('Resolution Scale'), findsOneWidget);
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(BlenderSearchField),
+        matching: find.byType(EditableText),
+      ),
+      'display',
+    );
+    await tester.pump();
+    expect(find.text('Display'), findsOneWidget);
   });
 
   test('property factory preserves caller-owned update callbacks', () {
@@ -889,6 +931,132 @@ void main() {
     controller.dispose();
   });
 
+  test('workspace service retains and resets each workspace layout', () {
+    final service = BlenderWorkspaceService<String>(
+      workspaces: const <BlenderWorkspaceDefinition<String>>[
+        BlenderWorkspaceDefinition<String>(
+          id: 'authoring',
+          layout: BlenderDockAreaNode<String>(
+            id: 'authoring-main',
+            value: 'page-editor',
+          ),
+        ),
+        BlenderWorkspaceDefinition<String>(
+          id: 'data',
+          layout: BlenderDockAreaNode<String>(
+            id: 'data-main',
+            value: 'dictionary-browser',
+          ),
+        ),
+      ],
+    );
+
+    service.activeController.splitArea(
+      areaId: 'authoring-main',
+      direction: BlenderSplitDirection.horizontal,
+      fraction: .35,
+      newValue: 'properties',
+      newAreaFirst: false,
+    );
+    expect(service.activeController.root, isA<BlenderDockSplitNode<String>>());
+
+    service.selectWorkspace('data');
+    expect(service.activeWorkspaceId, 'data');
+    expect(service.activeController.root, isA<BlenderDockAreaNode<String>>());
+
+    service.selectWorkspace('authoring');
+    expect(service.activeController.root, isA<BlenderDockSplitNode<String>>());
+    service.resetWorkspace('authoring');
+    expect(service.activeController.root, isA<BlenderDockAreaNode<String>>());
+    expect(
+      (service.activeController.root as BlenderDockAreaNode<String>).value,
+      'page-editor',
+    );
+    service.dispose();
+  });
+
+  test('application controller adopts a multi-workspace service', () {
+    final workspaces = BlenderWorkspaceService<String>(
+      workspaces: const <BlenderWorkspaceDefinition<String>>[
+        BlenderWorkspaceDefinition<String>(
+          id: 'folders',
+          layout: BlenderDockAreaNode<String>(id: 'folders', value: 'outliner'),
+        ),
+        BlenderWorkspaceDefinition<String>(
+          id: 'authoring',
+          layout: BlenderDockAreaNode<String>(id: 'authoring', value: 'editor'),
+        ),
+      ],
+    );
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      workspaceService: workspaces,
+    );
+
+    expect(application.workspaces, same(workspaces));
+    application.workspaces.selectWorkspace('authoring');
+    expect(application.docking, same(workspaces.activeController));
+    application.dispose();
+  });
+
+  testWidgets('workspace host swaps to the selected retained layout', (
+    tester,
+  ) async {
+    final service = BlenderWorkspaceService<String>(
+      workspaces: const <BlenderWorkspaceDefinition<String>>[
+        BlenderWorkspaceDefinition<String>(
+          id: 'folders',
+          layout: BlenderDockAreaNode<String>(
+            id: 'folders-main',
+            value: 'folder outliner',
+          ),
+        ),
+        BlenderWorkspaceDefinition<String>(
+          id: 'authoring',
+          layout: BlenderDockAreaNode<String>(
+            id: 'authoring-main',
+            value: 'page editor',
+          ),
+        ),
+      ],
+    );
+    addTearDown(service.dispose);
+
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 400,
+          height: 240,
+          child: BlenderWorkspaceHost<String>(
+            service: service,
+            areaBuilder: (context, area) => Text(area.value),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('folder outliner'), findsOneWidget);
+
+    service.selectWorkspace('authoring');
+    await tester.pump();
+    expect(find.text('page editor'), findsOneWidget);
+  });
+
+  test('docking controller replaces an editor value in place', () {
+    final controller = BlenderDockingController<String>(
+      root: const BlenderDockAreaNode<String>(id: 'main', value: 'outliner'),
+    );
+
+    expect(
+      controller.replaceAreaValue(areaId: 'main', value: 'page-editor'),
+      isTrue,
+    );
+    expect(
+      (controller.root as BlenderDockAreaNode<String>).value,
+      'page-editor',
+    );
+    controller.dispose();
+  });
+
   testWidgets('corner action zone creates a live editor split', (tester) async {
     final controller = BlenderDockingController<String>(
       root: const BlenderDockAreaNode<String>(id: 'main', value: 'viewport'),
@@ -1098,10 +1266,68 @@ void main() {
     await tester.pump();
     expect(find.text('Open File'), findsOneWidget);
     expect(find.byType(BlenderIcon), findsOneWidget);
+
+    // The trigger must remain open after the original pointer-up has been
+    // fully processed. A trigger-side fallback that races the tap callback
+    // can otherwise open and dismiss this route in the same click.
+    await tester.pumpAndSettle();
+    expect(find.text('Open File'), findsOneWidget);
+
     await tester.tap(find.text('Open File'));
     await tester.pump();
     expect(selected, 'open');
   });
+
+  testWidgets(
+    'application top bar fixes menus and actions around a fading workspace strip',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          const SizedBox(
+            width: 760,
+            height: 34,
+            child: BlenderApplicationTopBar<String, int>(
+              menus: <BlenderApplicationMenu<String>>[
+                BlenderApplicationMenu<String>(
+                  label: 'File',
+                  items: <BlenderMenuItem<String>>[],
+                ),
+                BlenderApplicationMenu<String>(
+                  label: 'Edit',
+                  items: <BlenderMenuItem<String>>[],
+                ),
+              ],
+              workspaces: <BlenderApplicationWorkspace<int>>[
+                BlenderApplicationWorkspace<int>(value: 0, label: 'Folders'),
+                BlenderApplicationWorkspace<int>(
+                  value: 1,
+                  label: 'Dictionaries',
+                ),
+                BlenderApplicationWorkspace<int>(value: 2, label: 'Groups'),
+              ],
+              activeWorkspace: 0,
+              onWorkspaceSelected: _ignoreInt,
+              workspaceActions: <Widget>[BlenderButton(label: '+')],
+              trailing: <Widget>[BlenderButton(label: 'AI Completions')],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester.getRect(find.text('File')).left,
+        lessThan(tester.getRect(find.text('Folders')).left),
+      );
+      expect(
+        tester.getRect(find.text('Folders')).left,
+        lessThan(tester.getRect(find.text('AI Completions')).left),
+      );
+      expect(
+        find.byType(BlenderApplicationTopBar<String, int>),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('submenu rows use thin arrows and stay highlighted', (
     tester,
@@ -2359,6 +2585,42 @@ void main() {
     button = tester.widget<BlenderButton>(buttonFinder);
     expect(button.selected, isTrue);
     expect(find.text('General'), findsOneWidget);
+  });
+
+  testWidgets('Preferences stays open when selected from an application menu', (
+    tester,
+  ) async {
+    late BuildContext appContext;
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Builder(
+          builder: (context) {
+            appContext = context;
+            return BlenderMenuButton<String>(
+              label: 'Edit',
+              items: const <BlenderMenuItem<String>>[
+                BlenderMenuItem(value: 'preferences', label: 'Preferences…'),
+              ],
+              onSelected: (_) {
+                const BlenderPreferencesService(
+                  configuration: BlenderPreferencesConfiguration(
+                    categories: <String>['General'],
+                    sections: <BlenderPreferenceSection>[],
+                  ),
+                ).show(appContext);
+              },
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Edit'), warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(find.text('Preferences…'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BlenderPreferencesWindow), findsOneWidget);
   });
 
   testWidgets('Outliner filter exposes restriction controls', (tester) async {
