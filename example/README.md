@@ -48,11 +48,12 @@ Scene Collection and Properties column, and bottom Timeline. The viewport uses
 a small perspective projection by design; it exercises orbit, zoom, gizmo, and
 grid feedback without implementing a scene graph or detailed 3D renderer.
 
-The Components workspace is the fastest way to evaluate the library. Its
-left-hand search filters whole feature categories, each page contains focused
-interactive examples, and every edit participates in a shared undoable demo
-state. The App Services page demonstrates how the same command can be invoked
-from several UI surfaces without introducing process-wide state.
+The Components workspace is the fastest way to evaluate the library. The
+direct component catalog follows the same information architecture as a
+component documentation site: search or browse by category, open a dedicated
+tutorial page, interact with the live widget, and read the code/API/state/
+callback guidance. Every catalog page is backed by a real BlenderUI component
+rather than a mock card.
 
 Drag inside the viewport to orbit, scroll to zoom, and double-click to reset.
 Drag from any editor corner to split that area or move it onto an edge or the
@@ -68,7 +69,7 @@ That command opens the realistic Blender workspace. Select the far-right
 **Components** workspace tab to open the searchable component workbench. The
 workspace header scrolls horizontally when the tabs do not fit.
 
-To launch the component workbench directly, use:
+To launch the live component catalog directly, use:
 
 ```sh
 flutter run -d macos -t lib/components_demo.dart

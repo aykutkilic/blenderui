@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'controls.dart';
@@ -356,6 +357,165 @@ class BlenderPreferencesService {
       showBlenderPreferencesWindow(context, configuration: configuration);
 }
 
+/// Describes the optional startup splash presented by an application shell.
+class BlenderSplashScreenConfiguration {
+  const BlenderSplashScreenConfiguration({
+    required this.title,
+    this.message,
+    this.content,
+    this.width = 520,
+    this.showOnStartup = false,
+  });
+
+  final String title;
+  final String? message;
+  final Widget? content;
+  final double width;
+  final bool showOnStartup;
+}
+
+/// Describes the reusable About dialog for an application shell.
+class BlenderAboutDialogConfiguration {
+  const BlenderAboutDialogConfiguration({
+    required this.title,
+    this.version,
+    this.message,
+    this.content,
+    this.width = 460,
+  });
+
+  final String title;
+  final String? version;
+  final String? message;
+  final Widget? content;
+  final double width;
+}
+
+/// Owns the app-level splash and About presentation lifecycle.
+///
+/// Like blenderapp's window-manager operators, this service owns when and how
+/// transient presentation surfaces open. Applications still own their branding
+/// content, release notes, and legal copy through the immutable descriptors.
+class BlenderApplicationPresentationService
+    implements BlenderServiceDisposable {
+  BlenderApplicationPresentationService({this.splash, this.about});
+
+  final BlenderSplashScreenConfiguration? splash;
+  final BlenderAboutDialogConfiguration? about;
+  bool _startupSplashShown = false;
+  bool _disposed = false;
+
+  Future<bool> showStartupSplash(BuildContext context) async {
+    final splash = this.splash;
+    if (_disposed ||
+        _startupSplashShown ||
+        splash == null ||
+        !splash.showOnStartup) {
+      return false;
+    }
+    _startupSplashShown = true;
+    await showSplash(context);
+    return true;
+  }
+
+  Future<bool> showSplash(BuildContext context) async {
+    final splash = this.splash;
+    if (_disposed || splash == null || !context.mounted) return false;
+    await showBlenderDialog<void>(
+      context: context,
+      barrierLabel: 'Dismiss ${splash.title} splash screen',
+      builder: (dialogContext) => BlenderDialog(
+        title: splash.title,
+        message: splash.message,
+        content: splash.content,
+        width: splash.width,
+        actions: <BlenderDialogAction>[
+          BlenderDialogAction(
+            label: 'Continue',
+            primary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    );
+    return true;
+  }
+
+  Future<bool> showAbout(BuildContext context) async {
+    final about = this.about;
+    if (_disposed || about == null || !context.mounted) return false;
+    final message = switch ((about.version, about.message)) {
+      (null, final message) => message,
+      (final version?, null) => version,
+      (final version?, final message?) => '$version\n$message',
+    };
+    await showBlenderDialog<void>(
+      context: context,
+      barrierLabel: 'Dismiss ${about.title} information',
+      builder: (dialogContext) => BlenderDialog(
+        title: about.title,
+        message: message,
+        content: about.content,
+        width: about.width,
+        actions: <BlenderDialogAction>[
+          BlenderDialogAction(
+            label: 'Close',
+            primary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    );
+    return true;
+  }
+
+  @override
+  void dispose() => _disposed = true;
+}
+
+/// A service-backed status bar for application shells.
+class BlenderApplicationStatusBar extends StatelessWidget {
+  const BlenderApplicationStatusBar({
+    super.key,
+    required this.status,
+    this.center = const <Widget>[],
+    this.right = const <Widget>[],
+  });
+
+  final BlenderStatusService status;
+  final List<Widget> center;
+  final List<Widget> right;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: status,
+      builder: (context, _) {
+        final message = status.message;
+        final theme = BlenderTheme.of(context);
+        final color = switch (message?.level) {
+          BlenderStatusLevel.success => theme.colors.success,
+          BlenderStatusLevel.warning => theme.colors.warning,
+          BlenderStatusLevel.error => theme.colors.error,
+          _ => theme.colors.foregroundMuted,
+        };
+        return BlenderStatusBar(
+          left: message == null
+              ? const <Widget>[]
+              : <Widget>[
+                  Text(
+                    message.text,
+                    style: theme.textTheme.caption.copyWith(color: color),
+                  ),
+                ],
+          center: center,
+          right: right,
+        );
+      },
+    );
+  }
+}
+
 /// Opens a source-shaped temporary Preferences window.
 ///
 /// Use this from a menu command after the menu route has closed. The returned
@@ -409,6 +569,11 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     BlenderDockNode<String>? workspace,
     BlenderWorkspaceService<String>? workspaceService,
     BlenderStateEquality<T>? stateEquals,
+    BlenderStatusService? status,
+    BlenderCommandBindings? commandBindings,
+    BlenderEditorSessionService? editorSession,
+    this.preferences,
+    BlenderApplicationPresentationService? presentation,
     this.historyLimit = 50,
   }) : assert(
          workspace != null || workspaceService != null,
@@ -423,6 +588,10 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
          equals: stateEquals,
          historyLimit: historyLimit,
        ),
+       status = status ?? BlenderStatusService(),
+       commandBindings = commandBindings ?? BlenderCommandBindings(),
+       editorSession = editorSession ?? BlenderEditorSessionService(),
+       presentation = presentation ?? BlenderApplicationPresentationService(),
        workspaces =
            workspaceService ??
            BlenderWorkspaceService<String>(
@@ -435,12 +604,67 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
            ),
        commands = BlenderCommandRegistry(),
        services = BlenderServiceContainer() {
+    commands
+      ..register(
+        BlenderCommand(
+          id: 'application.undo',
+          label: 'Undo',
+          shortcut: 'Ctrl Z',
+          enabled: () => state.canUndo,
+          execute: () {
+            state.undo();
+          },
+        ),
+      )
+      ..register(
+        BlenderCommand(
+          id: 'application.redo',
+          label: 'Redo',
+          shortcut: 'Ctrl Shift Z',
+          enabled: () => state.canRedo,
+          execute: () {
+            state.redo();
+          },
+        ),
+      );
+    void registerDefaultBinding(BlenderCommandBinding binding) {
+      if (this.commandBindings.commandFor(binding.activator) == null) {
+        this.commandBindings.register(binding);
+      }
+    }
+
+    registerDefaultBinding(
+      const BlenderCommandBinding(
+        commandId: 'application.undo',
+        activator: SingleActivator(LogicalKeyboardKey.keyZ, control: true),
+      ),
+    );
+    registerDefaultBinding(
+      const BlenderCommandBinding(
+        commandId: 'application.redo',
+        activator: SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ),
+      ),
+    );
     services
       ..registerSingleton<BlenderHistoryStore<T>>(state)
       ..registerSingleton<BlenderWorkspaceService<String>>(workspaces)
       // Retain the original singleton for one-workspace applications.
       ..registerSingleton<BlenderDockingController<String>>(docking)
-      ..registerSingleton<BlenderCommandRegistry>(commands);
+      ..registerSingleton<BlenderCommandRegistry>(commands)
+      ..registerSingleton<BlenderCommandBindings>(this.commandBindings)
+      ..registerSingleton<BlenderStatusService>(this.status)
+      ..registerSingleton<BlenderEditorSessionService>(this.editorSession)
+      ..registerSingleton<BlenderApplicationPresentationService>(
+        this.presentation,
+      );
+    final preferences = this.preferences;
+    if (preferences != null) {
+      services.registerSingleton<BlenderPreferencesService>(preferences);
+    }
     state.addListener(commands.refresh);
   }
 
@@ -451,6 +675,11 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
   /// Backwards-compatible access to the active dock layout.
   BlenderDockingController<String> get docking => workspaces.activeController;
   final BlenderCommandRegistry commands;
+  final BlenderCommandBindings commandBindings;
+  final BlenderStatusService status;
+  final BlenderEditorSessionService editorSession;
+  final BlenderPreferencesService? preferences;
+  final BlenderApplicationPresentationService presentation;
   final BlenderServiceContainer services;
   bool _disposed = false;
 
@@ -517,6 +746,14 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
     // service starts from declared defaults meanwhile, so a missing or stale
     // session never blocks first paint.
     unawaited(widget.controller.workspaces.restore());
+    unawaited(widget.controller.editorSession.restore());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navigatorContext = widget.navigatorKey?.currentContext ?? context;
+      unawaited(
+        widget.controller.presentation.showStartupSplash(navigatorContext),
+      );
+    });
   }
 
   @override
@@ -525,6 +762,7 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(widget.controller.workspaces.flush());
+      unawaited(widget.controller.editorSession.flush());
     }
   }
 
@@ -532,12 +770,14 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(widget.controller.workspaces.flush());
+    unawaited(widget.controller.editorSession.flush());
     super.dispose();
   }
 
   /// Opens the configured Preferences window, if this shell exposes one.
   void showPreferences() {
-    final preferences = widget.preferences;
+    final preferences =
+        widget.preferences ?? widget.controller.preferences?.configuration;
     if (preferences == null) return;
     final navigatorContext = widget.navigatorKey?.currentContext ?? context;
     showBlenderPreferencesWindow(navigatorContext, configuration: preferences);
@@ -550,20 +790,27 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
       title: widget.title,
       theme: widget.theme,
       navigatorKey: widget.navigatorKey,
-      home: BlenderServiceScope(
-        services: controller.services,
-        child: BlenderStateScope<T>(
-          store: controller.state,
-          child: BlenderEditorShell(
-            topBar: widget.topBar,
-            main:
-                widget.workspaceContent ??
-                BlenderWorkspaceHost<String>(
-                  service: controller.workspaces,
-                  cloneArea: widget.cloneArea,
-                  areaBuilder: widget.areaBuilder,
-                ),
-            statusBar: widget.statusBar,
+      home: BlenderCommandBindingScope(
+        commands: controller.commands,
+        bindings: controller.commandBindings,
+        child: BlenderServiceScope(
+          services: controller.services,
+          child: BlenderStateScope<T>(
+            store: controller.state,
+            child: BlenderEditorSessionScope(
+              session: controller.editorSession,
+              child: BlenderEditorShell(
+                topBar: widget.topBar,
+                main:
+                    widget.workspaceContent ??
+                    BlenderWorkspaceHost<String>(
+                      service: controller.workspaces,
+                      cloneArea: widget.cloneArea,
+                      areaBuilder: widget.areaBuilder,
+                    ),
+                statusBar: widget.statusBar,
+              ),
+            ),
           ),
         ),
       ),

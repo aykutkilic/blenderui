@@ -39,13 +39,8 @@ class BlenderWorkspaceDefinition<T> {
 /// BlenderUI deliberately does not choose a storage package. Applications may
 /// adapt SharedPreferences, a file, browser storage, or their own settings
 /// service without making that dependency part of the widget library.
-abstract interface class BlenderWorkspaceStorage {
-  Future<String?> read(String key);
-
-  Future<void> write(String key, String value);
-
-  Future<void> remove(String key);
-}
+abstract interface class BlenderWorkspaceStorage
+    implements BlenderPersistentStorage {}
 
 /// Encodes the application-owned editor identifier hosted by a dock area.
 ///

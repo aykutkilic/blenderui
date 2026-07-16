@@ -87,6 +87,36 @@ void main() {
     );
     await tester.pump();
     expect(selected, 'level');
+
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 300,
+          child: BlenderMultiColumnMenu<String>(
+            key: const ValueKey<String>('narrow-type-picker-menu'),
+            menuId: 'narrow-type-picker-menu',
+            maxWidth: 300,
+            minimumColumnWidth: 500,
+            groups: groups,
+            onSelected: (value) => selected = value,
+          ),
+        ),
+      ),
+    );
+    final narrowMenu = find.byKey(
+      const ValueKey<String>('narrow-type-picker-menu'),
+    );
+    final narrowSurface = find.descendant(
+      of: narrowMenu,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).border != null,
+      ),
+    );
+    expect(narrowSurface, findsOneWidget);
+    expect(tester.getSize(narrowSurface).height, greaterThan(120));
   });
 
   testWidgets('BlenderApp supplies the themed default text foreground', (
@@ -128,13 +158,61 @@ void main() {
       );
 
       expect(find.text('Application menu'), findsOneWidget);
-      expect(find.text('main:7:0'), findsOneWidget);
+      expect(find.text('main:7:2'), findsOneWidget);
       expect(find.text('Ready'), findsOneWidget);
       expect(find.byType(BlenderDockingWorkspace<String>), findsOneWidget);
       expect(application.services.contains<BlenderHistoryStore<int>>(), isTrue);
       expect(application.services.contains<BlenderCommandRegistry>(), isTrue);
+      expect(application.services.contains<BlenderCommandBindings>(), isTrue);
+      expect(application.services.contains<BlenderStatusService>(), isTrue);
+      expect(
+        application.services.contains<BlenderEditorSessionService>(),
+        isTrue,
+      );
+      expect(
+        application.services.contains<BlenderApplicationPresentationService>(),
+        isTrue,
+      );
     },
   );
+
+  testWidgets('application shell restores persisted editor context', (
+    tester,
+  ) async {
+    final storage = _WorkspaceMemoryStorage()
+      ..values['editor-session'] =
+          '{"version":1,"viewsByArea":{"default::main":"text"},'
+          '"outlinerSelectionByWorkspace":{"default":"cube"},'
+          '"propertiesTargetByWorkspace":{"default":"material"}}';
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      workspace: const BlenderDockAreaNode<String>(id: 'main', value: 'main'),
+      editorSession: BlenderEditorSessionService(
+        persistence: BlenderEditorSessionPersistence(
+          storage: storage,
+          storageKey: 'editor-session',
+        ),
+      ),
+    );
+    addTearDown(application.dispose);
+
+    await tester.pumpWidget(
+      BlenderWorkspaceShell<Object?>(
+        controller: application,
+        areaBuilder: (context, area) {
+          final session = BlenderEditorSessionScope.watch(context);
+          return Text(
+            '${session.viewForArea(workspaceId: 'default', areaId: area.id)}:'
+            '${session.outlinerSelectionFor('default')}:'
+            '${session.propertiesTargetFor('default')}',
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('text:cube:material'), findsOneWidget);
+  });
 
   testWidgets('preferences helper presents reusable preference descriptors', (
     tester,

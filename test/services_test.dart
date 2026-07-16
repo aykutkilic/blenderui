@@ -1,4 +1,5 @@
 import 'package:blender_ui/blender_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,6 +97,146 @@ void main() {
     expect(executions, 1);
   });
 
+  test('status service reports and clears application messages', () {
+    final status = BlenderStatusService();
+    addTearDown(status.dispose);
+
+    status.report('Saved scene', level: BlenderStatusLevel.success);
+    expect(status.message?.text, 'Saved scene');
+    expect(status.message?.level, BlenderStatusLevel.success);
+
+    status.clear();
+    expect(status.message, isNull);
+  });
+
+  test('command bindings map shortcuts to stable command ids', () {
+    final bindings = BlenderCommandBindings();
+    addTearDown(bindings.dispose);
+    const activator = SingleActivator(LogicalKeyboardKey.keyK, control: true);
+    bindings.register(
+      const BlenderCommandBinding(
+        commandId: 'document.comment',
+        activator: activator,
+      ),
+    );
+
+    expect(bindings.bindings.single.commandId, 'document.comment');
+    expect(bindings.commandFor(activator), 'document.comment');
+    expect(bindings.shortcuts[activator], isA<BlenderCommandIntent>());
+    expect(
+      () => bindings.register(
+        const BlenderCommandBinding(commandId: 'other', activator: activator),
+      ),
+      throwsStateError,
+    );
+  });
+
+  test('application keeps an injected command-binding override', () {
+    final bindings = BlenderCommandBindings()
+      ..register(
+        const BlenderCommandBinding(
+          commandId: 'document.undo',
+          activator: SingleActivator(LogicalKeyboardKey.keyZ, control: true),
+        ),
+      );
+    final application = BlenderApplicationController<int>(
+      initialState: 0,
+      workspace: const BlenderDockAreaNode<String>(id: 'main', value: 'main'),
+      commandBindings: bindings,
+    );
+    addTearDown(application.dispose);
+
+    expect(
+      application.commandBindings.commandFor(
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true),
+      ),
+      'document.undo',
+    );
+    expect(
+      application.commandBindings.commandFor(
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ),
+      ),
+      'application.redo',
+    );
+  });
+
+  testWidgets('command binding scope dispatches the registered command', (
+    tester,
+  ) async {
+    final commands = BlenderCommandRegistry();
+    final bindings = BlenderCommandBindings();
+    addTearDown(commands.dispose);
+    addTearDown(bindings.dispose);
+    var executions = 0;
+    commands.register(
+      BlenderCommand(
+        id: 'document.comment',
+        label: 'Comment',
+        execute: () => executions++,
+      ),
+    );
+    bindings.register(
+      const BlenderCommandBinding(
+        commandId: 'document.comment',
+        activator: SingleActivator(LogicalKeyboardKey.keyK, control: true),
+      ),
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlenderCommandBindingScope(
+          commands: commands,
+          bindings: bindings,
+          child: const Focus(autofocus: true, child: Text('Editor')),
+        ),
+      ),
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    expect(executions, 1);
+  });
+
+  test(
+    'editor session persists views, outline selection, and properties target',
+    () async {
+      final storage = _MemoryStorage();
+      final persistence = BlenderEditorSessionPersistence(
+        storage: storage,
+        storageKey: 'editor-session',
+      );
+      final session = BlenderEditorSessionService(persistence: persistence);
+      session.selectView(
+        workspaceId: 'modeling',
+        areaId: 'main',
+        viewId: 'viewport',
+      );
+      session.selectOutlinerItem('modeling', 'Cube');
+      session.inspectPropertiesTarget('modeling', 'Cube');
+      await session.flush();
+      session.dispose();
+
+      final restored = BlenderEditorSessionService(persistence: persistence);
+      addTearDown(restored.dispose);
+      expect(await restored.restore(), isTrue);
+      expect(
+        restored.viewForArea(workspaceId: 'modeling', areaId: 'main'),
+        'viewport',
+      );
+      expect(restored.outlinerSelectionFor('modeling'), 'Cube');
+      expect(restored.propertiesTargetFor('modeling'), 'Cube');
+    },
+  );
+
   testWidgets('state and service scopes expose typed values', (tester) async {
     final state = BlenderStateStore<int>(4);
     final services = BlenderServiceContainer()
@@ -126,6 +267,50 @@ void main() {
     await tester.pump();
     expect(find.text('9 lazy'), findsOneWidget);
   });
+
+  testWidgets('presentation service opens splash and About dialogs', (
+    tester,
+  ) async {
+    final presentation = BlenderApplicationPresentationService(
+      splash: const BlenderSplashScreenConfiguration(
+        title: 'Editor Suite',
+        message: 'Welcome back',
+      ),
+      about: const BlenderAboutDialogConfiguration(
+        title: 'Editor Suite',
+        version: '1.2.0',
+      ),
+    );
+    addTearDown(presentation.dispose);
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Builder(
+          builder: (context) => Column(
+            children: <Widget>[
+              BlenderButton(
+                label: 'Splash',
+                onPressed: () => presentation.showSplash(context),
+              ),
+              BlenderButton(
+                label: 'About',
+                onPressed: () => presentation.showAbout(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Splash'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+    expect(find.text('1.2.0'), findsOneWidget);
+  });
 }
 
 class _DisposableService implements BlenderServiceDisposable {
@@ -149,4 +334,21 @@ class _CircularService {
   _CircularService(this.self);
 
   final _CircularService self;
+}
+
+class _MemoryStorage implements BlenderPersistentStorage {
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> remove(String key) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
 }

@@ -123,6 +123,7 @@ class BlenderPropertyGroup {
     required this.title,
     required this.properties,
     this.initiallyExpanded = true,
+    this.enabled = true,
     this.headerLeading,
     this.headerActions,
     this.content,
@@ -133,6 +134,11 @@ class BlenderPropertyGroup {
   final String title;
   final List<BlenderPropertyDescriptor<dynamic>> properties;
   final bool initiallyExpanded;
+
+  /// Whether the panel body is active. The header remains interactive so a
+  /// caller can expose Blender-style enable checkboxes in [headerLeading].
+  final bool enabled;
+
   final Widget? headerLeading;
   final List<Widget>? headerActions;
 
@@ -461,6 +467,7 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
     final theme = BlenderTheme.of(context);
     final group = view.group;
     final expanded = _expanded.contains(group.id);
+    final groupContent = _buildGroupContents(context, view, searchActive);
     return BlenderPanel(
       title: group.title,
       collapsible: true,
@@ -485,7 +492,9 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
               });
             },
       headerHandle: headerHandle,
-      child: _buildGroupContents(context, view, searchActive),
+      child: group.enabled
+          ? groupContent
+          : IgnorePointer(child: Opacity(opacity: .5, child: groupContent)),
     );
   }
 

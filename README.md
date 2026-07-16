@@ -91,6 +91,16 @@ top-level menus, dockable panes, scoped state/history, commands, and optional
 Preferences window. The application supplies its domain state, area widgets,
 menu descriptors, and persistence policy.
 
+`BlenderApplicationController` also scopes reusable status, presentation,
+keyboard-command-binding, and editor-session services. Use
+`BlenderApplicationStatusBar` when the shell should render the current
+`BlenderStatusService` message, and configure `BlenderEditorSessionPersistence`
+with application-owned storage to retain editor area views, Outliner selection,
+and Properties targets. The library stores only stable IDs; resolving them back
+to project objects remains the application's responsibility. Editor widgets can
+subscribe through `BlenderEditorSessionScope.watch(context)` or update it from
+handlers with `BlenderEditorSessionScope.read(context)`.
+
 ```dart
 final app = BlenderApplicationController<ProjectState>(
   initialState: const ProjectState(),

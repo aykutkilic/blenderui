@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -14,6 +15,68 @@ typedef BlenderCommandCallback = FutureOr<void> Function();
 /// [BlenderServiceContainer].
 abstract interface class BlenderServiceDisposable {
   void dispose();
+}
+
+/// Minimal asynchronous key/value storage for framework-owned sessions.
+///
+/// BlenderUI deliberately leaves the backing store to the host application.
+/// A file, SharedPreferences, browser storage, or a database adapter can all
+/// implement this contract without becoming a package dependency.
+abstract interface class BlenderPersistentStorage {
+  Future<String?> read(String key);
+
+  Future<void> write(String key, String value);
+
+  Future<void> remove(String key);
+}
+
+/// The severity associated with the current application status message.
+enum BlenderStatusLevel { info, success, warning, error }
+
+/// Immutable status-bar message managed by [BlenderStatusService].
+class BlenderStatusMessage {
+  const BlenderStatusMessage({
+    required this.text,
+    this.level = BlenderStatusLevel.info,
+  });
+
+  final String text;
+  final BlenderStatusLevel level;
+}
+
+/// Application-wide status reporting service.
+///
+/// Commands and editor views can report progress or failures without knowing
+/// which status-bar widget a host application has chosen to render.
+class BlenderStatusService extends ChangeNotifier
+    implements BlenderServiceDisposable {
+  BlenderStatusMessage? _message;
+
+  BlenderStatusMessage? get message => _message;
+
+  void report(
+    String text, {
+    BlenderStatusLevel level = BlenderStatusLevel.info,
+  }) {
+    final next = text.isEmpty
+        ? null
+        : BlenderStatusMessage(text: text, level: level);
+    if (_message?.text == next?.text && _message?.level == next?.level) return;
+    _message = next;
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_message == null) return;
+    _message = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _message = null;
+    super.dispose();
+  }
 }
 
 /// A small observable state holder for desktop applications that do not need
@@ -102,6 +165,225 @@ class BlenderHistoryStore<T> extends BlenderStateStore<T> {
     _undo.clear();
     _redo.clear();
     notifyListeners();
+  }
+}
+
+/// Durable editor context that is shared by editor views, an Outliner, and a
+/// Properties surface.
+///
+/// Values are stable application identifiers rather than domain objects. This
+/// keeps persistence generic: applications can resolve an object identifier to
+/// their own model after startup.
+class BlenderEditorSessionService extends ChangeNotifier
+    implements BlenderServiceDisposable {
+  BlenderEditorSessionService({this.persistence});
+
+  final BlenderEditorSessionPersistence? persistence;
+  final Map<String, String> _viewsByArea = <String, String>{};
+  final Map<String, String> _outlinerSelectionByWorkspace = <String, String>{};
+  final Map<String, String> _propertiesTargetByWorkspace = <String, String>{};
+  Future<bool>? _restoreFuture;
+  Future<void> _pendingWrite = Future<void>.value();
+  bool _writeScheduled = false;
+  bool _disposed = false;
+
+  /// The last persistence error. Editor state remains available in memory when
+  /// persistence fails.
+  Object? lastPersistenceError;
+
+  String? viewForArea({required String workspaceId, required String areaId}) =>
+      _viewsByArea[_areaKey(workspaceId, areaId)];
+
+  bool selectView({
+    required String workspaceId,
+    required String areaId,
+    required String viewId,
+  }) {
+    final key = _areaKey(workspaceId, areaId);
+    if (_viewsByArea[key] == viewId) return false;
+    _viewsByArea[key] = viewId;
+    _changed();
+    return true;
+  }
+
+  String? outlinerSelectionFor(String workspaceId) =>
+      _outlinerSelectionByWorkspace[workspaceId];
+
+  bool selectOutlinerItem(String workspaceId, String? itemId) =>
+      _replaceWorkspaceValue(
+        _outlinerSelectionByWorkspace,
+        workspaceId,
+        itemId,
+      );
+
+  String? propertiesTargetFor(String workspaceId) =>
+      _propertiesTargetByWorkspace[workspaceId];
+
+  bool inspectPropertiesTarget(String workspaceId, String? targetId) =>
+      _replaceWorkspaceValue(
+        _propertiesTargetByWorkspace,
+        workspaceId,
+        targetId,
+      );
+
+  Future<bool> restore() => _restoreFuture ??= _restore();
+
+  Future<bool> _restore() async {
+    final persistence = this.persistence;
+    if (persistence == null) return false;
+    try {
+      final raw = await persistence.storage.read(persistence.storageKey);
+      if (raw == null || raw.isEmpty) return false;
+      final root = jsonDecode(raw);
+      if (root is! Map<Object?, Object?> || root['version'] != 1) return false;
+      final views = _stringMap(root['viewsByArea']);
+      final outliner = _stringMap(root['outlinerSelectionByWorkspace']);
+      final properties = _stringMap(root['propertiesTargetByWorkspace']);
+      if (views == null || outliner == null || properties == null) return false;
+      _viewsByArea
+        ..clear()
+        ..addAll(views);
+      _outlinerSelectionByWorkspace
+        ..clear()
+        ..addAll(outliner);
+      _propertiesTargetByWorkspace
+        ..clear()
+        ..addAll(properties);
+      lastPersistenceError = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      lastPersistenceError = error;
+      return false;
+    }
+  }
+
+  Future<void> flush() {
+    final persistence = this.persistence;
+    if (persistence == null) return Future<void>.value();
+    _writeScheduled = false;
+    _pendingWrite = _pendingWrite.then((_) async {
+      try {
+        await persistence.storage.write(
+          persistence.storageKey,
+          jsonEncode(<String, Object?>{
+            'version': 1,
+            'viewsByArea': _viewsByArea,
+            'outlinerSelectionByWorkspace': _outlinerSelectionByWorkspace,
+            'propertiesTargetByWorkspace': _propertiesTargetByWorkspace,
+          }),
+        );
+        lastPersistenceError = null;
+      } catch (error) {
+        lastPersistenceError = error;
+      }
+    });
+    return _pendingWrite;
+  }
+
+  Future<void> clearPersistedSession() async {
+    final persistence = this.persistence;
+    if (persistence == null) return;
+    _writeScheduled = false;
+    try {
+      await persistence.storage.remove(persistence.storageKey);
+      lastPersistenceError = null;
+    } catch (error) {
+      lastPersistenceError = error;
+    }
+  }
+
+  bool _replaceWorkspaceValue(
+    Map<String, String> values,
+    String workspaceId,
+    String? next,
+  ) {
+    final current = values[workspaceId];
+    if (current == next) return false;
+    if (next == null || next.isEmpty) {
+      values.remove(workspaceId);
+    } else {
+      values[workspaceId] = next;
+    }
+    _changed();
+    return true;
+  }
+
+  void _changed() {
+    if (_disposed) return;
+    notifyListeners();
+    final persistence = this.persistence;
+    if (persistence == null || _writeScheduled) return;
+    _writeScheduled = true;
+    scheduleMicrotask(() {
+      if (_disposed || !_writeScheduled) return;
+      unawaited(flush());
+    });
+  }
+
+  static String _areaKey(String workspaceId, String areaId) =>
+      '$workspaceId::$areaId';
+
+  static Map<String, String>? _stringMap(Object? value) {
+    if (value is! Map<Object?, Object?>) return null;
+    final result = <String, String>{};
+    for (final entry in value.entries) {
+      if (entry.key is! String || entry.value is! String) return null;
+      result[entry.key as String] = entry.value as String;
+    }
+    return result;
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    unawaited(flush());
+    super.dispose();
+  }
+}
+
+/// Storage configuration for [BlenderEditorSessionService].
+class BlenderEditorSessionPersistence {
+  const BlenderEditorSessionPersistence({
+    required this.storage,
+    required this.storageKey,
+  }) : assert(storageKey != '');
+
+  final BlenderPersistentStorage storage;
+  final String storageKey;
+}
+
+/// Provides observable editor-session context to an editor workspace subtree.
+///
+/// Use [watch] from an editor view that should rebuild as selection or active
+/// view context changes. Use [read] from event handlers that only need to issue
+/// a session update.
+class BlenderEditorSessionScope
+    extends InheritedNotifier<BlenderEditorSessionService> {
+  const BlenderEditorSessionScope({
+    super.key,
+    required BlenderEditorSessionService session,
+    required super.child,
+  }) : super(notifier: session);
+
+  static BlenderEditorSessionService watch(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<BlenderEditorSessionScope>();
+    if (scope == null) {
+      throw FlutterError('No BlenderEditorSessionScope found in this context.');
+    }
+    return scope.notifier!;
+  }
+
+  static BlenderEditorSessionService read(BuildContext context) {
+    final element = context
+        .getElementForInheritedWidgetOfExactType<BlenderEditorSessionScope>();
+    final scope = element?.widget as BlenderEditorSessionScope?;
+    if (scope == null) {
+      throw FlutterError('No BlenderEditorSessionScope found in this context.');
+    }
+    return scope.notifier!;
   }
 }
 
@@ -327,4 +609,110 @@ class BlenderCommandRegistry extends ChangeNotifier
 
   /// Re-evaluates command enablement after external state changes.
   void refresh() => notifyListeners();
+}
+
+/// Intent emitted by [BlenderCommandBindingScope] for a registered command.
+class BlenderCommandIntent extends Intent {
+  const BlenderCommandIntent(this.commandId);
+
+  final String commandId;
+}
+
+/// One keyboard binding from a Flutter shortcut activator to a command id.
+class BlenderCommandBinding {
+  const BlenderCommandBinding({
+    required this.commandId,
+    required this.activator,
+  });
+
+  final String commandId;
+  final ShortcutActivator activator;
+}
+
+/// Command-keymap service analogous to blenderapp's operator keymaps.
+///
+/// It intentionally binds stable command ids rather than widget callbacks, so
+/// menus, keyboard shortcuts, and command search execute the same operation.
+class BlenderCommandBindings extends ChangeNotifier
+    implements BlenderServiceDisposable {
+  final LinkedHashMap<ShortcutActivator, String> _bindings =
+      LinkedHashMap<ShortcutActivator, String>();
+
+  List<BlenderCommandBinding> get bindings =>
+      List<BlenderCommandBinding>.unmodifiable(
+        _bindings.entries.map(
+          (entry) => BlenderCommandBinding(
+            commandId: entry.value,
+            activator: entry.key,
+          ),
+        ),
+      );
+
+  Map<ShortcutActivator, Intent> get shortcuts => <ShortcutActivator, Intent>{
+    for (final entry in _bindings.entries)
+      entry.key: BlenderCommandIntent(entry.value),
+  };
+
+  /// Returns the command currently assigned to [activator], if any.
+  ///
+  /// Hosts use this to retain application-specific overrides when installing
+  /// their default keymap.
+  String? commandFor(ShortcutActivator activator) => _bindings[activator];
+
+  void register(BlenderCommandBinding binding) {
+    if (_bindings.containsKey(binding.activator)) {
+      throw StateError(
+        'A command binding already exists for ${binding.activator}.',
+      );
+    }
+    _bindings[binding.activator] = binding.commandId;
+    notifyListeners();
+  }
+
+  bool unregister(ShortcutActivator activator) {
+    final removed = _bindings.remove(activator) != null;
+    if (removed) notifyListeners();
+    return removed;
+  }
+
+  @override
+  void dispose() {
+    _bindings.clear();
+    super.dispose();
+  }
+}
+
+/// Installs [BlenderCommandBindings] for one app or window subtree.
+class BlenderCommandBindingScope extends StatelessWidget {
+  const BlenderCommandBindingScope({
+    super.key,
+    required this.commands,
+    required this.bindings,
+    required this.child,
+  });
+
+  final BlenderCommandRegistry commands;
+  final BlenderCommandBindings bindings;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: bindings,
+      builder: (context, _) => Shortcuts(
+        shortcuts: bindings.shortcuts,
+        child: Actions(
+          actions: <Type, Action<Intent>>{
+            BlenderCommandIntent: CallbackAction<BlenderCommandIntent>(
+              onInvoke: (intent) {
+                unawaited(commands.execute(intent.commandId));
+                return null;
+              },
+            ),
+          },
+          child: child,
+        ),
+      ),
+    );
+  }
 }

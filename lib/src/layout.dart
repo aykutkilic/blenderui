@@ -882,6 +882,7 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
     this.menuId,
     this.semanticLabel,
     this.maxWidth = 820,
+    this.minimumColumnWidth = 160,
   });
 
   final List<BlenderMultiColumnMenuGroup<T>> groups;
@@ -891,6 +892,13 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
   final String? semanticLabel;
   final double maxWidth;
 
+  /// Minimum width reserved for each category when the menu is columnar.
+  ///
+  /// If the available width cannot fit every category at this width, the
+  /// same groups are laid out vertically so the menu remains usable in narrow
+  /// popovers and compact editor regions.
+  final double minimumColumnWidth;
+
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
@@ -899,6 +907,31 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = math.min(maxWidth, constraints.maxWidth).toDouble();
+          final columnWidth =
+              groups.length * minimumColumnWidth +
+              math.max(0, groups.length - 1) * 12;
+          final useColumns = groups.length > 1 && width >= columnWidth;
+          final categories = <Widget>[
+            for (final entry in groups.indexed) ...<Widget>[
+              if (entry.$1 > 0 && !useColumns) const SizedBox(height: 12),
+              if (useColumns && entry.$1 > 0) const SizedBox(width: 12),
+              useColumns
+                  ? Expanded(
+                      child: _BlenderMultiColumnMenuCategory<T>(
+                        group: groups[entry.$1],
+                        selected: selected,
+                        onSelected: onSelected,
+                        menuId: menuId,
+                      ),
+                    )
+                  : _BlenderMultiColumnMenuCategory<T>(
+                      group: groups[entry.$1],
+                      selected: selected,
+                      onSelected: onSelected,
+                      menuId: menuId,
+                    ),
+            ],
+          ];
           return SizedBox(
             width: width,
             child: DecoratedBox(
@@ -909,26 +942,15 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    for (
-                      var index = 0;
-                      index < groups.length;
-                      index++
-                    ) ...<Widget>[
-                      if (index > 0) const SizedBox(width: 12),
-                      Expanded(
-                        child: _BlenderMultiColumnMenuCategory<T>(
-                          group: groups[index],
-                          selected: selected,
-                          onSelected: onSelected,
-                          menuId: menuId,
-                        ),
+                child: useColumns
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: categories,
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: categories,
                       ),
-                    ],
-                  ],
-                ),
               ),
             ),
           );

@@ -19,13 +19,17 @@ export 'src/advanced_controls.dart'
         BlenderSeparator;
 export 'src/application.dart'
     show
+        BlenderAboutDialogConfiguration,
         BlenderApplicationController,
+        BlenderApplicationPresentationService,
         BlenderApplicationMenu,
         BlenderApplicationMenuBar,
+        BlenderApplicationStatusBar,
         BlenderApplicationTopBar,
         BlenderApplicationWorkspace,
         BlenderPreferencesConfiguration,
         BlenderPreferencesService,
+        BlenderSplashScreenConfiguration,
         BlenderWorkspaceShell,
         showBlenderPreferencesWindow;
 export 'src/controls.dart'
@@ -212,10 +216,18 @@ export 'src/property_forms.dart'
 export 'src/overlay_host.dart' show BlenderEnsureOverlay;
 export 'src/services.dart'
     show
+        BlenderCommandBinding,
+        BlenderCommandBindingScope,
+        BlenderCommandBindings,
+        BlenderCommandIntent,
         BlenderCommand,
         BlenderCommandCallback,
         BlenderCommandRegistry,
+        BlenderEditorSessionPersistence,
+        BlenderEditorSessionService,
+        BlenderEditorSessionScope,
         BlenderHistoryStore,
+        BlenderPersistentStorage,
         BlenderServiceContainer,
         BlenderServiceDisposable,
         BlenderServiceFactory,
@@ -223,7 +235,10 @@ export 'src/services.dart'
         BlenderStateEquality,
         BlenderStateScope,
         BlenderStateStore,
-        BlenderStateUpdater;
+        BlenderStateUpdater,
+        BlenderStatusLevel,
+        BlenderStatusMessage,
+        BlenderStatusService;
 export 'src/specialized_templates.dart'
     show
         BlenderAssetShelfPopover,
