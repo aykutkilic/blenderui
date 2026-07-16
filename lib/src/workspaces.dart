@@ -517,3 +517,112 @@ class BlenderWorkspaceHost<T> extends StatelessWidget {
     );
   }
 }
+
+/// A named, stateful screen owned by an application workspace.
+///
+/// This is the Flutter equivalent of Blender associating a persistent
+/// `bScreen` with a `WorkSpaceLayout`: the widget returned by [builder] is
+/// created once per workspace and remains mounted while another workspace is
+/// visible.
+class BlenderWorkspaceScreen<T> {
+  const BlenderWorkspaceScreen({required this.id, required this.builder});
+
+  /// Stable application-owned workspace identifier.
+  final T id;
+
+  /// Builds this workspace's screen on its first activation.
+  final WidgetBuilder builder;
+}
+
+/// Keeps one mounted screen instance for every visited workspace.
+///
+/// Ordinary conditional widget branches dispose the inactive workspace, which
+/// restarts local editor state, scroll positions, pending forms, and provider
+/// subscriptions whenever the user returns. This host instead offstages the
+/// inactive screen and disables its tickers, matching Blender's retained
+/// workspace-screen switching model. Screen widgets are lazy: an unvisited
+/// workspace is not initialized until the user selects it.
+class BlenderWorkspaceScreenHost<T> extends StatefulWidget {
+  const BlenderWorkspaceScreenHost({
+    super.key,
+    required this.screens,
+    required this.activeWorkspaceId,
+  });
+
+  final List<BlenderWorkspaceScreen<T>> screens;
+  final T activeWorkspaceId;
+
+  @override
+  State<BlenderWorkspaceScreenHost<T>> createState() =>
+      _BlenderWorkspaceScreenHostState<T>();
+}
+
+class _BlenderWorkspaceScreenHostState<T>
+    extends State<BlenderWorkspaceScreenHost<T>> {
+  final Map<T, Widget> _screens = <T, Widget>{};
+
+  @override
+  void didUpdateWidget(covariant BlenderWorkspaceScreenHost<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final activeIds = widget.screens.map((screen) => screen.id).toSet();
+    _screens.removeWhere((id, _) => !activeIds.contains(id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final definitions = widget.screens;
+    if (definitions.isEmpty) {
+      throw ArgumentError.value(
+        definitions,
+        'screens',
+        'At least one workspace screen is required.',
+      );
+    }
+    if (!definitions.any((screen) => screen.id == widget.activeWorkspaceId)) {
+      throw ArgumentError.value(
+        widget.activeWorkspaceId,
+        'activeWorkspaceId',
+        'The active workspace must have a declared screen.',
+      );
+    }
+    final seen = <T>{};
+    for (final screen in definitions) {
+      if (!seen.add(screen.id)) {
+        throw ArgumentError.value(
+          screen.id,
+          'screens',
+          'Workspace screen ids must be unique.',
+        );
+      }
+    }
+
+    // Build only the active screen on first visit. Once inserted in this Stack,
+    // an inactive screen remains mounted behind Offstage and preserves its
+    // State object until the workspace is actually removed from [screens].
+    final activeDefinition = definitions.firstWhere(
+      (screen) => screen.id == widget.activeWorkspaceId,
+    );
+    _screens.putIfAbsent(
+      activeDefinition.id,
+      () => KeyedSubtree(
+        key: ValueKey<T>(activeDefinition.id),
+        child: Builder(builder: activeDefinition.builder),
+      ),
+    );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        for (final screen in definitions)
+          if (_screens.containsKey(screen.id))
+            Offstage(
+              offstage: screen.id != widget.activeWorkspaceId,
+              child: TickerMode(
+                enabled: screen.id == widget.activeWorkspaceId,
+                child: _screens[screen.id]!,
+              ),
+            ),
+      ],
+    );
+  }
+}

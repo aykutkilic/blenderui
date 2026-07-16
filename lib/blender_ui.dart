@@ -75,6 +75,8 @@ export 'src/workspaces.dart'
         BlenderWorkspaceDefinition,
         BlenderWorkspaceHost,
         BlenderWorkspacePersistence,
+        BlenderWorkspaceScreen,
+        BlenderWorkspaceScreenHost,
         BlenderWorkspaceService,
         BlenderWorkspaceSessionState,
         BlenderWorkspaceState,

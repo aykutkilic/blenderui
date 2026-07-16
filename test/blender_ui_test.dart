@@ -1297,6 +1297,41 @@ void main() {
     expect(find.text('page editor'), findsOneWidget);
   });
 
+  testWidgets('workspace screen host retains visited editor state', (
+    tester,
+  ) async {
+    Widget host(String activeWorkspace) => _harness(
+      SizedBox(
+        width: 400,
+        height: 240,
+        child: BlenderWorkspaceScreenHost<String>(
+          activeWorkspaceId: activeWorkspace,
+          screens: <BlenderWorkspaceScreen<String>>[
+            BlenderWorkspaceScreen<String>(
+              id: 'folders',
+              builder: (_) => const _RetainedWorkspaceProbe(label: 'Folders'),
+            ),
+            BlenderWorkspaceScreen<String>(
+              id: 'dictionaries',
+              builder: (_) =>
+                  const _RetainedWorkspaceProbe(label: 'Dictionaries'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(host('folders'));
+    await tester.tap(find.byKey(const ValueKey<String>('Folders-increment')));
+    await tester.pump();
+    expect(find.text('Folders: 1'), findsOneWidget);
+
+    await tester.pumpWidget(host('dictionaries'));
+    expect(find.text('Dictionaries: 0'), findsOneWidget);
+    await tester.pumpWidget(host('folders'));
+    expect(find.text('Folders: 1'), findsOneWidget);
+  });
+
   test('docking controller replaces an editor value in place', () {
     final controller = BlenderDockingController<String>(
       root: const BlenderDockAreaNode<String>(id: 'main', value: 'outliner'),
