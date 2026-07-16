@@ -123,6 +123,63 @@ Use `BlenderPreferencesConfiguration` with
 The framework deliberately does not persist preferences or define a project
 model; that data remains application-owned.
 
+For a reusable application command, create a `BlenderPreferencesService` from
+that configuration and call `show(context)`. Its presentation is deliberately
+deferred past menu-popover cleanup, so selecting Edit > Preferences cannot
+immediately dismiss the new window.
+
+`BlenderApplicationTopBar` owns the standard Blender order: fixed menu
+dropdowns, a separator, a scrollable/fading workspace strip, and fixed global
+actions on the right. Applications supply descriptors and callbacks rather
+than rebuilding title-bar layout:
+
+```dart
+BlenderApplicationTopBar<String, String>(
+  menus: fileEditWindowHelpMenus,
+  workspaces: workspaceDescriptors,
+  activeWorkspace: activeWorkspaceId,
+  onWorkspaceSelected: selectWorkspace,
+  workspaceActions: [addWorkspaceMenu],
+  trailing: [aiActionGroup],
+);
+```
+
+### Multiple dockable workspaces
+
+Use `BlenderWorkspaceService` when an application has Blender-style
+perspectives: each named workspace receives its own retained docking layout.
+The application owns the labels, switcher, and editor widgets; BlenderUI owns
+the live layout service and host.
+
+```dart
+final workspaces = BlenderWorkspaceService<String>(
+  workspaces: const <BlenderWorkspaceDefinition<String>>[
+    BlenderWorkspaceDefinition(
+      id: 'folders',
+      layout: BlenderDockAreaNode(id: 'outliner', value: 'folder-outliner'),
+    ),
+    BlenderWorkspaceDefinition(
+      id: 'authoring',
+      layout: BlenderDockAreaNode(id: 'page', value: 'page-editor'),
+    ),
+  ],
+);
+
+// The workspace switcher calls `workspaces.selectWorkspace('authoring')`.
+final app = BlenderApplicationController<ProjectState>(
+  initialState: const ProjectState(),
+  workspaceService: workspaces,
+);
+
+BlenderWorkspaceHost<String>(
+  service: app.workspaces,
+  areaBuilder: (context, area) => buildEditor(area.value),
+);
+```
+
+See [`ADR-0007`](doc/decisions/ADR-0007-workspace-layout-service.md) for the
+ownership boundary and persistence policy.
+
 ## Sample application
 
 The repository includes a small Blender-like desktop workspace with a minimal

@@ -22,7 +22,10 @@ export 'src/application.dart'
         BlenderApplicationController,
         BlenderApplicationMenu,
         BlenderApplicationMenuBar,
+        BlenderApplicationTopBar,
+        BlenderApplicationWorkspace,
         BlenderPreferencesConfiguration,
+        BlenderPreferencesService,
         BlenderWorkspaceShell,
         showBlenderPreferencesWindow;
 export 'src/controls.dart'
@@ -67,6 +70,11 @@ export 'src/docking_model.dart'
         BlenderDockNode,
         BlenderDockSplitNode,
         BlenderDockTarget;
+export 'src/workspaces.dart'
+    show
+        BlenderWorkspaceDefinition,
+        BlenderWorkspaceHost,
+        BlenderWorkspaceService;
 export 'src/editors.dart'
     show
         BlenderPropertyEditorBuilder,
