@@ -110,7 +110,6 @@ export 'src/editor_templates.dart'
         BlenderNodeInputDescriptor,
         BlenderNodeInputGroup,
         BlenderNodeInputs;
-export 'src/icon_source.dart' show BlenderIconSource;
 export 'src/icons.dart' show BlenderGlyph, BlenderIcon;
 export 'src/layout.dart'
     show

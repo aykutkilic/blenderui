@@ -178,18 +178,9 @@ void main() {
     expect(locks, <bool>[false, true]);
   });
 
-  test('source SVGs stay disabled without explicit configuration', () {
-    BlenderIconSource.setDirectory(null);
-
-    expect(BlenderIconSource.pathFor('plus.svg'), isNull);
-  });
-
-  testWidgets('icons fall back when the Blender source is unavailable', (
+  testWidgets('icons always use BlenderUI built-in vector painters', (
     tester,
   ) async {
-    BlenderIconSource.setDirectory('/path/that/does/not/exist');
-    addTearDown(() => BlenderIconSource.setDirectory(null));
-
     await tester.pumpWidget(_harness(const BlenderIcon(BlenderGlyph.plus)));
 
     expect(find.byType(CustomPaint), findsOneWidget);

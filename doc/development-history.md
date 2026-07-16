@@ -1,5 +1,16 @@
 # Development history
 
+## 2026-07-16 — Removed Blender source icon integration from the library
+
+- Removed the source-SVG loader, source-file mapping, public
+  `BlenderIconSource` API, and `flutter_svg` dependency from BlenderUI.
+  `BlenderIcon` now always renders BlenderUI-owned vector painters.
+- External Blender artwork is an example-app concern only. Keeping it out of
+  the library removes local-checkout assumptions and prevents reference assets
+  from affecting consumer builds, public APIs, or widget tests.
+- Replaced the source-loader regressions with a direct built-in-painter test;
+  the focused BlenderUI widget suite passes.
+
 ## 2026-07-16 — Made Preferences search descriptor-driven and global
 
 - Added `searchTerms` to `BlenderPreferenceSection`. Preference children are

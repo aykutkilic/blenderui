@@ -207,15 +207,12 @@ Launch that workbench directly from `example/` with:
 flutter run -d macos -t lib/components_demo.dart
 ```
 
-## Local Blender icon development
+## Icon rendering
 
-The library uses its built-in vector glyphs by default. To inspect source SVG
-parity on desktop, set `BLENDER_SOURCE_DIR` or call
-`BlenderIconSource.setDirectory(...)` with a Blender checkout; the Blender
-SVGs are never bundled into the package. This opt-in matters because Flutter
-SVG does not support every construct in Blender's source files. The example's
-macOS debug runner is intentionally unsandboxed so an explicitly configured
-local checkout remains available; release builds retain the built-in fallback.
+BlenderUI renders its own built-in vector glyphs. The package does not locate,
+load, bundle, or expose Blender source icon assets. The example application may
+use external reference artwork independently when that is useful for a visual
+comparison, but it is not part of the library's public API or runtime.
 
 ## Reference and licensing
 
