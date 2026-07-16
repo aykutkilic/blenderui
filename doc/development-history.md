@@ -1,5 +1,63 @@
 # Development history
 
+## 2026-07-16 — Added masked text fields for shared Preferences forms
+
+- Extended `BlenderTextField` with `obscureText` and `obscuringCharacter`, so
+  applications can edit API keys and other secrets without rebuilding a
+  visually divergent `EditableText` control outside BlenderUI.
+- Added a focused widget regression for the forwarded masking behavior.
+
+## 2026-07-16 — Added labeled Preferences category groups
+
+- Extended `BlenderPreferenceCategoryGroup` with an optional visible label and
+  rendered those labels in the Preferences navigation rail. Applications can
+  now group related category tabs without duplicating sidebar presentation.
+- The category rail and framework search continue to own navigation/filtering;
+  application sections remain ordinary descriptors and widgets. The focused
+  BlenderUI widget suite passes (103 tests).
+
+## 2026-07-16 — Made Preferences a menu-safe framework service
+
+- Added `BlenderPreferencesService`, which holds an application-owned
+  Preferences configuration while delegating temporary-window presentation to
+  the framework.
+- Moved the post-menu-frame deferral into the shared presenter. A menu popover
+  now completes its own route cleanup before the Preferences window is pushed,
+  preventing Edit > Preferences from opening and immediately disappearing.
+- Added an interaction regression that selects Preferences from a real menu
+  item and asserts the temporary window remains visible. The focused BlenderUI
+  widget suite passes (103 tests).
+
+## 2026-07-16 — Added framework-owned application top-bar composition
+
+- Added `BlenderApplicationTopBar` and workspace descriptors. It fixes menu
+  dropdowns at the left, separates them from perspective tabs, scrolls and
+  edge-fades only the workspace strip, and fixes global action groups at the
+  right—matching Blender's application-bar ownership model.
+- Kept workspace selection application-owned, so the top-bar composes directly
+  with `BlenderWorkspaceService` without turning perspectives into routes.
+- Constrained the fade stack to the normal control height after an integration
+  test embedded it in an unconstrained column. This keeps the reusable control
+  safe both in a window title bar and in standalone hosts.
+- Added a geometry regression for menu → workspace → trailing-action order.
+  The focused BlenderUI widget suite passes (102 tests).
+
+## 2026-07-16 — Promoted dock layouts to an application workspace service
+
+- Added `BlenderWorkspaceDefinition`, `BlenderWorkspaceService`, and
+  `BlenderWorkspaceHost` so applications declare named workspace layouts once
+  and retain a separate live dock tree for each perspective.
+- Added controller APIs for restoring a declared layout and replacing the
+  editor value in an existing area. Editor-type selectors no longer need to
+  maintain a second, detached area value.
+- Routed the existing application shell through the service. It accepts a
+  multi-workspace service directly while preserving its single-workspace
+  constructor and `docking` getter for existing clients.
+- Added service/controller regressions. The focused BlenderUI widget suite
+  passes (101 tests). Flutter required the narrowly scoped SDK-cache permission
+  because its toolchain attempts to refresh an engine stamp outside the repo.
+
+
 ## 2026-07-15 — Introduced reusable application-shell composition
 
 - Added `BlenderApplicationController<T>` to own the reusable lifecycle for
