@@ -7,6 +7,7 @@ import 'layout.dart';
 import 'non3d_editors.dart';
 import 'services.dart';
 import 'theme.dart';
+import 'workspaces.dart';
 
 /// A top-level application menu descriptor for [BlenderApplicationMenuBar].
 ///
@@ -136,19 +137,39 @@ Future<void> showBlenderPreferencesWindow(
 class BlenderApplicationController<T> implements BlenderServiceDisposable {
   BlenderApplicationController({
     required T initialState,
-    required BlenderDockNode<String> workspace,
+    BlenderDockNode<String>? workspace,
+    BlenderWorkspaceService<String>? workspaceService,
     BlenderStateEquality<T>? stateEquals,
     this.historyLimit = 50,
-  }) : state = BlenderHistoryStore<T>(
+  }) : assert(
+         workspace != null || workspaceService != null,
+         'Provide a workspace or workspaceService.',
+       ),
+       assert(
+         workspace == null || workspaceService == null,
+         'Provide either workspace or workspaceService, not both.',
+       ),
+       state = BlenderHistoryStore<T>(
          initialState,
          equals: stateEquals,
          historyLimit: historyLimit,
        ),
-       docking = BlenderDockingController<String>(root: workspace),
+       workspaces =
+           workspaceService ??
+           BlenderWorkspaceService<String>(
+             workspaces: <BlenderWorkspaceDefinition<String>>[
+               BlenderWorkspaceDefinition<String>(
+                 id: 'default',
+                 layout: workspace!,
+               ),
+             ],
+           ),
        commands = BlenderCommandRegistry(),
        services = BlenderServiceContainer() {
     services
       ..registerSingleton<BlenderHistoryStore<T>>(state)
+      ..registerSingleton<BlenderWorkspaceService<String>>(workspaces)
+      // Retain the original singleton for one-workspace applications.
       ..registerSingleton<BlenderDockingController<String>>(docking)
       ..registerSingleton<BlenderCommandRegistry>(commands);
     state.addListener(commands.refresh);
@@ -156,7 +177,10 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
 
   final int historyLimit;
   final BlenderHistoryStore<T> state;
-  final BlenderDockingController<String> docking;
+  final BlenderWorkspaceService<String> workspaces;
+
+  /// Backwards-compatible access to the active dock layout.
+  BlenderDockingController<String> get docking => workspaces.activeController;
   final BlenderCommandRegistry commands;
   final BlenderServiceContainer services;
   bool _disposed = false;
@@ -168,7 +192,6 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     if (_disposed) return;
     _disposed = true;
     state.removeListener(commands.refresh);
-    docking.dispose();
     services.dispose();
   }
 }
@@ -247,9 +270,9 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>> {
             topBar: widget.topBar,
             main:
                 widget.workspaceContent ??
-                BlenderDockingWorkspace<String>(
-                  controller: controller.docking,
-                  cloneValue: widget.cloneArea,
+                BlenderWorkspaceHost<String>(
+                  service: controller.workspaces,
+                  cloneArea: widget.cloneArea,
                   areaBuilder: widget.areaBuilder,
                 ),
             statusBar: widget.statusBar,

@@ -45,6 +45,32 @@ class BlenderDockingController<T> extends ChangeNotifier {
 
   BlenderDockNode<T> get root => _root;
 
+  /// Replaces the editor type hosted by one area without changing its layout.
+  ///
+  /// Editor-type pickers use this instead of owning a parallel local value.
+  /// Keeping the value in the dock tree means a later split, dock, or
+  /// workspace switch preserves the editor the user selected.
+  bool replaceAreaValue({required String areaId, required T value}) {
+    final existing = _findArea(_root, areaId);
+    if (existing == null) return false;
+    _root = _replaceNode(
+      _root,
+      areaId,
+      BlenderDockAreaNode<T>(id: existing.id, value: value),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  /// Restores this controller to a complete workspace layout.
+  ///
+  /// The supplied tree is immutable, so definitions can safely share their
+  /// default layout with multiple controller instances.
+  void replaceRoot(BlenderDockNode<T> root) {
+    _root = root;
+    notifyListeners();
+  }
+
   void setSplitFraction(String splitId, double fraction) {
     final next = _updateSplitFraction(
       _root,
