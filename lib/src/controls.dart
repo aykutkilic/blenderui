@@ -630,6 +630,8 @@ class BlenderTextField extends StatefulWidget {
     this.maxLines = 1,
     this.minLines,
     this.keyboardType,
+    this.obscureText = false,
+    this.obscuringCharacter = '•',
   });
 
   final TextEditingController controller;
@@ -647,6 +649,14 @@ class BlenderTextField extends StatefulWidget {
   final int maxLines;
   final int? minLines;
   final TextInputType? keyboardType;
+
+  /// Masks the input while retaining the standard Blender text-field chrome.
+  ///
+  /// Preferences commonly edit API tokens and passwords.  Keeping that use
+  /// case in the base field prevents applications from rebuilding a separate
+  ///, visually divergent `EditableText` control for secret values.
+  final bool obscureText;
+  final String obscuringCharacter;
 
   @override
   State<BlenderTextField> createState() => _BlenderTextFieldState();
@@ -700,6 +710,8 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
       minLines: widget.minLines,
       textAlign: widget.textAlign,
       keyboardType: widget.keyboardType,
+      obscureText: widget.obscureText,
+      obscuringCharacter: widget.obscuringCharacter,
     );
     return Semantics(
       textField: true,
