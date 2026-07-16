@@ -1,5 +1,17 @@
 # Development history
 
+## 2026-07-16 — Made Preferences search descriptor-driven and global
+
+- Added `searchTerms` to `BlenderPreferenceSection`. Preference children are
+  arbitrary application widgets, so the framework deliberately receives the
+  setting names to search instead of trying to crawl widget trees.
+- A non-empty search now spans every registered category. This prevents a
+  setting in another category from looking absent solely because the user began
+  from a different category; clearing the search restores normal category
+  filtering.
+- Added a widget regression that finds an Animation setting from Interface by
+  one of its registered property labels.
+
 ## 2026-07-16 — Added masked text fields for shared Preferences forms
 
 - Extended `BlenderTextField` with `obscureText` and `obscuringCharacter`, so

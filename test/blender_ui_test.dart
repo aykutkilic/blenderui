@@ -388,6 +388,7 @@ void main() {
                 id: 'timeline',
                 category: 'Animation',
                 title: 'Timeline',
+                searchTerms: <String>['Minimum Grid Spacing'],
                 child: const Text('Minimum Grid Spacing'),
               ),
               BlenderPreferenceSection(
@@ -422,6 +423,17 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Display'), findsOneWidget);
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(BlenderSearchField),
+        matching: find.byType(EditableText),
+      ),
+      'minimum grid',
+    );
+    await tester.pump();
+    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Minimum Grid Spacing'), findsOneWidget);
   });
 
   test('property factory preserves caller-owned update callbacks', () {
