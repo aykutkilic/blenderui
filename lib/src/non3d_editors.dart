@@ -980,6 +980,7 @@ class BlenderPreferenceSection {
     required this.category,
     required this.title,
     required this.child,
+    this.searchTerms = const <String>[],
     this.initiallyExpanded = true,
   });
 
@@ -987,6 +988,12 @@ class BlenderPreferenceSection {
   final String category;
   final String title;
   final Widget child;
+
+  /// Application-owned names of the settings rendered by [child].
+  ///
+  /// A preferences window cannot reliably inspect arbitrary widget trees, so
+  /// callers provide the labels that should participate in its search.
+  final List<String> searchTerms;
   final bool initiallyExpanded;
 }
 
@@ -1329,8 +1336,16 @@ class _BlenderPreferencesWindowState extends State<BlenderPreferencesWindow> {
     final query = _searchController.text.trim().toLowerCase();
     final visibleSections = widget.sections
         .where((section) {
-          if (section.category != _category) return false;
-          return query.isEmpty || section.title.toLowerCase().contains(query);
+          // A query is a global preference lookup. Restricting it to the
+          // selected category makes a valid result appear broken whenever the
+          // user starts from a different category.
+          if (query.isEmpty && section.category != _category) return false;
+          return query.isEmpty ||
+              section.title.toLowerCase().contains(query) ||
+              section.category.toLowerCase().contains(query) ||
+              section.searchTerms.any(
+                (term) => term.toLowerCase().contains(query),
+              );
         })
         .toList(growable: false);
 
