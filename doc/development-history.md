@@ -1,5 +1,53 @@
 # Development history
 
+## 2026-07-16 — Added a reusable compact multi-column menu
+
+- Extracted the geometry and interaction model of the editor-type selector
+  into descriptor-driven `BlenderMultiColumnMenu` and
+  `BlenderMultiColumnMenuTrigger` primitives. Applications provide categories,
+  values, labels, and glyphs while BlenderUI owns the anchored popover, compact
+  24px rows, 11px labels, spacing, selection, and hover behavior.
+- Refactored `BlenderEditorTypeSelector` to use the shared primitive, keeping
+  the existing editor menu as the regression surface rather than maintaining a
+  lookalike implementation. Added a widget regression for an app-owned picker
+  opening, selecting, and staying within the compact menu geometry.
+
+## 2026-07-16 — Retained application workspace screens
+
+- Studied Blender's `WorkSpaceLayout`/`bScreen` ownership and its
+  per-window `WorkSpaceInstanceHook` relation. Blender reactivates the retained
+  screen for a workspace; it does not rebuild that workspace UI on each tab
+  switch.
+- Added `BlenderWorkspaceScreenHost` and `BlenderWorkspaceScreen` to give
+  BlenderUI applications the same two-layer model: live mounted screen
+  retention in-process, plus the existing durable layout/session persistence
+  for relaunch.
+- Added a widget regression proving state survives Folders → Dictionaries →
+  Folders switching; the focused BlenderUI suite passes (109 tests).
+- Generator verification exposed that the existing multi-column menu classes
+  were implemented in `layout.dart` but omitted from the public barrel. They
+  are now exported so path-dependency applications can use that framework API.
+
+## 2026-07-16 — Persisted BlenderUI workspace sessions
+
+- Extended `BlenderWorkspaceService` with the framework-owned durable-session
+  lifecycle: the active workspace, each area’s selected view, the complete dock
+  tree, split fractions, and application-owned workspace context now round-trip
+  through a versioned session.
+- Added `BlenderWorkspaceState<T>` and the `BlenderWorkspaceSessionState`
+  extension point, so applications can persist selections and other perspective
+  context without making domain models part of BlenderUI.
+- Added storage and typed area-value codec interfaces rather than coupling the
+  package to SharedPreferences or a particular desktop storage mechanism.
+  Applications adapt the persistence system they already own and choose a
+  stable session key.
+- `BlenderWorkspaceShell` now restores configured sessions without delaying
+  first paint and flushes them on backgrounding, detachment, and disposal.
+  Corrupt or obsolete payloads fall back safely to declared workspace layouts.
+- Added restoration, shell-startup, application-state, malformed-session, and
+  explicit session-clearing regressions; the focused BlenderUI suite passes
+  (108 tests).
+
 ## 2026-07-16 — Removed Blender source icon integration from the library
 
 - Removed the source-SVG loader, source-file mapping, public

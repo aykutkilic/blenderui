@@ -177,8 +177,77 @@ BlenderWorkspaceHost<String>(
 );
 ```
 
-See [`ADR-0007`](doc/decisions/ADR-0007-workspace-layout-service.md) for the
-ownership boundary and persistence policy.
+### Retained workspace screens
+
+Use `BlenderWorkspaceScreenHost` for the top-level workspace tabs themselves.
+It lazily mounts each screen on its first visit and offstages it when inactive,
+so switching tabs does not recreate the screen's local state.
+
+```dart
+BlenderWorkspaceScreenHost<String>(
+  activeWorkspaceId: activeWorkspaceId,
+  screens: [
+    BlenderWorkspaceScreen(id: 'folders', builder: (_) => FoldersScreen()),
+    BlenderWorkspaceScreen(id: 'dictionaries', builder: (_) => DictionariesScreen()),
+  ],
+);
+```
+
+This is in-process retention; combine it with the durable session service
+below for relaunch restoration.
+
+### Durable workspace sessions
+
+Give the service a `BlenderWorkspacePersistence` to retain the active
+perspective, editor choices, split tree, and divider fractions across launches.
+The library exposes a small storage interface instead of depending on a
+specific settings package; adapt the storage already used by the host app.
+
+```dart
+final workspaces = BlenderWorkspaceService<EditorKind>(
+  workspaces: workspaceDefinitions,
+  persistence: BlenderWorkspacePersistence<EditorKind>(
+    storage: appSettingsStorage,
+    storageKey: 'com.example.authoring.workspace-session',
+    valueCodec: BlenderWorkspaceValueCodec<EditorKind>(
+      toJson: (view) => view.name,
+      fromJson: (value) => EditorKind.values.byName(value as String),
+    ),
+  ),
+);
+```
+
+`BlenderWorkspaceShell` restores a configured session after first paint and
+flushes it when the app is backgrounded or the shell is disposed. Use
+`await workspaces.flush()` before a host-controlled shutdown, and
+`clearPersistedSession()` for a Reset Workspace Layout command.
+
+To persist application context within one perspective, attach a typed
+`BlenderWorkspaceState` to its definition. For example, an Outliner can store
+its selected folder ID without making that domain model part of BlenderUI:
+
+```dart
+final selectedFolder = BlenderWorkspaceState<String?>(
+  value: null,
+  codec: BlenderWorkspaceValueCodec<String?>(
+    toJson: (id) => id,
+    fromJson: (value) => value as String?,
+  ),
+);
+
+final folders = BlenderWorkspaceDefinition<EditorKind>(
+  id: 'folders',
+  layout: foldersLayout,
+  sessionState: selectedFolder,
+);
+```
+
+Changing `selectedFolder.value` is observed and saved with the dock session;
+the application resolves the restored ID through its own data store.
+
+See [`ADR-0007`](doc/decisions/ADR-0007-workspace-layout-service.md) and
+[`ADR-0008`](doc/decisions/ADR-0008-retained-workspace-screens.md) for the
+workspace ownership and retention policies.
 
 ## Sample application
 
