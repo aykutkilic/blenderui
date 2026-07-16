@@ -178,14 +178,10 @@ void main() {
     expect(locks, <bool>[false, true]);
   });
 
-  test('local Blender icon source resolves the sibling checkout', () {
-    final path = BlenderIconSource.pathFor('plus.svg');
+  test('source SVGs stay disabled without explicit configuration', () {
+    BlenderIconSource.setDirectory(null);
 
-    expect(path, isNotNull);
-    expect(
-      path!.replaceAll('\\', '/'),
-      endsWith('/release/datafiles/icons_svg/plus.svg'),
-    );
+    expect(BlenderIconSource.pathFor('plus.svg'), isNull);
   });
 
   testWidgets('icons fall back when the Blender source is unavailable', (

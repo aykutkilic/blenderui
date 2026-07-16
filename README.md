@@ -152,14 +152,13 @@ flutter run -d macos -t lib/components_demo.dart
 
 ## Local Blender icon development
 
-When running on desktop from this workspace, the library automatically uses
-matching SVG icons from `../blender/release/datafiles/icons_svg` when that
-checkout is available. It falls back to the package's built-in vector glyphs
-when it is not. Set `BLENDER_SOURCE_DIR` or call
-`BlenderIconSource.setDirectory(...)` to point at a different local checkout;
-the Blender SVGs are never bundled into the package. The example's macOS
-debug runner is intentionally unsandboxed so it can read this sibling checkout;
-release builds retain the fallback behavior.
+The library uses its built-in vector glyphs by default. To inspect source SVG
+parity on desktop, set `BLENDER_SOURCE_DIR` or call
+`BlenderIconSource.setDirectory(...)` with a Blender checkout; the Blender
+SVGs are never bundled into the package. This opt-in matters because Flutter
+SVG does not support every construct in Blender's source files. The example's
+macOS debug runner is intentionally unsandboxed so an explicitly configured
+local checkout remains available; release builds retain the built-in fallback.
 
 ## Reference and licensing
 

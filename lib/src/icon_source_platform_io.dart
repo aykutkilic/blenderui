@@ -51,38 +51,14 @@ Widget buildBlenderIcon({
 }
 
 String? _discoverIconDirectory() {
-  final candidates = <String>[];
   final configuredRoot = Platform.environment['BLENDER_SOURCE_DIR'];
   if (configuredRoot != null && configuredRoot.isNotEmpty) {
-    // An explicit path is also an explicit opt-in. This makes it possible to
-    // force the bundled fallback in CI or while comparing icon renderers.
+    // Source SVGs are opt-in. They are useful for source-parity experiments,
+    // but Flutter SVG intentionally does not support every construct present
+    // in Blender's source icons.
     return _normaliseIconDirectory(configuredRoot);
   }
-
-  _addWorkspaceCandidates(candidates, Directory.current.absolute);
-  _addWorkspaceCandidates(
-    candidates,
-    File(Platform.resolvedExecutable).parent.absolute,
-  );
-
-  for (final candidate in candidates) {
-    final directory = _normaliseIconDirectory(candidate);
-    if (directory != null) {
-      return directory;
-    }
-  }
   return null;
-}
-
-void _addWorkspaceCandidates(List<String> candidates, Directory start) {
-  var current = start;
-  for (var depth = 0; depth < 10; depth++) {
-    candidates.add(current.path);
-    candidates.add(_join(current.path, 'blender'));
-    final parent = current.parent;
-    if (parent.path == current.path) break;
-    current = parent;
-  }
 }
 
 String? _normaliseIconDirectory(String root) {

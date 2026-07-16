@@ -6,10 +6,11 @@ import 'icon_source_platform.dart'
 
 /// Resolves optional Blender SVG icons for local desktop development.
 ///
-/// The default resolver looks for a sibling `blender` checkout. The source
-/// directory can also be configured explicitly when the application is
-/// launched from a different working directory. No Blender files are bundled
-/// into the package, and callers can always rely on the built-in icon painter.
+/// Source SVG rendering is opt-in through [setDirectory] or
+/// `BLENDER_SOURCE_DIR`. This keeps package consumers and deterministic tests
+/// on the built-in icon painter; some source SVG constructs are intentionally
+/// outside Flutter SVG's supported subset. No Blender files are bundled into
+/// the package.
 class BlenderIconSource {
   const BlenderIconSource._();
 
@@ -18,9 +19,10 @@ class BlenderIconSource {
 
   /// Overrides automatic discovery for the current process.
   ///
-  /// Pass the Blender checkout root, its `release/datafiles/icons_svg`
-  /// directory, or `null` to return to automatic discovery. A non-existent
-  /// directory simply causes the built-in icon painter to be used.
+  /// Pass the Blender checkout root or its `release/datafiles/icons_svg`
+  /// directory. Pass `null` to use the built-in icon painter unless
+  /// `BLENDER_SOURCE_DIR` is set. A non-existent directory also uses the
+  /// built-in painter.
   static void setDirectory(String? path) {
     platform.setBlenderIconSourceDirectory(path);
   }
