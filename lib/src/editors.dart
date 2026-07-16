@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -705,6 +706,7 @@ class BlenderTreeNode<T> {
     required this.label,
     this.value,
     this.children = const [],
+    this.hasChildren = false,
     this.icon,
     this.iconColor,
     this.initiallyExpanded = false,
@@ -716,12 +718,22 @@ class BlenderTreeNode<T> {
     this.onAction,
     this.dropTarget = false,
     this.dropHint,
+    this.dragData,
+    this.canAcceptDrop,
+    this.onAcceptDrop,
+    this.onDragEntered,
+    this.onDragExited,
+    this.onContextMenuRequested,
   });
 
   final String id;
   final String label;
   final T? value;
   final List<BlenderTreeNode<T>> children;
+
+  /// Indicates that child rows are loaded lazily. It keeps the disclosure
+  /// affordance available before an application has fetched the branch.
+  final bool hasChildren;
   final BlenderGlyph? icon;
   final Color? iconColor;
   final bool initiallyExpanded;
@@ -733,6 +745,16 @@ class BlenderTreeNode<T> {
   final VoidCallback? onAction;
   final bool dropTarget;
   final String? dropHint;
+
+  /// Optional payload used to make this row draggable. The tree deliberately
+  /// keeps the payload untyped so applications can move heterogeneous domain
+  /// records through the same Outliner.
+  final Object? dragData;
+  final bool Function(Object data)? canAcceptDrop;
+  final FutureOr<void> Function(Object data)? onAcceptDrop;
+  final ValueChanged<Object>? onDragEntered;
+  final VoidCallback? onDragExited;
+  final ValueChanged<Offset>? onContextMenuRequested;
 }
 
 class _VisibleTreeNode<T> {
@@ -763,6 +785,8 @@ class BlenderTree<T> extends StatefulWidget {
     this.onLockChanged,
     this.contextMenuItemsBuilder,
     this.onContextMenuSelected,
+    this.expandedIds,
+    this.onExpandedChanged,
   });
 
   final List<BlenderTreeNode<T>> roots;
@@ -778,6 +802,15 @@ class BlenderTree<T> extends StatefulWidget {
   contextMenuItemsBuilder;
   final void Function(BlenderTreeNode<T>, String)? onContextMenuSelected;
 
+  /// Optional externally-owned expansion state. Supplying this lets an
+  /// application restore a data tree lazily without treating its visual
+  /// expansion as transient widget state.
+  final Set<String>? expandedIds;
+
+  /// Called after the user expands or collapses a node. The full set is
+  /// provided so callers can persist it directly.
+  final ValueChanged<Set<String>>? onExpandedChanged;
+
   @override
   State<BlenderTree<T>> createState() => _BlenderTreeState<T>();
 }
@@ -791,9 +824,11 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _expanded = <String>{};
+    _expanded = <String>{...?widget.expandedIds};
     void addInitiallyExpanded(BlenderTreeNode<T> node) {
-      if (node.initiallyExpanded) _expanded.add(node.id);
+      if (widget.expandedIds == null && node.initiallyExpanded) {
+        _expanded.add(node.id);
+      }
       for (final child in node.children) {
         addInitiallyExpanded(child);
       }
@@ -802,6 +837,17 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
     for (final root in widget.roots) {
       addInitiallyExpanded(root);
     }
+  }
+
+  void _toggleExpanded(String id) {
+    setState(() {
+      if (_expanded.contains(id)) {
+        _expanded.remove(id);
+      } else {
+        _expanded.add(id);
+      }
+    });
+    widget.onExpandedChanged?.call(Set<String>.unmodifiable(_expanded));
   }
 
   @override
@@ -870,7 +916,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
             itemBuilder: (context, index) {
               final entry = visible[index];
               final node = entry.node;
-              final hasChildren = node.children.isNotEmpty;
+              final hasChildren = node.children.isNotEmpty || node.hasChildren;
               final selected = node.id == widget.selectedId;
               final alternate = index.isOdd;
               final contextMenuItems =
@@ -881,6 +927,14 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                 onTap: node.selectable
                     ? () => widget.onSelected?.call(node)
                     : null,
+                onSecondaryTapDown: node.onContextMenuRequested == null
+                    ? null
+                    : (details) =>
+                          node.onContextMenuRequested!(details.globalPosition),
+                onLongPressStart: node.onContextMenuRequested == null
+                    ? null
+                    : (details) =>
+                          node.onContextMenuRequested!(details.globalPosition),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: selected
@@ -926,25 +980,23 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                               child: hasChildren
                                   ? GestureDetector(
                                       behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        setState(() {
-                                          if (_expanded.contains(node.id)) {
-                                            _expanded.remove(node.id);
-                                          } else {
-                                            _expanded.add(node.id);
-                                          }
-                                        });
-                                      },
+                                      onTap: () => _toggleExpanded(node.id),
                                       child: Center(
-                                        child: BlenderIcon(
-                                          key: ValueKey<String>(
-                                            'tree-disclosure-${node.id}',
+                                        child: BlenderTooltip(
+                                          message: _expanded.contains(node.id)
+                                              ? 'Collapse'
+                                              : 'Expand',
+                                          child: BlenderIcon(
+                                            key: ValueKey<String>(
+                                              'tree-disclosure-${node.id}',
+                                            ),
+                                            _expanded.contains(node.id)
+                                                ? BlenderGlyph
+                                                      .panelDisclosureDown
+                                                : BlenderGlyph
+                                                      .panelDisclosureRight,
+                                            size: 9,
                                           ),
-                                          _expanded.contains(node.id)
-                                              ? BlenderGlyph.panelDisclosureDown
-                                              : BlenderGlyph
-                                                    .panelDisclosureRight,
-                                          size: 9,
                                         ),
                                       ),
                                     )
@@ -1038,6 +1090,49 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                 },
                 child: row,
               );
+              if (node.canAcceptDrop != null && node.onAcceptDrop != null) {
+                final dragTargetChild = row;
+                row = DragTarget<Object>(
+                  onWillAcceptWithDetails: (details) {
+                    final accepted = node.canAcceptDrop!(details.data);
+                    if (accepted) node.onDragEntered?.call(details.data);
+                    return accepted;
+                  },
+                  onLeave: (_) => node.onDragExited?.call(),
+                  onAcceptWithDetails: (details) {
+                    node.onDragExited?.call();
+                    unawaited(
+                      Future<void>.sync(() => node.onAcceptDrop!(details.data)),
+                    );
+                  },
+                  builder: (context, candidates, rejected) => DecoratedBox(
+                    decoration: candidates.isEmpty
+                        ? const BoxDecoration()
+                        : BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: theme.colors.accent,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                    child: dragTargetChild,
+                  ),
+                );
+              }
+              if (node.dragData != null) {
+                row = Draggable<Object>(
+                  data: node.dragData!,
+                  feedback: BlenderEditorFrame(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 260),
+                      child: row,
+                    ),
+                  ),
+                  childWhenDragging: Opacity(opacity: .45, child: row),
+                  child: row,
+                );
+              }
               if (contextMenuItems.isNotEmpty) {
                 row = BlenderContextMenu<String>(
                   items: contextMenuItems,
@@ -1062,7 +1157,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
     // turn the collapsed-child summary into an unexpectedly wide row.
     final ids = <String>{};
     void collectIds(BlenderTreeNode<T> node) {
-      if (node.children.isNotEmpty) ids.add(node.id);
+      if (node.children.isNotEmpty || node.hasChildren) ids.add(node.id);
       for (final child in node.children) {
         collectIds(child);
       }
@@ -1072,6 +1167,11 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
       collectIds(root);
     }
     _expanded.retainWhere(ids.contains);
+    if (widget.expandedIds != null) {
+      _expanded
+        ..clear()
+        ..addAll(widget.expandedIds!.where(ids.contains));
+    }
   }
 }
 
@@ -1240,6 +1340,8 @@ class BlenderOutliner<T> extends StatelessWidget {
     this.onKeyframeDelete,
     this.editorType = BlenderEditorType.outliner,
     this.onEditorTypeChanged,
+    this.expandedIds,
+    this.onExpandedChanged,
   });
 
   final List<BlenderTreeNode<T>> roots;
@@ -1281,6 +1383,8 @@ class BlenderOutliner<T> extends StatelessWidget {
   /// while the second chooses how the Outliner represents its data.
   final BlenderEditorType editorType;
   final ValueChanged<BlenderEditorType>? onEditorTypeChanged;
+  final Set<String>? expandedIds;
+  final ValueChanged<Set<String>>? onExpandedChanged;
 
   List<Widget> _buildSourceHeaderControls() {
     final controls = <Widget>[];
@@ -1486,6 +1590,8 @@ class BlenderOutliner<T> extends StatelessWidget {
               showLock: showLock,
               onVisibilityChanged: onVisibilityChanged,
               onLockChanged: onLockChanged,
+              expandedIds: expandedIds,
+              onExpandedChanged: onExpandedChanged,
             ),
           ),
         ],
