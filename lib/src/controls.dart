@@ -96,7 +96,7 @@ class _BlenderButtonState extends State<BlenderButton> {
       BlenderButtonVariant.tab => theme.colors.tab,
       BlenderButtonVariant.menu => theme.colors.menuBackground,
       BlenderButtonVariant.menuTrigger => theme.colors.surface,
-      BlenderButtonVariant.topBar => theme.colors.canvas,
+      BlenderButtonVariant.topBar => theme.colors.topBar,
     };
     final hoverBackground = switch (widget.variant) {
       BlenderButtonVariant.tab => theme.colors.tabSelected,
@@ -116,6 +116,14 @@ class _BlenderButtonState extends State<BlenderButton> {
       BlenderButtonVariant.topBar => theme.colors.surfaceRaised,
       _ => theme.colors.buttonSelected,
     };
+    final normalForeground = switch (widget.variant) {
+      BlenderButtonVariant.tab => theme.colors.tabText,
+      _ => theme.colors.foreground,
+    };
+    final selectedForeground = switch (widget.variant) {
+      BlenderButtonVariant.tab => theme.colors.tabTextSelected,
+      _ => theme.colors.foreground,
+    };
     final background = widget.selected
         ? selectedBackground
         : _pressed
@@ -123,13 +131,26 @@ class _BlenderButtonState extends State<BlenderButton> {
         : _hovered
         ? hoverBackground
         : normalBackground;
-    final foreground = _enabled
-        ? theme.colors.foreground
-        : theme.colors.foregroundDisabled;
+    final foreground = !_enabled
+        ? theme.colors.foregroundDisabled
+        : widget.selected
+        ? selectedForeground
+        : normalForeground;
+    final buttonHeight = widget.variant == BlenderButtonVariant.tab
+        ? theme.density.rowHeight
+        : theme.density.controlHeight;
+    final buttonPadding =
+        widget.padding ??
+        (widget.variant == BlenderButtonVariant.tab
+            ? EdgeInsets.symmetric(horizontal: theme.density.spacing * 2.5)
+            : EdgeInsets.symmetric(horizontal: theme.density.spacing * 2));
+    final buttonRadius = widget.variant == BlenderButtonVariant.tab
+        ? theme.shapes.tabRadius
+        : theme.shapes.controlRadius;
 
     return SizedBox(
       width: widget.width,
-      height: theme.density.controlHeight,
+      height: buttonHeight,
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
@@ -158,9 +179,7 @@ class _BlenderButtonState extends State<BlenderButton> {
                 : null,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 80),
-              padding:
-                  widget.padding ??
-                  EdgeInsets.symmetric(horizontal: theme.density.spacing * 2),
+              padding: buttonPadding,
               decoration: BoxDecoration(
                 color: background,
                 border: _focused
@@ -169,13 +188,14 @@ class _BlenderButtonState extends State<BlenderButton> {
                         width: theme.shapes.focusWidth,
                       )
                     : widget.showBorder &&
-                          widget.variant != BlenderButtonVariant.topBar
+                          widget.variant != BlenderButtonVariant.topBar &&
+                          widget.variant != BlenderButtonVariant.tab
                     ? Border.all(
                         color: theme.colors.borderSubtle,
                         width: theme.shapes.borderWidth,
                       )
                     : null,
-                borderRadius: BorderRadius.circular(theme.shapes.controlRadius),
+                borderRadius: BorderRadius.circular(buttonRadius),
               ),
               child: DefaultTextStyle(
                 style: theme.textTheme.label.copyWith(color: foreground),
@@ -1151,11 +1171,19 @@ class BlenderTooltip extends StatefulWidget {
     required this.message,
     required this.child,
     this.content,
+    this.showDelay = const Duration(milliseconds: 500),
   });
 
   final String message;
   final Widget child;
   final Widget? content;
+
+  /// Delay before the tooltip appears after the pointer enters the child.
+  ///
+  /// Blender uses a half-second UI tooltip delay. Keeping this configurable
+  /// allows specialised surfaces to opt into a different interaction without
+  /// making ordinary controls feel noisy.
+  final Duration showDelay;
 
   @override
   State<BlenderTooltip> createState() => _BlenderTooltipState();
@@ -1658,6 +1686,7 @@ class _BlenderPopoverAnchorRenderObject extends RenderProxyBox {
 class _BlenderTooltipState extends State<BlenderTooltip> {
   final LayerLink _link = LayerLink();
   OverlayEntry? _entry;
+  Timer? _showTimer;
 
   void _show() {
     if (_entry != null) return;
@@ -1709,8 +1738,23 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
     _entry = null;
   }
 
+  void _scheduleShow() {
+    if (_entry != null) return;
+    _showTimer?.cancel();
+    _showTimer = Timer(widget.showDelay, () {
+      _showTimer = null;
+      _show();
+    });
+  }
+
+  void _cancelShow() {
+    _showTimer?.cancel();
+    _showTimer = null;
+  }
+
   @override
   void dispose() {
+    _cancelShow();
     _hide();
     super.dispose();
   }
@@ -1722,8 +1766,11 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
       child: Semantics(
         label: widget.message,
         child: MouseRegion(
-          onEnter: (_) => _show(),
-          onExit: (_) => _hide(),
+          onEnter: (_) => _scheduleShow(),
+          onExit: (_) {
+            _cancelShow();
+            _hide();
+          },
           child: widget.child,
         ),
       ),

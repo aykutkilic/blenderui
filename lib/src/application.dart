@@ -56,13 +56,13 @@ class BlenderApplicationMenuBar<T> extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: theme.colors.canvas,
+        color: theme.colors.topBar,
         border: Border(bottom: BorderSide(color: theme.colors.editorBorder)),
       ),
       child: BlenderToolbar(
         height: height,
         scrollable: scrollable,
-        background: theme.colors.canvas,
+        background: theme.colors.topBar,
         children: <Widget>[
           ...leading,
           for (final menu in menus)
@@ -135,34 +135,37 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return Row(
-      children: <Widget>[
-        for (final menu in menus)
-          BlenderMenuButton<MenuValue>(
-            label: menu.label,
-            items: menu.items,
-            enabled: menu.enabled,
-            variant: BlenderButtonVariant.topBar,
-            onSelected: menu.onSelected,
+    return ColoredBox(
+      color: theme.colors.topBar,
+      child: Row(
+        children: <Widget>[
+          for (final menu in menus)
+            BlenderMenuButton<MenuValue>(
+              label: menu.label,
+              items: menu.items,
+              enabled: menu.enabled,
+              variant: BlenderButtonVariant.topBar,
+              onSelected: menu.onSelected,
+            ),
+          if (menus.isNotEmpty && workspaces.isNotEmpty) ...<Widget>[
+            SizedBox(width: theme.density.spacing * 2),
+            SizedBox(
+              height: 22,
+              child: ColoredBox(color: theme.colors.editorBorder),
+            ),
+            SizedBox(width: theme.density.spacing * 2),
+          ],
+          Expanded(
+            child: _BlenderApplicationWorkspaceStrip<WorkspaceValue>(
+              workspaces: workspaces,
+              activeWorkspace: activeWorkspace,
+              onWorkspaceSelected: onWorkspaceSelected,
+              actions: workspaceActions,
+            ),
           ),
-        if (menus.isNotEmpty && workspaces.isNotEmpty) ...<Widget>[
-          SizedBox(width: theme.density.spacing * 2),
-          SizedBox(
-            height: 22,
-            child: ColoredBox(color: theme.colors.editorBorder),
-          ),
-          SizedBox(width: theme.density.spacing * 2),
+          ...trailing,
         ],
-        Expanded(
-          child: _BlenderApplicationWorkspaceStrip<WorkspaceValue>(
-            workspaces: workspaces,
-            activeWorkspace: activeWorkspace,
-            onWorkspaceSelected: onWorkspaceSelected,
-            actions: workspaceActions,
-          ),
-        ),
-        ...trailing,
-      ],
+      ),
     );
   }
 }
@@ -222,7 +225,7 @@ class _BlenderApplicationWorkspaceStripState<T>
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    final background = theme.colors.canvas;
+    final background = theme.colors.topBar;
     final content = ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: SingleChildScrollView(
@@ -239,7 +242,7 @@ class _BlenderApplicationWorkspaceStripState<T>
       ),
     );
     return SizedBox(
-      height: theme.density.controlHeight,
+      height: theme.density.rowHeight,
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[

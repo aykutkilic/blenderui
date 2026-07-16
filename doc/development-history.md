@@ -1,5 +1,36 @@
 # Development history
 
+## 2026-07-16 — Delayed control tooltips
+
+- Changed the shared `BlenderTooltip` primitive from immediate overlay
+  insertion to Blender's native 500ms hover delay.
+- The delay applies consistently to workspace tabs and other tooltip-bearing
+  controls, while still cancelling cleanly when the pointer leaves.
+- Added a timer regression covering the pre-delay, shown, and pointer-exit
+  states.
+
+## 2026-07-16 — Matched Blender workspace tab styling
+
+- Traced Blender's `TOPBAR_HT_upper_bar` → `template_ID_tabs` →
+  `ButtonType::Tab` implementation and carried its dedicated tab colors,
+  selected/inactive text contrast, native height, radius, and edge-to-edge
+  layout into BlenderUI.
+- Added explicit top-bar and workspace-tab theme colors instead of reusing
+  generic raised-button colors. The showcase now renders its workspace strip
+  as tabs on the dark top-bar surface.
+- Added a widget regression covering the native selected/inactive colors,
+  text colors, and 22px tab geometry.
+
+## 2026-07-16 — Fixed the showcase workspace strip
+
+- Matched blenderapp's top-bar ownership: menus, workspace tabs, and Add
+  Workspace now share the showcase toolbar's one horizontal viewport.
+- Removed the nested, fixed-width workspace-tab scroller. The first attempt to
+  suppress its pointer-wheel events preserved the architectural error because
+  it still let tabs pan independently from the rest of the header.
+- The showcase regression now proves the workspace tab bar is non-scrollable
+  itself and has exactly one scrolling ancestor: the header toolbar.
+
 ## 2026-07-16 — Added a reusable compact multi-column menu
 
 - Extracted the geometry and interaction model of the editor-type selector

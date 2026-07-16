@@ -14898,7 +14898,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     return Container(
       height: 30,
       decoration: BoxDecoration(
-        color: theme.colors.canvas,
+        color: theme.colors.topBar,
         border: Border(bottom: BorderSide(color: theme.colors.editorBorder)),
       ),
       child: Row(
@@ -14907,7 +14907,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             child: BlenderToolbar(
               height: 30,
               scrollable: true,
-              background: theme.colors.canvas,
+              background: theme.colors.topBar,
               children: <Widget>[
                 BlenderPopover(
                   child: const BlenderIconButton(
@@ -15512,30 +15512,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   child: ColoredBox(color: theme.colors.editorOutline),
                 ),
                 const SizedBox(width: 6),
-                SizedBox(
-                  width: 560,
-                  child: BlenderTabBar(
-                    scrollable: true,
-                    variant: BlenderButtonVariant.topBar,
-                    tabs: const <String>[
-                      'Layout',
-                      'Modeling',
-                      'Sculpting',
-                      'UV Editing',
-                      'Texture Paint',
-                      'Shading',
-                      'Animation',
-                      'Rendering',
-                      'Compositing',
-                      'Geometry Nodes',
-                      'Components',
-                    ],
-                    selectedIndex: _workspaceIndex,
-                    onChanged: (value) {
-                      setState(() => _workspaceIndex = value);
-                      _setStatus('Workspace changed');
-                    },
-                  ),
+                // The toolbar owns the top-bar viewport. Keep workspace tabs
+                // in its single scrolling layout so they never pan separately
+                // from the menus or Add Workspace control.
+                BlenderTabBar(
+                  scrollable: false,
+                  variant: BlenderButtonVariant.tab,
+                  tabs: const <String>[
+                    'Layout',
+                    'Modeling',
+                    'Sculpting',
+                    'UV Editing',
+                    'Texture Paint',
+                    'Shading',
+                    'Animation',
+                    'Rendering',
+                    'Compositing',
+                    'Geometry Nodes',
+                    'Components',
+                  ],
+                  selectedIndex: _workspaceIndex,
+                  onChanged: (value) {
+                    setState(() => _workspaceIndex = value);
+                    _setStatus('Workspace changed');
+                  },
                 ),
                 BlenderPopover(
                   child: BlenderIconButton(

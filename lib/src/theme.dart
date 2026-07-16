@@ -25,6 +25,7 @@ class BlenderColorScheme {
     this.buttonPressed = const Color(0xFF222222),
     this.buttonSelected = const Color(0xFF4772B3),
     this.textField = const Color(0xFF1D1D1D),
+    this.topBar = const Color(0xFF181818),
     this.menuBackground = const Color(0xFF181818),
     this.menuSelection = const Color(0xFF4772B3),
     this.propertiesBackground = const Color(0xFF303030),
@@ -34,6 +35,8 @@ class BlenderColorScheme {
     this.panelOutline = const Color(0x11FFFFFF),
     this.tab = const Color(0xFF1D1D1D),
     this.tabSelected = const Color(0xFF303030),
+    this.tabText = const Color(0xFF989898),
+    this.tabTextSelected = const Color(0xFFFFFFFF),
     this.editorBorder = const Color(0xFF161616),
     this.editorOutline = const Color(0x15FFFFFF),
     this.editorOutlineActive = const Color(0x2AFFFFFF),
@@ -75,6 +78,7 @@ class BlenderColorScheme {
       buttonPressed = const Color(0xFF222222),
       buttonSelected = const Color(0xFF4772B3),
       textField = const Color(0xFF1D1D1D),
+      topBar = const Color(0xFF181818),
       menuBackground = const Color(0xFF181818),
       menuSelection = const Color(0xFF4772B3),
       propertiesBackground = const Color(0xFF303030),
@@ -84,6 +88,8 @@ class BlenderColorScheme {
       panelOutline = const Color(0x11FFFFFF),
       tab = const Color(0xFF1D1D1D),
       tabSelected = const Color(0xFF303030),
+      tabText = const Color(0xFF989898),
+      tabTextSelected = const Color(0xFFFFFFFF),
       editorBorder = const Color(0xFF161616),
       editorOutline = const Color(0x15FFFFFF),
       editorOutlineActive = const Color(0x2AFFFFFF),
@@ -123,6 +129,7 @@ class BlenderColorScheme {
   final Color buttonPressed;
   final Color buttonSelected;
   final Color textField;
+  final Color topBar;
   final Color menuBackground;
   final Color menuSelection;
   final Color propertiesBackground;
@@ -132,6 +139,8 @@ class BlenderColorScheme {
   final Color panelOutline;
   final Color tab;
   final Color tabSelected;
+  final Color tabText;
+  final Color tabTextSelected;
   final Color editorBorder;
   final Color editorOutline;
   final Color editorOutlineActive;
@@ -172,6 +181,7 @@ class BlenderColorScheme {
     Color? buttonPressed,
     Color? buttonSelected,
     Color? textField,
+    Color? topBar,
     Color? menuBackground,
     Color? menuSelection,
     Color? propertiesBackground,
@@ -181,6 +191,8 @@ class BlenderColorScheme {
     Color? panelOutline,
     Color? tab,
     Color? tabSelected,
+    Color? tabText,
+    Color? tabTextSelected,
     Color? editorBorder,
     Color? editorOutline,
     Color? editorOutlineActive,
@@ -221,6 +233,7 @@ class BlenderColorScheme {
       buttonPressed: buttonPressed ?? this.buttonPressed,
       buttonSelected: buttonSelected ?? this.buttonSelected,
       textField: textField ?? this.textField,
+      topBar: topBar ?? this.topBar,
       menuBackground: menuBackground ?? this.menuBackground,
       menuSelection: menuSelection ?? this.menuSelection,
       propertiesBackground: propertiesBackground ?? this.propertiesBackground,
@@ -230,6 +243,8 @@ class BlenderColorScheme {
       panelOutline: panelOutline ?? this.panelOutline,
       tab: tab ?? this.tab,
       tabSelected: tabSelected ?? this.tabSelected,
+      tabText: tabText ?? this.tabText,
+      tabTextSelected: tabTextSelected ?? this.tabTextSelected,
       editorBorder: editorBorder ?? this.editorBorder,
       editorOutline: editorOutline ?? this.editorOutline,
       editorOutlineActive: editorOutlineActive ?? this.editorOutlineActive,
@@ -344,6 +359,7 @@ class BlenderDensity {
 class BlenderShapeTheme {
   const BlenderShapeTheme({
     this.controlRadius = 3,
+    this.tabRadius = 4,
     this.panelRadius = 4,
     this.menuRadius = 4,
     this.borderWidth = 1,
@@ -351,6 +367,7 @@ class BlenderShapeTheme {
   });
 
   final double controlRadius;
+  final double tabRadius;
   final double panelRadius;
   final double menuRadius;
   final double borderWidth;
@@ -358,6 +375,7 @@ class BlenderShapeTheme {
 
   BlenderShapeTheme copyWith({
     double? controlRadius,
+    double? tabRadius,
     double? panelRadius,
     double? menuRadius,
     double? borderWidth,
@@ -365,6 +383,7 @@ class BlenderShapeTheme {
   }) {
     return BlenderShapeTheme(
       controlRadius: controlRadius ?? this.controlRadius,
+      tabRadius: tabRadius ?? this.tabRadius,
       panelRadius: panelRadius ?? this.panelRadius,
       menuRadius: menuRadius ?? this.menuRadius,
       borderWidth: borderWidth ?? this.borderWidth,
@@ -485,7 +504,9 @@ class BlenderApp extends StatelessWidget {
         localizationsDelegates: localizationsDelegates,
         builder: (context, child) {
           final themedChild = DefaultTextStyle(
-            style: theme.textTheme.body.copyWith(color: theme.colors.foreground),
+            style: theme.textTheme.body.copyWith(
+              color: theme.colors.foreground,
+            ),
             child: child ?? const SizedBox.shrink(),
           );
           return builder?.call(context, themedChild) ?? themedChild;

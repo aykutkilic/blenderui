@@ -546,6 +546,80 @@ void main() {
     expect(selected, 2);
   });
 
+  testWidgets('tab bars use Blender workspace tab colors and geometry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const BlenderTabBar(
+          tabs: <String>['Layout', 'Modeling'],
+          selectedIndex: 0,
+          onChanged: _ignoreInt,
+        ),
+      ),
+    );
+
+    final selected = find.widgetWithText(BlenderButton, 'Layout');
+    final inactive = find.widgetWithText(BlenderButton, 'Modeling');
+    final selectedContainer = tester.widget<AnimatedContainer>(
+      find.descendant(of: selected, matching: find.byType(AnimatedContainer)),
+    );
+    final inactiveContainer = tester.widget<AnimatedContainer>(
+      find.descendant(of: inactive, matching: find.byType(AnimatedContainer)),
+    );
+    final selectedText = tester.widget<DefaultTextStyle>(
+      find.descendant(of: selected, matching: find.byType(DefaultTextStyle)),
+    );
+    final inactiveText = tester.widget<DefaultTextStyle>(
+      find.descendant(of: inactive, matching: find.byType(DefaultTextStyle)),
+    );
+
+    expect(
+      (selectedContainer.decoration! as BoxDecoration).color,
+      const Color(0xFF303030),
+    );
+    expect(
+      (inactiveContainer.decoration! as BoxDecoration).color,
+      const Color(0xFF1D1D1D),
+    );
+    expect(selectedText.style.color, const Color(0xFFFFFFFF));
+    expect(inactiveText.style.color, const Color(0xFF989898));
+    expect(tester.getSize(selected).height, 22);
+    expect(tester.getSize(inactive).height, 22);
+  });
+
+  testWidgets('tooltips wait before showing and hide when the pointer leaves', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        Overlay(
+          initialEntries: <OverlayEntry>[
+            OverlayEntry(
+              builder: (context) => const BlenderTooltip(
+                message: 'Delayed help',
+                child: SizedBox(width: 80, height: 24, child: Text('Hover me')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await pointer.addPointer(location: Offset.zero);
+    await pointer.moveTo(tester.getCenter(find.text('Hover me')));
+    await tester.pump(const Duration(milliseconds: 499));
+    expect(find.text('Delayed help'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text('Delayed help'), findsOneWidget);
+
+    await pointer.removePointer();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text('Delayed help'), findsNothing);
+  });
+
   testWidgets('labeled selection controls remain within compact columns', (
     tester,
   ) async {

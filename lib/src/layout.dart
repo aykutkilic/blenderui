@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import 'controls.dart';
@@ -1692,13 +1693,21 @@ class BlenderTabBar extends StatelessWidget {
     required this.onChanged,
     this.variant = BlenderButtonVariant.tab,
     this.scrollable = true,
+    this.allowPointerScroll = true,
   });
 
   final List<String> tabs;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final BlenderButtonVariant variant;
+
+  /// Whether the tab row can overflow horizontally.
+  ///
+  /// Keep this enabled when every tab cannot fit in the available width.
   final bool scrollable;
+
+  /// Whether pointer scroll signals can move a horizontally scrolling row.
+  final bool allowPointerScroll;
 
   @override
   Widget build(BuildContext context) {
@@ -1708,7 +1717,9 @@ class BlenderTabBar extends StatelessWidget {
       children: <Widget>[
         for (final entry in tabs.indexed)
           Padding(
-            padding: EdgeInsets.only(right: theme.density.spacing),
+            padding: variant == BlenderButtonVariant.tab
+                ? EdgeInsets.zero
+                : EdgeInsets.only(right: theme.density.spacing),
             child: BlenderTooltip(
               message: entry.$1 == selectedIndex
                   ? 'Active workspace showing in the window.'
@@ -1730,11 +1741,21 @@ class BlenderTabBar extends StatelessWidget {
               context,
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: row,
+                child: allowPointerScroll
+                    ? row
+                    : Listener(
+                        onPointerSignal: _ignorePointerScroll,
+                        child: row,
+                      ),
               ),
             )
           : row,
     );
+  }
+
+  void _ignorePointerScroll(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (_) {});
   }
 }
 

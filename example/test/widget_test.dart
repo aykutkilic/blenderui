@@ -4270,6 +4270,11 @@ void main() {
     final workspaceTabs = tester.widget<BlenderTabBar>(
       find.ancestor(of: components, matching: find.byType(BlenderTabBar)),
     );
+    expect(workspaceTabs.scrollable, isFalse);
+    expect(
+      find.ancestor(of: components, matching: find.byType(Scrollable)),
+      findsOneWidget,
+    );
     workspaceTabs.onChanged(10);
     await tester.pumpAndSettle();
     expect(
