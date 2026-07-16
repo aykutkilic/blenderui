@@ -74,7 +74,12 @@ export 'src/workspaces.dart'
     show
         BlenderWorkspaceDefinition,
         BlenderWorkspaceHost,
-        BlenderWorkspaceService;
+        BlenderWorkspacePersistence,
+        BlenderWorkspaceService,
+        BlenderWorkspaceSessionState,
+        BlenderWorkspaceState,
+        BlenderWorkspaceStorage,
+        BlenderWorkspaceValueCodec;
 export 'src/editors.dart'
     show
         BlenderPropertyEditorBuilder,

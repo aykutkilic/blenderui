@@ -504,7 +504,34 @@ class BlenderWorkspaceShell<T> extends StatefulWidget {
       _BlenderWorkspaceShellState<T>();
 }
 
-class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>> {
+class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Restore after the shell has installed the application's scopes. The
+    // service starts from declared defaults meanwhile, so a missing or stale
+    // session never blocks first paint.
+    unawaited(widget.controller.workspaces.restore());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(widget.controller.workspaces.flush());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(widget.controller.workspaces.flush());
+    super.dispose();
+  }
+
   /// Opens the configured Preferences window, if this shell exposes one.
   void showPreferences() {
     final preferences = widget.preferences;

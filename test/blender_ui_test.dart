@@ -1052,6 +1052,185 @@ void main() {
     service.dispose();
   });
 
+  test(
+    'workspace service restores active workspace and dock layouts',
+    () async {
+      final storage = _WorkspaceMemoryStorage();
+      final persistence = BlenderWorkspacePersistence<String>(
+        storage: storage,
+        storageKey: 'test.workspace-session',
+        valueCodec: const BlenderWorkspaceValueCodec<String>(
+          toJson: _workspaceStringToJson,
+          fromJson: _workspaceStringFromJson,
+        ),
+      );
+      final first = _persistentWorkspaceService(persistence);
+      first.activeController.splitArea(
+        areaId: 'folders-outliner',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .35,
+        newValue: 'properties',
+        newAreaFirst: false,
+      );
+      first.selectWorkspace('authoring');
+      first.activeController.replaceAreaValue(
+        areaId: 'authoring-page',
+        value: 'level-editor',
+      );
+      await first.flush();
+      first.dispose();
+
+      final restored = _persistentWorkspaceService(persistence);
+      expect(await restored.restore(), isTrue);
+      expect(restored.activeWorkspaceId, 'authoring');
+      expect(
+        restored.controllerFor('folders').root,
+        isA<BlenderDockSplitNode<String>>(),
+      );
+      expect(
+        (restored.controllerFor('authoring').root
+                as BlenderDockAreaNode<String>)
+            .value,
+        'level-editor',
+      );
+      restored.dispose();
+    },
+  );
+
+  test('workspace service restores application workspace state', () async {
+    final storage = _WorkspaceMemoryStorage();
+    final persistence = BlenderWorkspacePersistence<String>(
+      storage: storage,
+      storageKey: 'test.workspace-state-session',
+      valueCodec: const BlenderWorkspaceValueCodec<String>(
+        toJson: _workspaceStringToJson,
+        fromJson: _workspaceStringFromJson,
+      ),
+    );
+    final selectedFolder = BlenderWorkspaceState<String?>(
+      value: null,
+      codec: const BlenderWorkspaceValueCodec<String?>(
+        toJson: _workspaceNullableStringToJson,
+        fromJson: _workspaceNullableStringFromJson,
+      ),
+    );
+    final first = _persistentWorkspaceService(
+      persistence,
+      sessionState: selectedFolder,
+    );
+    selectedFolder.value = 'temmuz-2025';
+    await first.flush();
+    first.dispose();
+    selectedFolder.dispose();
+
+    final restoredFolder = BlenderWorkspaceState<String?>(
+      value: null,
+      codec: const BlenderWorkspaceValueCodec<String?>(
+        toJson: _workspaceNullableStringToJson,
+        fromJson: _workspaceNullableStringFromJson,
+      ),
+    );
+    final restored = _persistentWorkspaceService(
+      persistence,
+      sessionState: restoredFolder,
+    );
+    expect(await restored.restore(), isTrue);
+    expect(restoredFolder.value, 'temmuz-2025');
+    restored.dispose();
+    restoredFolder.dispose();
+  });
+
+  test('workspace service ignores a malformed persisted session', () async {
+    final storage = _WorkspaceMemoryStorage()
+      ..values['test.workspace-session'] = '{not json';
+    final service = _persistentWorkspaceService(
+      BlenderWorkspacePersistence<String>(
+        storage: storage,
+        storageKey: 'test.workspace-session',
+        valueCodec: const BlenderWorkspaceValueCodec<String>(
+          toJson: _workspaceStringToJson,
+          fromJson: _workspaceStringFromJson,
+        ),
+      ),
+    );
+
+    expect(await service.restore(), isFalse);
+    expect(service.activeWorkspaceId, 'folders');
+    expect(service.activeController.root, isA<BlenderDockAreaNode<String>>());
+    expect(service.lastPersistenceError, isNotNull);
+    service.dispose();
+  });
+
+  test(
+    'workspace service clears a durable session after pending writes',
+    () async {
+      final storage = _WorkspaceMemoryStorage();
+      final persistence = BlenderWorkspacePersistence<String>(
+        storage: storage,
+        storageKey: 'test.clear-workspace-session',
+        valueCodec: const BlenderWorkspaceValueCodec<String>(
+          toJson: _workspaceStringToJson,
+          fromJson: _workspaceStringFromJson,
+        ),
+      );
+      final service = _persistentWorkspaceService(persistence);
+      service.activeController.splitArea(
+        areaId: 'folders-outliner',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .4,
+        newValue: 'properties',
+        newAreaFirst: false,
+      );
+      await service.clearPersistedSession();
+      service.dispose();
+
+      final restored = _persistentWorkspaceService(persistence);
+      expect(await restored.restore(), isFalse);
+      expect(
+        restored.controllerFor('folders').root,
+        isA<BlenderDockAreaNode<String>>(),
+      );
+      restored.dispose();
+    },
+  );
+
+  testWidgets('workspace shell restores a durable session on startup', (
+    tester,
+  ) async {
+    final storage = _WorkspaceMemoryStorage();
+    final persistence = BlenderWorkspacePersistence<String>(
+      storage: storage,
+      storageKey: 'test.shell-workspace-session',
+      valueCodec: const BlenderWorkspaceValueCodec<String>(
+        toJson: _workspaceStringToJson,
+        fromJson: _workspaceStringFromJson,
+      ),
+    );
+    final saved = _persistentWorkspaceService(persistence);
+    saved.selectWorkspace('authoring');
+    saved.activeController.replaceAreaValue(
+      areaId: 'authoring-page',
+      value: 'restored-level-editor',
+    );
+    await saved.flush();
+    saved.dispose();
+
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      workspaceService: _persistentWorkspaceService(persistence),
+    );
+    addTearDown(application.dispose);
+    await tester.pumpWidget(
+      BlenderWorkspaceShell<Object?>(
+        controller: application,
+        areaBuilder: (context, area) => Text(area.value),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('restored-level-editor'), findsOneWidget);
+  });
+
   test('application controller adopts a multi-workspace service', () {
     final workspaces = BlenderWorkspaceService<String>(
       workspaces: const <BlenderWorkspaceDefinition<String>>[
@@ -4186,3 +4365,87 @@ void _ignoreOffset(Offset value) {}
 void _ignoreMatrix(List<List<double>> value) {}
 
 void _ignoreCacheFileSettings(BlenderCacheFileSettings value) {}
+
+String _workspaceStringToJson(String value) => value;
+
+String _workspaceStringFromJson(Object? value) {
+  if (value is! String) throw const FormatException('Expected an editor id.');
+  return value;
+}
+
+String? _workspaceNullableStringToJson(String? value) => value;
+
+String? _workspaceNullableStringFromJson(Object? value) {
+  if (value == null || value is String) return value as String?;
+  throw const FormatException('Expected a nullable value.');
+}
+
+BlenderWorkspaceService<String> _persistentWorkspaceService(
+  BlenderWorkspacePersistence<String> persistence, {
+  BlenderWorkspaceSessionState? sessionState,
+}) => BlenderWorkspaceService<String>(
+  persistence: persistence,
+  workspaces: <BlenderWorkspaceDefinition<String>>[
+    BlenderWorkspaceDefinition<String>(
+      id: 'folders',
+      sessionState: sessionState,
+      layout: BlenderDockAreaNode<String>(
+        id: 'folders-outliner',
+        value: 'outliner',
+      ),
+    ),
+    BlenderWorkspaceDefinition<String>(
+      id: 'authoring',
+      layout: BlenderDockAreaNode<String>(
+        id: 'authoring-page',
+        value: 'page-editor',
+      ),
+    ),
+  ],
+);
+
+class _WorkspaceMemoryStorage implements BlenderWorkspaceStorage {
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> remove(String key) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
+}
+
+class _RetainedWorkspaceProbe extends StatefulWidget {
+  const _RetainedWorkspaceProbe({required this.label});
+
+  final String label;
+
+  @override
+  State<_RetainedWorkspaceProbe> createState() =>
+      _RetainedWorkspaceProbeState();
+}
+
+class _RetainedWorkspaceProbeState extends State<_RetainedWorkspaceProbe> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Text('${widget.label}: $_count'),
+        GestureDetector(
+          key: ValueKey<String>('${widget.label}-increment'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _count++),
+          child: const SizedBox(width: 40, height: 24),
+        ),
+      ],
+    );
+  }
+}
