@@ -176,6 +176,32 @@ void main() {
     },
   );
 
+  testWidgets('application scope installs services without a dock frame', (
+    tester,
+  ) async {
+    final application = BlenderApplicationController<int>(initialState: 4);
+    addTearDown(application.dispose);
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderApplicationScope<int>(
+          controller: application,
+          child: Builder(
+            builder: (context) {
+              final state = BlenderStateScope.watch<int>(context);
+              final status = BlenderServiceScope.read<BlenderStatusService>(
+                context,
+              );
+              return Text('${state.value}:${status.message == null}');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('4:true'), findsOneWidget);
+  });
+
   testWidgets('application shell restores persisted editor context', (
     tester,
   ) async {
@@ -3322,6 +3348,7 @@ void main() {
             max: 100,
             decimalDigits: 0,
             suffix: '%',
+            showSteppers: false,
             onChanged: _ignoreDouble,
           ),
         ),
@@ -3332,6 +3359,52 @@ void main() {
       find.byType(FractionallySizedBox),
     );
     expect(fill.widthFactor, closeTo(.36, .001));
+    expect(tester.getSize(find.byType(FractionallySizedBox)).height, 20);
+
+    final pointer = await tester.createGesture();
+    await pointer.moveTo(tester.getCenter(find.byType(BlenderNumberField)));
+    await tester.pump();
+    expect(find.byType(BlenderIcon), findsNothing);
+    await pointer.removePointer();
+  });
+
+  testWidgets('factor fields retain their range fill while editing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 180,
+          child: BlenderNumberField(
+            value: .596,
+            min: 0,
+            max: 1,
+            decimalDigits: 3,
+            showSteppers: false,
+            onChanged: _ignoreDouble,
+          ),
+        ),
+      ),
+    );
+
+    final fieldGesture = find.byWidgetPredicate(
+      (widget) =>
+          widget is GestureDetector && widget.onHorizontalDragStart != null,
+    );
+    tester.widget<GestureDetector>(fieldGesture.first).onTap!();
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsOneWidget);
+    final fills = find.byType(FractionallySizedBox);
+    expect(fills, findsOneWidget);
+    expect(
+      tester.widget<FractionallySizedBox>(fills),
+      isA<FractionallySizedBox>().having(
+        (fill) => fill.widthFactor,
+        'widthFactor',
+        closeTo(.596, .001),
+      ),
+    );
   });
 
   testWidgets('collapsed panels retain Blender rounded surfaces', (

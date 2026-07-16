@@ -576,10 +576,6 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     BlenderApplicationPresentationService? presentation,
     this.historyLimit = 50,
   }) : assert(
-         workspace != null || workspaceService != null,
-         'Provide a workspace or workspaceService.',
-       ),
-       assert(
          workspace == null || workspaceService == null,
          'Provide either workspace or workspaceService, not both.',
        ),
@@ -598,7 +594,12 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
              workspaces: <BlenderWorkspaceDefinition<String>>[
                BlenderWorkspaceDefinition<String>(
                  id: 'default',
-                 layout: workspace!,
+                 layout:
+                     workspace ??
+                     const BlenderDockAreaNode<String>(
+                       id: 'application-root',
+                       value: 'application-root',
+                     ),
                ),
              ],
            ),
@@ -694,6 +695,76 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
   }
 }
 
+/// Installs [BlenderApplicationController] services around custom app chrome.
+///
+/// Use this when an application already owns routing or a native title bar but
+/// still needs BlenderUI's scoped state/history, command bindings, status,
+/// presentation, Preferences, and editor-session services. For a dockable
+/// frame, use [BlenderWorkspaceShell] instead.
+class BlenderApplicationScope<T> extends StatefulWidget {
+  const BlenderApplicationScope({
+    super.key,
+    required this.controller,
+    required this.child,
+  });
+
+  final BlenderApplicationController<T> controller;
+  final Widget child;
+
+  @override
+  State<BlenderApplicationScope<T>> createState() =>
+      _BlenderApplicationScopeState<T>();
+}
+
+class _BlenderApplicationScopeState<T> extends State<BlenderApplicationScope<T>>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(widget.controller.editorSession.restore());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(widget.controller.presentation.showStartupSplash(context));
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(widget.controller.editorSession.flush());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(widget.controller.editorSession.flush());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget.controller;
+    return BlenderCommandBindingScope(
+      commands: controller.commands,
+      bindings: controller.commandBindings,
+      child: BlenderServiceScope(
+        services: controller.services,
+        child: BlenderStateScope<T>(
+          store: controller.state,
+          child: BlenderEditorSessionScope(
+            session: controller.editorSession,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The reusable desktop application frame for a dockable Blender-style UI.
 ///
 /// The shell deliberately accepts application-specific menus, editor-area
@@ -746,14 +817,6 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
     // service starts from declared defaults meanwhile, so a missing or stale
     // session never blocks first paint.
     unawaited(widget.controller.workspaces.restore());
-    unawaited(widget.controller.editorSession.restore());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final navigatorContext = widget.navigatorKey?.currentContext ?? context;
-      unawaited(
-        widget.controller.presentation.showStartupSplash(navigatorContext),
-      );
-    });
   }
 
   @override
@@ -762,7 +825,6 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(widget.controller.workspaces.flush());
-      unawaited(widget.controller.editorSession.flush());
     }
   }
 
@@ -770,7 +832,6 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(widget.controller.workspaces.flush());
-    unawaited(widget.controller.editorSession.flush());
     super.dispose();
   }
 
@@ -790,28 +851,18 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
       title: widget.title,
       theme: widget.theme,
       navigatorKey: widget.navigatorKey,
-      home: BlenderCommandBindingScope(
-        commands: controller.commands,
-        bindings: controller.commandBindings,
-        child: BlenderServiceScope(
-          services: controller.services,
-          child: BlenderStateScope<T>(
-            store: controller.state,
-            child: BlenderEditorSessionScope(
-              session: controller.editorSession,
-              child: BlenderEditorShell(
-                topBar: widget.topBar,
-                main:
-                    widget.workspaceContent ??
-                    BlenderWorkspaceHost<String>(
-                      service: controller.workspaces,
-                      cloneArea: widget.cloneArea,
-                      areaBuilder: widget.areaBuilder,
-                    ),
-                statusBar: widget.statusBar,
+      home: BlenderApplicationScope<T>(
+        controller: controller,
+        child: BlenderEditorShell(
+          topBar: widget.topBar,
+          main:
+              widget.workspaceContent ??
+              BlenderWorkspaceHost<String>(
+                service: controller.workspaces,
+                cloneArea: widget.cloneArea,
+                areaBuilder: widget.areaBuilder,
               ),
-            ),
-          ),
+          statusBar: widget.statusBar,
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/widgets.dart';
 
@@ -16,38 +18,7 @@ class ShowcaseApp extends StatefulWidget {
 
 class _ShowcaseAppState extends State<ShowcaseApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  late final BlenderApplicationController<Object?> _application =
-      BlenderApplicationController<Object?>(
-        initialState: null,
-        workspace: const BlenderDockSplitNode<String>(
-          id: 'workspace-columns',
-          direction: BlenderSplitDirection.horizontal,
-          fraction: .80,
-          first: BlenderDockSplitNode<String>(
-            id: 'main-stack',
-            direction: BlenderSplitDirection.vertical,
-            fraction: .84,
-            first: BlenderDockAreaNode<String>(id: 'main-area', value: 'main'),
-            second: BlenderDockAreaNode<String>(
-              id: 'bottom-area',
-              value: 'bottom',
-            ),
-          ),
-          second: BlenderDockSplitNode<String>(
-            id: 'right-stack',
-            direction: BlenderSplitDirection.vertical,
-            fraction: .27,
-            first: BlenderDockAreaNode<String>(
-              id: 'outliner-area',
-              value: 'right-top',
-            ),
-            second: BlenderDockAreaNode<String>(
-              id: 'properties-area',
-              value: 'right-bottom',
-            ),
-          ),
-        ),
-      );
+  late final BlenderApplicationController<Object?> _application;
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _fileSearchController = TextEditingController();
   final TextEditingController _keymapSearchController = TextEditingController();
@@ -467,8 +438,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   String _selectedObject = 'Cube';
   String? _selectedFile;
   String? _selectedShortcut;
-  String _status = 'Ready';
-
   final List<BlenderConsoleLine> _consoleLines = const <BlenderConsoleLine>[
     BlenderConsoleLine(
       'Blender UI console showcase',
@@ -500,6 +469,75 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           values: <String>['Light', 'Object', 'Warm', 'Visible'],
         ),
       ];
+
+  @override
+  void initState() {
+    super.initState();
+    _application = BlenderApplicationController<Object?>(
+      initialState: null,
+      workspace: const BlenderDockSplitNode<String>(
+        id: 'workspace-columns',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .80,
+        first: BlenderDockSplitNode<String>(
+          id: 'main-stack',
+          direction: BlenderSplitDirection.vertical,
+          fraction: .84,
+          first: BlenderDockAreaNode<String>(id: 'main-area', value: 'main'),
+          second: BlenderDockAreaNode<String>(
+            id: 'bottom-area',
+            value: 'bottom',
+          ),
+        ),
+        second: BlenderDockSplitNode<String>(
+          id: 'right-stack',
+          direction: BlenderSplitDirection.vertical,
+          fraction: .27,
+          first: BlenderDockAreaNode<String>(
+            id: 'outliner-area',
+            value: 'right-top',
+          ),
+          second: BlenderDockAreaNode<String>(
+            id: 'properties-area',
+            value: 'right-bottom',
+          ),
+        ),
+      ),
+      preferences: BlenderPreferencesService(
+        configuration: _preferencesConfiguration,
+      ),
+      presentation: BlenderApplicationPresentationService(
+        splash: const BlenderSplashScreenConfiguration(
+          title: 'Blender UI showcase',
+          message: 'Explore Blender-inspired editor components.',
+        ),
+        about: const BlenderAboutDialogConfiguration(
+          title: 'Blender UI showcase',
+          version: '0.1.0',
+          message: 'A Flutter component workbench for dense editor apps.',
+        ),
+      ),
+    );
+    _application.status.report('Ready');
+    _application.editorSession
+      ..selectView(
+        workspaceId: 'showcase',
+        areaId: 'main-area',
+        viewId: _mainEditorType.name,
+      )
+      ..selectView(
+        workspaceId: 'showcase',
+        areaId: 'outliner-area',
+        viewId: _rightTopEditorType.name,
+      )
+      ..selectView(
+        workspaceId: 'showcase',
+        areaId: 'properties-area',
+        viewId: _rightBottomEditorType.name,
+      )
+      ..selectOutlinerItem('showcase', _selectedObject)
+      ..inspectPropertiesTarget('showcase', _propertyTabs[_propertyTab].id);
+  }
 
   @override
   void dispose() {
@@ -1859,6 +1897,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       double step = 1,
       int decimalDigits = 2,
       String? suffix,
+      bool showSteppers = true,
       bool enabled = true,
     }) {
       return BlenderPropertyDescriptor<double>(
@@ -1873,6 +1912,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           step: step,
           decimalDigits: decimalDigits,
           suffix: suffix,
+          showSteppers: showSteppers,
           enabled: enabled,
           onChanged: onChanged,
         ),
@@ -1986,10 +2026,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               numberProperty(
                 'render-shadow-resolution',
                 'Resolution',
-                100,
-                min: 1,
-                max: 100,
-                suffix: '%',
+                .763,
+                min: 0,
+                max: 1,
+                step: .01,
+                decimalDigits: 3,
+                showSteppers: false,
               ),
             ],
           ),
@@ -11955,10 +11997,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             BlenderMenuItem<String>(value: 'Cycles', label: 'Cycles'),
             BlenderMenuItem<String>(value: 'Workbench', label: 'Workbench'),
           ],
-          onChanged: (value) => setState(() {
-            _renderEngine = value;
-            _status = 'Render engine: $value';
-          }),
+          onChanged: (value) {
+            setState(() => _renderEngine = value);
+            _setStatus('Render engine: $value');
+          },
         ),
       );
     }
@@ -12403,10 +12445,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             icon: BlenderIcon(BlenderGlyph.bone, size: 14),
           ),
         ],
-        onChanged: (value) => setState(() {
-          _selectedObject = value;
-          _status = 'Selected data $value';
-        }),
+        onChanged: (value) {
+          setState(() => _selectedObject = value);
+          _application.editorSession.selectOutlinerItem('showcase', value);
+          _setStatus('Selected data $value');
+        },
       );
     }
     if (_propertyTab == 5) {
@@ -14800,7 +14843,37 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   }
 
   void _setStatus(String message) {
-    setState(() => _status = message);
+    _application.status.report(message);
+  }
+
+  void _setMainEditorType(BlenderEditorType value) {
+    if (_mainEditorType == value) return;
+    setState(() => _mainEditorType = value);
+    _application.editorSession.selectView(
+      workspaceId: 'showcase',
+      areaId: 'main-area',
+      viewId: value.name,
+    );
+  }
+
+  void _setRightTopEditorType(BlenderEditorType value) {
+    if (_rightTopEditorType == value) return;
+    setState(() => _rightTopEditorType = value);
+    _application.editorSession.selectView(
+      workspaceId: 'showcase',
+      areaId: 'outliner-area',
+      viewId: value.name,
+    );
+  }
+
+  void _setRightBottomEditorType(BlenderEditorType value) {
+    if (_rightBottomEditorType == value) return;
+    setState(() => _rightBottomEditorType = value);
+    _application.editorSession.selectView(
+      workspaceId: 'showcase',
+      areaId: 'properties-area',
+      viewId: value.name,
+    );
   }
 
   /// Lets showcase part files mutate this state's app-specific sample model
@@ -14808,17 +14881,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   void _update(VoidCallback mutation) => setState(mutation);
 
   void _showPreferencesWindow() {
-    // The menu route closes in the same frame as its action callback. Push
-    // the temporary window afterward so that route cleanup cannot dismiss it.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final navigatorContext = _navigatorKey.currentContext;
-      if (navigatorContext == null) return;
-      showBlenderPreferencesWindow(
-        navigatorContext,
-        configuration: _preferencesConfiguration,
-      );
-    });
+    final navigatorContext = _navigatorKey.currentContext;
+    if (navigatorContext == null) return;
+    unawaited(_application.preferences?.show(navigatorContext));
   }
 
   BlenderPreferencesConfiguration get _preferencesConfiguration =>
@@ -14855,7 +14920,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       controller: _application,
       topBar: _buildMainToolbar(),
       areaBuilder: _buildDockedArea,
-      preferences: _preferencesConfiguration,
       workspaceContent: _workspaceIndex == 10
           ? DemoWorkbench(onStatus: _setStatus)
           : null,
@@ -14863,7 +14927,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         _setStatus('Area split: $value');
         return value;
       },
-      statusBar: ShowcaseStatusBar(status: _status, onStatus: _setStatus),
+      statusBar: ShowcaseStatusBar(
+        status: _application.status,
+        onStatus: _setStatus,
+      ),
     );
   }
 
@@ -14984,8 +15051,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       ),
                     ],
                     onSelected: (item) {
-                      _setStatus(item.value);
                       close();
+                      switch (item.value) {
+                        case 'Splash Screen':
+                          unawaited(
+                            _application.presentation.showSplash(context),
+                          );
+                        case 'About Blender':
+                          unawaited(
+                            _application.presentation.showAbout(context),
+                          );
+                        default:
+                          _setStatus(item.value);
+                      }
                     },
                   ),
                 ),
@@ -15747,7 +15825,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: _mainEditorType,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       actionsScrollable: true,
       leading: <Widget>[
         SizedBox(
@@ -16263,7 +16341,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       leading: <Widget>[
         SizedBox(
           width: 86,
@@ -16433,7 +16511,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.spreadsheet,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       menus: _editorMenus(
         const <String>['View'],
         menuItems: const <String, List<String>>{
@@ -16589,7 +16667,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.clipEditor,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       leading: <Widget>[
         SizedBox(
           width: 82,
@@ -16925,7 +17003,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.nlaEditor,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       actionsScrollable: true,
       menus: _editorMenus(const <String>[
         'View',
@@ -17023,7 +17101,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       actionsScrollable: true,
       leading: <Widget>[
         if (!timeline)
@@ -17495,7 +17573,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       actionsScrollable: true,
       leading: <Widget>[
         SizedBox(
@@ -17656,7 +17734,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       leading: <Widget>[
         SizedBox(
           width: 92,
@@ -18057,7 +18135,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       menus: _editorMenus(menus, menuItems: menuItems),
       actions: const <Widget>[
         BlenderIconButton(glyph: BlenderGlyph.more, tooltip: 'Editor options'),
@@ -18398,7 +18476,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     if (_rightTopEditorType != BlenderEditorType.outliner) {
       return _buildSwappableSidebarArea(
         editorType: _rightTopEditorType,
-        onChanged: (value) => setState(() => _rightTopEditorType = value),
+        onChanged: _setRightTopEditorType,
       );
     }
     return BlenderOutliner<String>(
@@ -18406,8 +18484,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       roots: _outlinerRoots,
       selectedId: _selectedObject.toLowerCase(),
       editorType: _rightTopEditorType,
-      onEditorTypeChanged: (value) =>
-          setState(() => _rightTopEditorType = value),
+      onEditorTypeChanged: _setRightTopEditorType,
       displayMode: _outlinerDisplayMode,
       onDisplayModeChanged: (mode) =>
           setState(() => _outlinerDisplayMode = mode),
@@ -18437,6 +18514,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       filterController: _outlinerSearchController,
       onSelected: (node) {
         setState(() => _selectedObject = node.value ?? node.label);
+        _application.editorSession.selectOutlinerItem(
+          'showcase',
+          node.value ?? node.label,
+        );
         _setStatus('Selected ${node.label}');
       },
       onVisibilityChanged: (node) =>
@@ -18452,7 +18533,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     }
     return _buildSwappableSidebarArea(
       editorType: _rightBottomEditorType,
-      onChanged: (value) => setState(() => _rightBottomEditorType = value),
+      onChanged: _setRightBottomEditorType,
     );
   }
 
@@ -18953,6 +19034,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 selectedIndex: _propertyTab,
                 onChanged: (value) {
                   setState(() => _propertyTab = value);
+                  _application.editorSession.inspectPropertiesTarget(
+                    'showcase',
+                    _propertyTabs[value].id,
+                  );
                   _setStatus('Properties tab changed');
                 },
               ),
@@ -19111,8 +19196,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       background: BlenderTheme.of(context).colors.propertiesBackground,
       editorType: _rightBottomEditorType,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) =>
-          setState(() => _rightBottomEditorType = value),
+      onEditorTypeChanged: _setRightBottomEditorType,
       leading: const <Widget>[],
       menus: const <Widget>[],
       center: SizedBox(
@@ -19974,7 +20058,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 popover: (context, close) => _buildAnimationOverlayPopover(),
               ),
             const SizedBox(width: 6),
-            Text('$_status'),
+            AnimatedBuilder(
+              animation: _application.status,
+              builder: (context, _) =>
+                  Text(_application.status.message?.text ?? 'Ready'),
+            ),
           ],
         ),
         Expanded(child: _buildBottomContent()),
@@ -20026,10 +20114,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             category: 'Window',
           ),
         ],
-        onSelected: (entry) => setState(() {
-          _selectedShortcut = entry.id;
-          _status = 'Selected ${entry.action}';
-        }),
+        onSelected: (entry) {
+          setState(() => _selectedShortcut = entry.id);
+          _setStatus('Selected ${entry.action}');
+        },
       ),
       _ => _buildControlGallery(),
     };
@@ -20384,7 +20472,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: (value) => setState(() => _mainEditorType = value),
+      onEditorTypeChanged: _setMainEditorType,
       actionsScrollable: true,
       menus: _editorMenus(menus, menuItems: menuItems),
       actions: <Widget>[

@@ -1266,6 +1266,7 @@ class _ComponentCatalogExampleState extends State<ComponentCatalogExample> {
                           min: 0,
                           max: 1,
                           step: .01,
+                          showSteppers: false,
                           onChanged: changed,
                         ),
                     onChanged: (value) => setState(() {
@@ -1609,7 +1610,8 @@ const List<_CatalogComponent> _catalog = <_CatalogComponent>[
         'Keep expansion, enable flags, and range values in the caller-owned state.',
     callback:
         'Route header and property callbacks to state updates; disabled bodies stay visible but inert.',
-    keywords: 'property form groups inspector settings nested sections checkbox range',
+    keywords:
+        'property form groups inspector settings nested sections checkbox range',
   ),
   _CatalogComponent(
     id: 'notice',

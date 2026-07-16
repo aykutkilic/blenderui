@@ -4,6 +4,26 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-17 — Matched Blender factor sliders and number handles
+
+- Compared the Properties render controls with local blenderapp sources. The
+  `shadow_resolution_scale` RNA property is a `PROP_FACTOR` in
+  `rna_scene.cc`, which Blender routes to `ButtonType::NumSlider`; its
+  `widget_numslider` paints the proportional fill and does not draw number
+  arrows.
+- Added `BlenderNumberField.showSteppers` so factor sliders can use the full
+  field without increment handles, while ordinary number fields retain their
+  hover controls. Replaced text chevrons with centered vector glyphs so their
+  vertical alignment is independent of font metrics.
+- Updated the live Properties and Showcase render examples to use the
+  Blender-style `0..1` Resolution factor and added focused coverage for its
+  fill and no-stepper behavior.
+- Kept the factor fill behind the inline text editor as well, so the visual
+  state does not disappear when a user clicks into the value.
+- Corrected the shared fill geometry to occupy the full control height. The
+  previous width-only fraction had a zero-height empty decoration at runtime,
+  which made the widget present in tree tests but invisible in the example.
+
 ## 2026-07-17 — Consolidated app services and interactive documentation
 
 - Added the reusable application/editor service layer so high-density editor
@@ -12,6 +32,14 @@ live in [the decision records](decisions/).
   persistent editor context without adopting global state. The service boundary
   is documented in
   [`2026-07-17-application-editor-services.md`](decisions/2026-07-17-application-editor-services.md).
+- Migrated the example app onto those services for Preferences, splash/About,
+  status reporting, and the active main/Outliner/Properties editor context.
+  Its showcase-specific data model and individual editor widgets remain local
+  to the example app.
+- Focused example behavior and catalog tests passed. The broad screenshot suite
+  was not rebased because the concurrently changed factor-number control
+  produced widespread golden diffs; generated failure images were discarded so
+  the service migration does not hide an unrelated visual-baseline decision.
 - Added a live Components tutorial catalog and interactive examples, keeping
   application-specific demonstrations in `example/` while public primitives
   remain in the library.

@@ -52,6 +52,10 @@ The controller installs undo/redo bindings only when that shortcut is unbound,
 so an application can provide a `BlenderCommandBindings` service with a
 project-specific override without encountering duplicate keymap registration.
 
+`BlenderApplicationScope` installs the same services for apps that retain
+their own title bar, router, or frame. It lets those apps adopt the service
+boundary without nesting a second dockable shell.
+
 The shell does not inject a status-bar widget automatically: applications retain
 control of chrome density and choose whether to use
 `BlenderApplicationStatusBar` or a custom status surface.

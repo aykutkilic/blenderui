@@ -844,6 +844,7 @@ class BlenderNumberField extends StatefulWidget {
     this.suffix,
     this.fieldWidth,
     this.backgroundColor,
+    this.showSteppers = true,
     this.enabled = true,
   });
 
@@ -857,6 +858,13 @@ class BlenderNumberField extends StatefulWidget {
   final String? suffix;
   final double? fieldWidth;
   final Color? backgroundColor;
+
+  /// Shows Blender-style increment/decrement handles while hovered.
+  ///
+  /// Blender's bounded factor properties use a `NumSlider` instead of a
+  /// number button. Set this to false for those fields so the range fill can
+  /// occupy the complete control, matching `PROP_FACTOR` behavior.
+  final bool showSteppers;
   final bool enabled;
 
   @override
@@ -982,6 +990,13 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final range = widget.min != null && widget.max != null
+        ? widget.max! - widget.min!
+        : 0.0;
+    final fraction = range > 0
+        ? ((widget.value - widget.min!) / range).clamp(0.0, 1.0).toDouble()
+        : 0.0;
+    final radius = BorderRadius.circular(theme.shapes.controlRadius);
     final label = widget.label == null
         ? null
         : GestureDetector(
@@ -996,17 +1011,21 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
       controller: _controller,
       focusNode: _focusNode,
       enabled: widget.enabled,
-      backgroundColor: widget.backgroundColor ?? theme.colors.button,
+      // Blender keeps a factor field's slider layer visible while its value
+      // is edited. The range fill is supplied by the parent stack below.
+      backgroundColor: !widget.showSteppers && range > 0
+          ? const Color(0x00000000)
+          : widget.backgroundColor ?? theme.colors.button,
       textAlign: TextAlign.center,
-      leading: _hovered
+      leading: _hovered && widget.showSteppers
           ? _BlenderNumberStepper(
-              label: '‹',
+              previous: true,
               onPressed: () => _setValue(widget.value - widget.step),
             )
           : null,
-      trailing: _hovered
+      trailing: _hovered && widget.showSteppers
           ? _BlenderNumberStepper(
-              label: '›',
+              previous: false,
               onPressed: () => _setValue(widget.value + widget.step),
             )
           : null,
@@ -1022,6 +1041,21 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
         _finishEditing();
       },
     );
+    final editingField = !widget.showSteppers && range > 0
+        ? Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              _BlenderNumberRangeFill(
+                fraction: fraction,
+                radius: radius,
+                color: widget.enabled
+                    ? theme.colors.buttonSelected
+                    : theme.colors.borderSubtle,
+              ),
+              field,
+            ],
+          )
+        : field;
     final display = MouseRegion(
       cursor: widget.enabled
           ? SystemMouseCursors.resizeColumn
@@ -1042,15 +1076,6 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
             : null,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final range = widget.min != null && widget.max != null
-                ? widget.max! - widget.min!
-                : 0.0;
-            final fraction = range > 0
-                ? ((widget.value - widget.min!) / range)
-                      .clamp(0.0, 1.0)
-                      .toDouble()
-                : 0.0;
-            final radius = BorderRadius.circular(theme.shapes.controlRadius);
             return Container(
               key: const ValueKey<String>('blender-number-field-surface'),
               height: theme.density.controlHeight,
@@ -1065,28 +1090,18 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                 fit: StackFit.expand,
                 children: <Widget>[
                   if (range > 0)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: fraction,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: widget.enabled
-                                ? theme.colors.buttonSelected
-                                : theme.colors.borderSubtle,
-                            borderRadius: BorderRadius.only(
-                              topLeft: radius.topLeft,
-                              bottomLeft: radius.bottomLeft,
-                            ),
-                          ),
-                        ),
-                      ),
+                    _BlenderNumberRangeFill(
+                      fraction: fraction,
+                      radius: radius,
+                      color: widget.enabled
+                          ? theme.colors.buttonSelected
+                          : theme.colors.borderSubtle,
                     ),
                   Row(
                     children: <Widget>[
-                      if (_hovered)
+                      if (_hovered && widget.showSteppers)
                         _BlenderNumberStepper(
-                          label: '‹',
+                          previous: true,
                           onPressed: () =>
                               _setValue(widget.value - widget.step),
                         ),
@@ -1101,9 +1116,9 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                           ),
                         ),
                       ),
-                      if (_hovered)
+                      if (_hovered && widget.showSteppers)
                         _BlenderNumberStepper(
-                          label: '›',
+                          previous: false,
                           onPressed: () =>
                               _setValue(widget.value + widget.step),
                         ),
@@ -1121,13 +1136,13 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
         children: <Widget>[
           if (label != null) Expanded(child: label),
           if (widget.fieldWidth == null && widget.label == null)
-            Expanded(child: _editing ? field : display)
+            Expanded(child: _editing ? editingField : display)
           else
             Flexible(
               fit: FlexFit.loose,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: widget.fieldWidth ?? 90),
-                child: _editing ? field : display,
+                child: _editing ? editingField : display,
               ),
             ),
         ],
@@ -1136,10 +1151,45 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
   }
 }
 
-class _BlenderNumberStepper extends StatelessWidget {
-  const _BlenderNumberStepper({required this.label, required this.onPressed});
+class _BlenderNumberRangeFill extends StatelessWidget {
+  const _BlenderNumberRangeFill({
+    required this.fraction,
+    required this.radius,
+    required this.color,
+  });
 
-  final String label;
+  final double fraction;
+  final BorderRadius radius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: fraction,
+        heightFactor: 1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.only(
+              topLeft: radius.topLeft,
+              bottomLeft: radius.bottomLeft,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BlenderNumberStepper extends StatelessWidget {
+  const _BlenderNumberStepper({
+    required this.previous,
+    required this.onPressed,
+  });
+
+  final bool previous;
   final VoidCallback onPressed;
 
   @override
@@ -1149,14 +1199,15 @@ class _BlenderNumberStepper extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onPressed,
       child: SizedBox(
-        width: 18,
-        height: theme.density.controlHeight - 2,
+        width: 16,
+        height: theme.density.controlHeight,
         child: Center(
-          child: Text(
-            label,
-            style: theme.textTheme.body.copyWith(
+          child: RotatedBox(
+            quarterTurns: previous ? 2 : 0,
+            child: BlenderIcon(
+              BlenderGlyph.chevronRight,
+              size: 11,
               color: theme.colors.foreground,
-              fontSize: 17,
             ),
           ),
         ),

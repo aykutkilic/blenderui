@@ -21,6 +21,7 @@ export 'src/application.dart'
     show
         BlenderAboutDialogConfiguration,
         BlenderApplicationController,
+        BlenderApplicationScope,
         BlenderApplicationPresentationService,
         BlenderApplicationMenu,
         BlenderApplicationMenuBar,

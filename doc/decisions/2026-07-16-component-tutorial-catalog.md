@@ -47,6 +47,8 @@ composition.
   groups describe panel hierarchy, header widgets own feature toggles, and
   group `enabled` state controls only the body. Bounded numeric values use the
   shared number-field range fill rather than a demo-only progress treatment.
+  Factor values such as render shadow resolution disable number steppers,
+  matching Blender's `NumSlider` control.
 
 ## Verification
 
