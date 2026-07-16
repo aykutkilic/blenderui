@@ -994,10 +994,12 @@ class BlenderPreferenceCategoryGroup {
   const BlenderPreferenceCategoryGroup({
     required this.id,
     required this.categories,
+    this.label,
   });
 
   final String id;
   final List<String> categories;
+  final String? label;
 }
 
 class BlenderPreferencesEditor extends StatefulWidget {
@@ -1408,7 +1410,32 @@ class _BlenderPreferencesWindowState extends State<BlenderPreferencesWindow> {
                                             bottom: 6,
                                           ),
                                           child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: <Widget>[
+                                              if (group.label case final label?)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        10,
+                                                        10,
+                                                        10,
+                                                        4,
+                                                      ),
+                                                  child: Text(
+                                                    label,
+                                                    style: theme
+                                                        .textTheme
+                                                        .caption
+                                                        .copyWith(
+                                                          color: theme
+                                                              .colors
+                                                              .foregroundMuted,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                ),
                                               for (final category
                                                   in group.categories)
                                                 if (widget.categories.contains(

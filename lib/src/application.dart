@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'controls.dart';
@@ -336,6 +338,21 @@ class BlenderPreferencesConfiguration {
   final ValueChanged<String>? onCategoryChanged;
 }
 
+/// Framework-owned presenter for an application's temporary Preferences
+/// window.
+///
+/// Applications own the actual preference sections and persistence. This
+/// service owns only the menu-safe temporary-window presentation, so Edit >
+/// Preferences has the same behavior in every BlenderUI application.
+class BlenderPreferencesService {
+  const BlenderPreferencesService({required this.configuration});
+
+  final BlenderPreferencesConfiguration configuration;
+
+  Future<void> show(BuildContext context) =>
+      showBlenderPreferencesWindow(context, configuration: configuration);
+}
+
 /// Opens a source-shaped temporary Preferences window.
 ///
 /// Use this from a menu command after the menu route has closed. The returned
@@ -344,20 +361,38 @@ Future<void> showBlenderPreferencesWindow(
   BuildContext context, {
   required BlenderPreferencesConfiguration configuration,
 }) {
-  return showBlenderDialog<void>(
-    context: context,
-    barrierLabel: 'Dismiss ${configuration.title}',
-    builder: (_) => BlenderPreferencesWindow(
-      categories: configuration.categories,
-      categoryGroups: configuration.categoryGroups,
-      sections: configuration.sections,
-      initialCategory: configuration.initialCategory,
-      title: configuration.title,
-      width: configuration.width,
-      height: configuration.height,
-      onCategoryChanged: configuration.onCategoryChanged,
-    ),
-  );
+  // A menu item removes its own popover route after its callback returns. Open
+  // the temporary Preferences window in the next frame so that cleanup cannot
+  // pop the newly created window. Centralizing this here lets every app use
+  // the same safe presentation path, rather than repeating the workaround at
+  // each Edit > Preferences command.
+  final completion = Completer<void>();
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (!context.mounted) {
+      completion.complete();
+      return;
+    }
+    try {
+      await showBlenderDialog<void>(
+        context: context,
+        barrierLabel: 'Dismiss ${configuration.title}',
+        builder: (_) => BlenderPreferencesWindow(
+          categories: configuration.categories,
+          categoryGroups: configuration.categoryGroups,
+          sections: configuration.sections,
+          initialCategory: configuration.initialCategory,
+          title: configuration.title,
+          width: configuration.width,
+          height: configuration.height,
+          onCategoryChanged: configuration.onCategoryChanged,
+        ),
+      );
+      completion.complete();
+    } catch (error, stackTrace) {
+      completion.completeError(error, stackTrace);
+    }
+  });
+  return completion.future;
 }
 
 /// Owns the framework-level state needed by a dockable desktop application.
@@ -475,15 +510,7 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>> {
     final preferences = widget.preferences;
     if (preferences == null) return;
     final navigatorContext = widget.navigatorKey?.currentContext ?? context;
-    // Menu popovers remove their route in the action frame. Deferring the
-    // dialog preserves the new route instead of allowing that cleanup to pop it.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      showBlenderPreferencesWindow(
-        navigatorContext,
-        configuration: preferences,
-      );
-    });
+    showBlenderPreferencesWindow(navigatorContext, configuration: preferences);
   }
 
   @override
