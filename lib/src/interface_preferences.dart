@@ -15,7 +15,7 @@ import 'theme_service.dart';
 /// Preferences window updates the open application immediately. The optional
 /// [baseTheme] retains an application's typography and density customizations
 /// while Blender Dark and Blender Light provide the shared palette.
-class BlenderInterfaceTheme extends StatelessWidget {
+class BlenderInterfaceTheme extends StatefulWidget {
   const BlenderInterfaceTheme({
     super.key,
     required this.preferences,
@@ -30,30 +30,67 @@ class BlenderInterfaceTheme extends StatelessWidget {
   final Widget child;
 
   @override
+  State<BlenderInterfaceTheme> createState() => _BlenderInterfaceThemeState();
+}
+
+class _BlenderInterfaceThemeState extends State<BlenderInterfaceTheme> {
+  late BlenderThemeController _themeController;
+
+  Listenable get _source => Listenable.merge(<Listenable>[
+    widget.preferences,
+    if (widget.themeService != null) widget.themeService!,
+  ]);
+
+  BlenderThemeData _resolveTheme() {
+    final activeTheme = widget.themeService?.activeTheme;
+    return activeTheme == null
+        ? widget.baseTheme.withInterfacePreferences(widget.preferences.value)
+        : widget.baseTheme
+              .copyWith(colors: activeTheme.colors)
+              .withInterfaceMetrics(widget.preferences.value);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _themeController = BlenderThemeController(
+      source: _source,
+      resolve: _resolveTheme,
+    );
+  }
+
+  @override
+  void didUpdateWidget(BlenderInterfaceTheme oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _themeController.update(source: _source, resolve: _resolveTheme);
+  }
+
+  @override
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[
-        preferences,
-        if (themeService != null) themeService!,
-      ]),
-      builder: (context, child) {
-        final activeTheme = themeService?.activeTheme;
-        final theme = activeTheme == null
-            ? baseTheme.withInterfacePreferences(preferences.value)
-            : baseTheme
-                  .copyWith(colors: activeTheme.colors)
-                  .withInterfaceMetrics(preferences.value);
-        return BlenderTheme(
-          data: theme,
-          child: DefaultTextStyle(
-            style: theme.textTheme.body.copyWith(
-              color: theme.colors.foreground,
+    return BlenderThemeScope(
+      controller: _themeController,
+      child: AnimatedBuilder(
+        animation: _themeController,
+        builder: (context, child) {
+          final theme = _themeController.data;
+          return BlenderTheme(
+            data: theme,
+            child: DefaultTextStyle(
+              style: theme.textTheme.body.copyWith(
+                color: theme.colors.foreground,
+              ),
+              child: child!,
             ),
-            child: child!,
-          ),
-        );
-      },
-      child: child,
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }

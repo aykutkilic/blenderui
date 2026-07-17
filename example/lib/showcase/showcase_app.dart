@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:blender_ui/blender_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../demo/demo_workbench.dart';
@@ -17,6 +18,9 @@ class ShowcaseApp extends StatefulWidget {
 }
 
 class _ShowcaseAppState extends State<ShowcaseApp> {
+  static const MethodChannel _windowChromeChannel = MethodChannel(
+    'blender_ui/window_chrome',
+  );
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final BlenderApplicationController<Object?> _application;
   final BlenderInterfacePreferencesService _interfacePreferences =
@@ -476,6 +480,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   @override
   void initState() {
     super.initState();
+    _themeService.addListener(_syncNativeWindowAppearance);
     _application = BlenderApplicationController<Object?>(
       initialState: null,
       workspace: const BlenderDockSplitNode<String>(
@@ -542,10 +547,33 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       )
       ..selectOutlinerItem('showcase', _selectedObject)
       ..inspectPropertiesTarget('showcase', _propertyTabs[_propertyTab].id);
+    _syncNativeWindowAppearance();
+  }
+
+  Future<void> _applyNativeWindowAppearance() async {
+    final appearance =
+        _themeService.activeTheme.colors.canvas.computeLuminance() > .5
+        ? 'light'
+        : 'dark';
+    try {
+      await _windowChromeChannel.invokeMethod<void>(
+        'setAppearance',
+        appearance,
+      );
+    } on MissingPluginException {
+      // The channel is implemented by the desktop example runners only.
+    } on PlatformException {
+      // Native title-bar styling is best effort and must not affect editing.
+    }
+  }
+
+  void _syncNativeWindowAppearance() {
+    unawaited(_applyNativeWindowAppearance());
   }
 
   @override
   void dispose() {
+    _themeService.removeListener(_syncNativeWindowAppearance);
     _application.dispose();
     _searchController.dispose();
     _fileSearchController.dispose();

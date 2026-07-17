@@ -332,6 +332,8 @@ class BlenderPreferencesConfiguration {
     this.width = 1040,
     this.height = 700,
     this.onCategoryChanged,
+    this.onMinimize,
+    this.onMaximize,
   });
 
   final List<String> categories;
@@ -342,6 +344,15 @@ class BlenderPreferencesConfiguration {
   final double width;
   final double height;
   final ValueChanged<String>? onCategoryChanged;
+
+  /// Delegates minimization to a host-native temporary window when supplied.
+  /// Otherwise BlenderUI's embedded presenter collapses the Preferences
+  /// window to its title bar.
+  final VoidCallback? onMinimize;
+
+  /// Delegates maximization to a host-native temporary window when supplied.
+  /// Otherwise BlenderUI's embedded presenter fills its safe viewport.
+  final VoidCallback? onMaximize;
 }
 
 /// Framework-owned presenter for an application's temporary Preferences
@@ -351,12 +362,27 @@ class BlenderPreferencesConfiguration {
 /// service owns only the menu-safe temporary-window presentation, so Edit >
 /// Preferences has the same behavior in every BlenderUI application.
 class BlenderPreferencesService {
-  const BlenderPreferencesService({required this.configuration});
+  BlenderPreferencesService({required this.configuration});
 
   final BlenderPreferencesConfiguration configuration;
+  BlenderThemeController? _themeController;
 
-  Future<void> show(BuildContext context) =>
-      showBlenderPreferencesWindow(context, configuration: configuration);
+  /// Binds the app-scoped theme source used when Preferences is opened from a
+  /// Navigator context above the application scope.
+  ///
+  /// Blender menus commonly dispatch global commands through that Navigator,
+  /// so relying only on inherited lookup would otherwise capture the root
+  /// default palette. Applications normally receive this binding
+  /// automatically from [BlenderApplicationController].
+  void bindThemeController(BlenderThemeController? controller) {
+    _themeController = controller;
+  }
+
+  Future<void> show(BuildContext context) => showBlenderPreferencesWindow(
+    context,
+    configuration: configuration,
+    themeController: _themeController,
+  );
 }
 
 /// Describes the optional startup splash presented by an application shell.
@@ -529,6 +555,7 @@ class BlenderApplicationStatusBar extends StatelessWidget {
 Future<void> showBlenderPreferencesWindow(
   BuildContext context, {
   required BlenderPreferencesConfiguration configuration,
+  BlenderThemeController? themeController,
 }) {
   // A menu item removes its own popover route after its callback returns. Open
   // the temporary Preferences window in the next frame so that cleanup cannot
@@ -545,7 +572,8 @@ Future<void> showBlenderPreferencesWindow(
       await showBlenderDialog<void>(
         context: context,
         barrierLabel: 'Dismiss ${configuration.title}',
-        builder: (_) => BlenderPreferencesWindow(
+        themeController: themeController,
+        builder: (dialogContext) => BlenderPreferencesWindow(
           categories: configuration.categories,
           categoryGroups: configuration.categoryGroups,
           sections: configuration.sections,
@@ -554,6 +582,9 @@ Future<void> showBlenderPreferencesWindow(
           width: configuration.width,
           height: configuration.height,
           onCategoryChanged: configuration.onCategoryChanged,
+          onClose: () => Navigator.of(dialogContext, rootNavigator: true).pop(),
+          onMinimize: configuration.onMinimize,
+          onMaximize: configuration.onMaximize,
         ),
       );
       completion.complete();
@@ -615,6 +646,28 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
            ),
        commands = BlenderCommandRegistry(),
        services = BlenderServiceContainer() {
+    final interfacePreferences = this.interfacePreferences;
+    final themeService = this.themeService;
+    if (interfacePreferences != null) {
+      themeController = BlenderThemeController(
+        source: Listenable.merge(<Listenable>[
+          interfacePreferences,
+          if (themeService != null) themeService,
+        ]),
+        resolve: () {
+          final activeTheme = themeService?.activeTheme;
+          return activeTheme == null
+              ? const BlenderThemeData().withInterfacePreferences(
+                  interfacePreferences.value,
+                )
+              : const BlenderThemeData()
+                    .copyWith(colors: activeTheme.colors)
+                    .withInterfaceMetrics(interfacePreferences.value);
+        },
+      );
+    } else {
+      themeController = null;
+    }
     commands
       ..register(
         BlenderCommand(
@@ -672,18 +725,17 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
       ..registerSingleton<BlenderApplicationPresentationService>(
         this.presentation,
       );
-    final interfacePreferences = this.interfacePreferences;
     if (interfacePreferences != null) {
       services.registerSingleton<BlenderInterfacePreferencesService>(
         interfacePreferences,
       );
     }
-    final themeService = this.themeService;
     if (themeService != null) {
       services.registerSingleton<BlenderThemeService>(themeService);
     }
     final preferences = this.preferences;
     if (preferences != null) {
+      preferences.bindThemeController(themeController);
       services.registerSingleton<BlenderPreferencesService>(preferences);
     }
     state.addListener(commands.refresh);
@@ -701,6 +753,7 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
   final BlenderEditorSessionService editorSession;
   final BlenderInterfacePreferencesService? interfacePreferences;
   final BlenderThemeService? themeService;
+  late final BlenderThemeController? themeController;
   final BlenderPreferencesService? preferences;
   final BlenderApplicationPresentationService presentation;
   final BlenderServiceContainer services;
@@ -713,6 +766,7 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     if (_disposed) return;
     _disposed = true;
     state.removeListener(commands.refresh);
+    themeController?.dispose();
     services.dispose();
   }
 }

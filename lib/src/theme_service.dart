@@ -290,12 +290,6 @@ class BlenderThemeXmlCodec {
       'inner': BlenderThemeColorRole.textField,
       'text': BlenderThemeColorRole.foreground,
     });
-    read(
-      _widget(ui, 'wcol_toolbar_item'),
-      const <String, BlenderThemeColorRole>{
-        'inner': BlenderThemeColorRole.topBar,
-      },
-    );
     read(_widget(ui, 'wcol_menu_back'), const <String, BlenderThemeColorRole>{
       'inner': BlenderThemeColorRole.menuBackground,
       'inner_sel': BlenderThemeColorRole.menuSelection,
@@ -329,6 +323,15 @@ class BlenderThemeXmlCodec {
         },
       );
     }
+    final topBar = _first(theme, 'ThemeTopBar');
+    if (topBar != null) {
+      read(
+        _first(topBar, 'ThemeSpaceGeneric'),
+        const <String, BlenderThemeColorRole>{
+          'back': BlenderThemeColorRole.topBar,
+        },
+      );
+    }
     final resolvedName = name ?? theme.getAttribute('name') ?? 'Imported Theme';
     return BlenderThemeDefinition(
       id: id,
@@ -357,6 +360,9 @@ class BlenderThemeXmlCodec {
     <properties>
       <ThemeProperties><space><ThemeSpaceGeneric back="${color(BlenderThemeColorRole.propertiesBackground)}" /></space></ThemeProperties>
     </properties>
+    <topbar>
+      <ThemeTopBar><space><ThemeSpaceGeneric back="${color(BlenderThemeColorRole.topBar)}" /></space></ThemeTopBar>
+    </topbar>
   </Theme>
   <ThemeStyle />
 </bpy>

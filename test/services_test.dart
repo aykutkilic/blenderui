@@ -291,6 +291,7 @@ void main() {
     </user_interface>
     <preferences><ThemePreferences back="#B3B3B3FF" /></preferences>
     <properties><ThemeProperties><space><ThemeSpaceGeneric back="#BABABAFF" /></space></ThemeProperties></properties>
+    <topbar><ThemeTopBar><space><ThemeSpaceGeneric back="#B3B3B3FF" /></space></ThemeTopBar></topbar>
   </Theme>
   <ThemeStyle />
 </bpy>''';
@@ -309,6 +310,7 @@ void main() {
       expect(imported.colors.canvas, const Color(0xFFB3B3B3));
       expect(imported.colors.buttonSelected, const Color(0xFFA3C4F3));
       expect(imported.colors.propertiesBackground, const Color(0xFFBABABA));
+      expect(imported.colors.topBar, const Color(0xFFB3B3B3));
       expect(imported.sourceFileName, 'light.xml');
       expect(service.themes, hasLength(3));
 
@@ -323,6 +325,7 @@ void main() {
         roundTrip.colors.propertiesBackground,
         imported.colors.propertiesBackground,
       );
+      expect(roundTrip.colors.topBar, imported.colors.topBar);
 
       await service.flush();
       service.dispose();

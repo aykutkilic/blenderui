@@ -337,7 +337,9 @@ export 'src/theme.dart'
         BlenderShapeTheme,
         BlenderTextTheme,
         BlenderTheme,
-        BlenderThemeData;
+        BlenderThemeController,
+        BlenderThemeData,
+        BlenderThemeScope;
 export 'src/tree_state.dart' show BlenderTreeEntry, BlenderTreeState;
 export 'src/templates.dart'
     show

@@ -58,6 +58,25 @@ live in [the decision records](decisions/).
   popovers/dialogs, while the example resolves custom panel colors beneath the
   app scope; compact icon actions also keep the Themes header usable at narrow
   Preferences widths.
+- Corrected the remaining live-update gap in the temporary Preferences route.
+  `BlenderThemeScope` now carries an observable theme source into overlays, so
+  an open Preferences window repaints as its theme is edited instead of
+  retaining the palette captured when it opened. The reusable embedded window
+  now supports title-bar drag, resize, close, minimize/restore, and
+  maximize/restore controls, with host callbacks for native minimize/maximize
+  ownership.
+- Followed the actual example `Edit > Preferences` launch path and fixed its
+  remaining root-Navigator theme gap: the app controller now binds the live
+  theme source directly to the Preferences presentation service. The temporary
+  window also gained visible right/bottom resize zones and a larger diagonal
+  corner grip, replacing its hard-to-discover invisible 18px target.
+- Corrected the Blender Light top-bar mapping from blenderapp's
+  `ThemeTopBar` instead of its separate dark toolbar-item color. File/Edit and
+  View/Select/Add now use the source light menu surface; the example macOS
+  runner also follows the active palette with its native title-bar appearance.
+- Fixed the final live-dialog inheritance layer: open Preferences routes now
+  update their inherited foreground text style together with their palette,
+  so unstyled labels no longer retain dark-theme white after selecting Light.
 
 ## 2026-07-17 — Consolidated app services and interactive documentation
 

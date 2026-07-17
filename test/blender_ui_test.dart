@@ -290,6 +290,94 @@ void main() {
     expect(themes.activeTheme.isBuiltIn, isFalse);
   });
 
+  testWidgets(
+    'Preferences service carries its live theme through a root Navigator context',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      final interfacePreferences = BlenderInterfacePreferencesService();
+      final themes = BlenderThemeService();
+      final preferences = BlenderPreferencesService(
+        configuration: BlenderPreferencesConfiguration(
+          categories: const <String>['Themes'],
+          sections: <BlenderPreferenceSection>[
+            BlenderPreferenceSection(
+              id: 'palette',
+              category: 'Themes',
+              title: 'Palette',
+              child: Builder(
+                builder: (context) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    DecoratedBox(
+                      key: const ValueKey<String>('preferences-live-palette'),
+                      decoration: BoxDecoration(
+                        color: BlenderTheme.of(context).colors.canvas,
+                      ),
+                      child: const SizedBox(height: 40),
+                    ),
+                    const Text(
+                      'Live theme label',
+                      key: ValueKey<String>('preferences-live-label'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      final application = BlenderApplicationController<Object?>(
+        initialState: null,
+        interfacePreferences: interfacePreferences,
+        themeService: themes,
+        preferences: preferences,
+      );
+      addTearDown(application.dispose);
+
+      await tester.pumpWidget(
+        BlenderApp(
+          navigatorKey: navigatorKey,
+          home: BlenderApplicationScope<Object?>(
+            controller: application,
+            child: Builder(
+              builder: (_) => BlenderButton(
+                label: 'Preferences',
+                onPressed: () => preferences.show(navigatorKey.currentContext!),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Preferences'));
+      await tester.pumpAndSettle();
+      final palette = find.byKey(
+        const ValueKey<String>('preferences-live-palette'),
+      );
+      expect(
+        (tester.widget<DecoratedBox>(palette).decoration as BoxDecoration)
+            .color,
+        const BlenderColorScheme.dark().canvas,
+      );
+
+      themes.select('blender-light');
+      await tester.pump();
+      expect(
+        (tester.widget<DecoratedBox>(palette).decoration as BoxDecoration)
+            .color,
+        const BlenderColorScheme.light().canvas,
+      );
+      expect(
+        DefaultTextStyle.of(
+          tester.element(
+            find.byKey(const ValueKey<String>('preferences-live-label')),
+          ),
+        ).style.color,
+        const BlenderColorScheme.light().foreground,
+      );
+    },
+  );
+
   testWidgets('theme Preferences delegate Blender XML files to the host', (
     tester,
   ) async {
@@ -380,6 +468,8 @@ void main() {
               context,
               configuration: const BlenderPreferencesConfiguration(
                 categories: <String>['Interface'],
+                width: 600,
+                height: 400,
                 sections: <BlenderPreferenceSection>[
                   BlenderPreferenceSection(
                     id: 'display',
@@ -400,6 +490,126 @@ void main() {
 
     expect(find.byType(BlenderPreferencesWindow), findsOneWidget);
     expect(find.text('Resolution Scale'), findsOneWidget);
+  });
+
+  testWidgets('temporary Preferences window moves, minimizes, and closes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Builder(
+          builder: (context) => BlenderButton(
+            label: 'Preferences',
+            onPressed: () => showBlenderPreferencesWindow(
+              context,
+              configuration: const BlenderPreferencesConfiguration(
+                categories: <String>['Interface'],
+                width: 600,
+                height: 400,
+                sections: <BlenderPreferenceSection>[
+                  BlenderPreferenceSection(
+                    id: 'display',
+                    category: 'Interface',
+                    title: 'Display',
+                    child: Text('Resolution Scale'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Preferences'));
+    await tester.pumpAndSettle();
+    final window = find.byType(BlenderPreferencesWindow);
+    final initialPosition = tester.getTopLeft(find.text('Resolution Scale'));
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('preferences-window-title-bar')),
+      const Offset(-60, -32),
+    );
+    await tester.pump();
+    expect(
+      tester.getTopLeft(find.text('Resolution Scale')),
+      isNot(initialPosition),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('preferences-window-minimize')),
+    );
+    await tester.pump();
+    expect(tester.getSize(window).height, 48);
+    expect(find.text('Resolution Scale'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('preferences-window-minimize')),
+    );
+    await tester.pump();
+    expect(find.text('Resolution Scale'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('preferences-window-close')),
+    );
+    await tester.pumpAndSettle();
+    expect(window, findsNothing);
+  });
+
+  testWidgets('dialog routes retain a live Blender theme source', (
+    tester,
+  ) async {
+    final selectedTheme = ValueNotifier<BlenderThemeData>(
+      BlenderThemeData.dark,
+    );
+    final themeController = BlenderThemeController(
+      source: selectedTheme,
+      resolve: () => selectedTheme.value,
+    );
+    addTearDown(() {
+      themeController.dispose();
+      selectedTheme.dispose();
+    });
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderThemeScope(
+          controller: themeController,
+          child: Builder(
+            builder: (context) => BlenderButton(
+              label: 'Open',
+              onPressed: () => showBlenderDialog<void>(
+                context: context,
+                builder: (_) => Builder(
+                  builder: (context) => DecoratedBox(
+                    key: const ValueKey<String>('live-theme-dialog'),
+                    decoration: BoxDecoration(
+                      color: BlenderTheme.of(context).colors.canvas,
+                    ),
+                    child: const SizedBox(width: 120, height: 80),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    final dialog = find.byKey(const ValueKey<String>('live-theme-dialog'));
+    expect(
+      (tester.widget<DecoratedBox>(dialog).decoration as BoxDecoration).color,
+      const BlenderColorScheme.dark().canvas,
+    );
+
+    selectedTheme.value = BlenderThemeData.light;
+    await tester.pump();
+    expect(
+      (tester.widget<DecoratedBox>(dialog).decoration as BoxDecoration).color,
+      const BlenderColorScheme.light().canvas,
+    );
   });
 
   testWidgets('transform property fields keep caller-owned callbacks', (
@@ -906,6 +1116,39 @@ void main() {
     expect(observed.colors.propertiesBackground, const Color(0xFF303030));
     expect(observed.colors.panelSubSurface, const Color(0x1F000000));
     expect(observed.colors.panelOutline, const Color(0x11FFFFFF));
+  });
+
+  testWidgets('light top-bar menus use Blender ThemeTopBar background', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlenderTheme(
+          data: BlenderThemeData.light,
+          child: BlenderMenuButton<String>(
+            label: 'View',
+            variant: BlenderButtonVariant.topBar,
+            items: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'frame', label: 'Frame Selected'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+            of: find.text('View'),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    expect(
+      (surface.decoration as BoxDecoration).color,
+      const BlenderColorScheme.light().topBar,
+    );
   });
 
   testWidgets('header scroll surfaces hide automatic desktop scrollbars', (
@@ -3287,8 +3530,8 @@ void main() {
                 BlenderMenuItem(value: 'preferences', label: 'Preferences…'),
               ],
               onSelected: (_) {
-                const BlenderPreferencesService(
-                  configuration: BlenderPreferencesConfiguration(
+                BlenderPreferencesService(
+                  configuration: const BlenderPreferencesConfiguration(
                     categories: <String>['General'],
                     sections: <BlenderPreferenceSection>[],
                   ),

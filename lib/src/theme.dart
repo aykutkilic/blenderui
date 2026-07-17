@@ -136,7 +136,10 @@ class BlenderColorScheme {
       buttonPressed = const Color(0xFFC0C0C0),
       buttonSelected = const Color(0xFF5680C2),
       textField = const Color(0xFFF4F4F4),
-      topBar = const Color(0xFF434343),
+      // Blender Light's `ThemeTopBar.space.ThemeSpaceGeneric.back`.
+      // `wcol_toolbar_item` is intentionally dark in Blender Light, but it
+      // styles toolbar items rather than the application/area menu surface.
+      topBar = const Color(0xFFB3B3B3),
       menuBackground = const Color(0xFFC0C0C0),
       menuSelection = const Color(0xFF5680C2),
       propertiesBackground = const Color(0xFFB3B3B3),
@@ -550,6 +553,66 @@ class BlenderTheme extends InheritedTheme {
 
   @override
   bool updateShouldNotify(BlenderTheme oldWidget) => data != oldWidget.data;
+}
+
+/// A live theme source that can be carried into an overlay route.
+///
+/// Flutter inserts dialog routes above the application subtree.  A regular
+/// [InheritedTheme.captureAll] correctly preserves the theme visible when the
+/// route opens, but it intentionally captures a snapshot.  Editor
+/// applications need Preferences to repaint while it edits the active theme,
+/// so [BlenderThemeScope] carries the source as well as its current value.
+class BlenderThemeController extends ChangeNotifier {
+  BlenderThemeController({
+    required Listenable source,
+    required BlenderThemeData Function() resolve,
+  }) : _source = source,
+       _resolve = resolve {
+    _source.addListener(_notify);
+  }
+
+  Listenable _source;
+  BlenderThemeData Function() _resolve;
+
+  BlenderThemeData get data => _resolve();
+
+  void update({
+    required Listenable source,
+    required BlenderThemeData Function() resolve,
+  }) {
+    if (!identical(_source, source)) {
+      _source.removeListener(_notify);
+      _source = source;
+      _source.addListener(_notify);
+    }
+    _resolve = resolve;
+    notifyListeners();
+  }
+
+  void _notify() => notifyListeners();
+
+  @override
+  void dispose() {
+    _source.removeListener(_notify);
+    super.dispose();
+  }
+}
+
+/// Exposes a [BlenderThemeController] to route presenters.
+///
+/// Use this around an application theme when popovers or temporary windows
+/// must follow live theme edits. It is deliberately separate from
+/// [BlenderTheme]: callers that only need the current palette still use the
+/// familiar [BlenderTheme.of] API.
+class BlenderThemeScope extends InheritedNotifier<BlenderThemeController> {
+  const BlenderThemeScope({
+    super.key,
+    required BlenderThemeController controller,
+    required super.child,
+  }) : super(notifier: controller);
+
+  static BlenderThemeController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<BlenderThemeScope>()?.notifier;
 }
 
 class BlenderApp extends StatelessWidget {

@@ -163,6 +163,28 @@ void main() {
       tester.getSize(find.byType(BlenderPreferencesWindow)).width,
       greaterThan(beforeResize.width),
     );
+
+    await tester.tap(find.text('Themes').first);
+    await tester.pumpAndSettle();
+    final themeSelector = find.descendant(
+      of: find.byType(BlenderThemePreferencesEditor),
+      matching: find.byType(BlenderDropdown<String>),
+    );
+    await tester.tap(
+      find
+          .descendant(of: themeSelector, matching: find.byType(BlenderButton))
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Blender Light').last);
+    await tester.pumpAndSettle();
+    final preferencesSurface = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey<String>('preferences-window-surface')),
+    );
+    expect(
+      (preferencesSurface.decoration as BoxDecoration).color,
+      const BlenderColorScheme.light().canvas,
+    );
   });
 
   testWidgets('Properties contexts follow Blender source tab order', (

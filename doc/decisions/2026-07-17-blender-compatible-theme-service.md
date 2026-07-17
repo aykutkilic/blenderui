@@ -116,3 +116,99 @@ header at narrow Preferences widths. The header now follows Blender's compact
 icon action pattern for new/remove/save/install/reset. Tests cover route-menu
 palette capture, XML `ThemeProperties` background mapping, and a real example
 theme change reaching the Properties subsection.
+
+## Follow-up: live temporary Preferences windows
+
+blenderapp's `SCREEN_OT_userpref_show` calls
+`ED_screen_temp_space_open(... SPACE_USERPREF,
+U.preferences_display_type, false)`. The screen implementation delegates the
+window display mode to `WM_window_open_temp()` or opens a temporary fullscreen
+space. Preferences therefore belongs to the same temporary-editor/window
+lifecycle as other Blender editors, rather than being a one-shot painted
+dialog.
+
+BlenderUI retains a dependency-free embedded temporary-window presenter, but
+now gives it the corresponding interaction contract: its title bar drags,
+its resize grip resizes, and its close/minimize/maximize controls are real
+actions. The default presenter closes its route, collapses a minimized window
+to its title bar, and fills the safe viewport when maximized. Hosts that own a
+native temporary window can delegate minimize/maximize through
+`BlenderPreferencesConfiguration`; the library does not impose a window-plugin
+dependency or platform-specific window API.
+
+The earlier `InheritedTheme.captureAll()` change was only a snapshot of the
+theme at route creation. That correctly fixed overlays opening in the root
+dark palette, but it could not repaint an already-open Preferences route when
+the theme service changed. `BlenderThemeController` and `BlenderThemeScope`
+now carry the live theme source across route boundaries. Dialog/popup routes
+still capture ordinary inherited themes, then install a live inner
+`BlenderTheme` that listens to the scoped source. This preserves route
+isolation while ensuring theme editing immediately updates the Preferences
+window itself.
+
+Focused widget tests cover live dialog palette updates plus move, minimize,
+restore, and close actions. An initial drag assertion looked at the window
+root's `RenderTransform`, which reports its layout origin rather than the
+translated child position; the final test asserts the content position, the
+observable behavior users see.
+
+## Follow-up: root-Navigator presentation and discoverable resize
+
+The example app opens its global Edit > Preferences command through its root
+`Navigator` key. That context intentionally sits above `BlenderApplicationScope`,
+so neither `BlenderThemeScope` nor any other inherited application service is
+visible there. The first live-route bridge therefore worked for locally
+presented dialogs but still left the real temporary Preferences window frozen
+on the palette that was active at opening.
+
+`BlenderApplicationController` now owns a live `BlenderThemeController` for
+the registered interface/theme services and binds it to
+`BlenderPreferencesService`. The presenter passes that explicit controller to
+the route, independent of the context used to dispatch the command. This is
+the appropriate service boundary for global menu commands: the application
+owns the live state; the navigator only presents it.
+
+The old resize affordance was an invisible 18px bottom-right hit target. It
+was easy to miss and did not offer native-window-like edge behavior. The
+temporary window now exposes right and bottom edge targets plus a visible,
+larger diagonal corner grip. The grip resizes both dimensions while each edge
+resizes one axis. Focused example coverage exercises `Edit > Preferences`,
+selects Blender Light, asserts the dialog surface palette, and drags the
+visible corner grip.
+
+The complete service suite also caught an initialization oversight in the
+first controller implementation: applications that do not opt into Interface
+preferences still dispose an application controller, so its optional live
+theme controller must be initialized to `null`, not left as an unset `late`
+field. The no-preferences path is now covered by the existing broad service
+and widget suite.
+
+## Follow-up: ThemeTopBar and native title-bar appearance
+
+The local blenderapp `Blender_Light.xml` distinguishes the light application
+top bar from its intentionally dark toolbar-item widgets: `ThemeTopBar` has
+`ThemeSpaceGeneric.back="#b3b3b3"`, while `wcol_toolbar_item.inner` is
+`#434343`. BlenderUI had incorrectly mapped the latter to its `topBar` role,
+which kept File/Edit menus and View/Select/Add area menus dark after choosing
+Blender Light. The portable codec now reads and writes `ThemeTopBar`, and the
+built-in light palette uses its source `#B3B3B3` value. A widget regression
+asserts the View-style `topBar` menu background, and the XML round-trip test
+covers `ThemeTopBar`.
+
+Flutter widgets cannot recolor macOS's native title bar. The example's macOS
+runner therefore exposes a narrow `blender_ui/window_chrome` method channel.
+The showcase listens to the active theme and requests `NSAppearance.aqua` or
+`NSAppearance.darkAqua` from the runner based on the active palette's canvas
+luminance. The bridge is explicitly best effort on non-desktop hosts and is
+kept in the example runner rather than forcing a native-window dependency on
+BlenderUI applications. A macOS debug build completed after the change.
+
+## Follow-up: live overlay text style
+
+`InheritedTheme.captureAll()` also retains the initiating route's
+`DefaultTextStyle`. Updating only the live `BlenderTheme` therefore corrected
+the Preferences background while leaving unstyled text inherited from the
+dark route. The dialog bridge now installs a live `DefaultTextStyle` alongside
+the live `BlenderTheme`, using the current palette's foreground. The
+root-Navigator Preferences regression asserts both the updated canvas and the
+resolved default text color after selecting Blender Light.

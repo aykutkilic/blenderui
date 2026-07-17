@@ -1261,18 +1261,40 @@ Future<T?> showBlenderDialog<T>({
   required WidgetBuilder builder,
   bool barrierDismissible = true,
   String barrierLabel = 'Dismiss dialog',
+  BlenderThemeController? themeController,
 }) {
+  final liveTheme = themeController ?? BlenderThemeScope.maybeOf(context);
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: barrierLabel,
     barrierColor: const Color(0x99000000),
     transitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (dialogContext, animation, secondaryAnimation) =>
-        InheritedTheme.captureAll(
-          context,
-          SafeArea(child: Center(child: builder(dialogContext))),
-        ),
+    pageBuilder: (dialogContext, animation, secondaryAnimation) {
+      final dialog = SafeArea(child: Center(child: builder(dialogContext)));
+      // captureAll preserves other inherited themes and the initial Blender
+      // palette. The live scope is applied inside it, where it can repaint a
+      // route while Preferences changes the selected theme.
+      final liveDialog = liveTheme == null
+          ? dialog
+          : AnimatedBuilder(
+              animation: liveTheme,
+              builder: (context, child) {
+                final theme = liveTheme.data;
+                return BlenderTheme(
+                  data: theme,
+                  child: DefaultTextStyle(
+                    style: theme.textTheme.body.copyWith(
+                      color: theme.colors.foreground,
+                    ),
+                    child: child!,
+                  ),
+                );
+              },
+              child: dialog,
+            );
+      return InheritedTheme.captureAll(context, liveDialog);
+    },
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
