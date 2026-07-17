@@ -2,7 +2,15 @@ import 'package:blender_ui_example/main.dart';
 import 'package:blender_ui_example/demo/demo_workbench.dart';
 import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/widgets.dart'
-    show CustomPaint, Offset, Scrollable, Size, SizedBox, ValueKey;
+    show
+        BoxDecoration,
+        CustomPaint,
+        DecoratedBox,
+        Offset,
+        Scrollable,
+        Size,
+        SizedBox,
+        ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../lib/showcase_viewport.dart';
@@ -871,8 +879,8 @@ void main() {
     expect(find.text('System'), findsOneWidget);
     expect(find.text('Display'), findsOneWidget);
     expect(find.text('Text Rendering'), findsOneWidget);
-    expect(find.text('Temporary Editors'), findsOneWidget);
-    expect(find.text('Status Bar'), findsOneWidget);
+    expect(find.text('Editors'), findsWidgets);
+    expect(find.text('Navigation Controls'), findsOneWidget);
 
     await tester.tap(
       find.descendant(
@@ -927,11 +935,11 @@ void main() {
 
     await tester.tap(find.text('Themes').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('User Interface').first);
+    expect(find.text('User Interface'), findsWidgets);
+    expect(find.text('Editor Background'), findsOneWidget);
+    await tester.tap(find.text('Widgets').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Editor & Widgets').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Transparent Checkerboard'), findsOneWidget);
+    expect(find.text('Button'), findsOneWidget);
 
     await tester.tap(find.text('Save & Load').first);
     await tester.pumpAndSettle();
@@ -942,6 +950,44 @@ void main() {
     await expectLater(
       find.byType(ShowcaseApp),
       matchesGoldenFile('goldens/showcase_preferences.png'),
+    );
+  });
+
+  testWidgets('theme selection updates the showcase Properties subsections', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final selectorRect = tester.getRect(
+      find.byType(BlenderEditorTypeSelector).first,
+    );
+    await tester.tapAt(selectorRect.topLeft + const Offset(12, 11));
+    await tester.pump();
+    await tester.tap(find.text('Preferences'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Themes').first);
+    await tester.pumpAndSettle();
+
+    final selector = find.descendant(
+      of: find.byType(BlenderThemePreferencesEditor),
+      matching: find.byType(BlenderDropdown<String>),
+    );
+    await tester.tap(
+      find.descendant(of: selector, matching: find.byType(BlenderButton)).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Blender Light').last);
+    await tester.pumpAndSettle();
+
+    final panel = tester.widget<DecoratedBox>(
+      find.byKey(
+        const ValueKey<String>('showcase-tool-settings-panel-Options'),
+      ),
+    );
+    expect(
+      (panel.decoration as BoxDecoration).color,
+      const BlenderColorScheme.light().panelBackground,
     );
   });
 

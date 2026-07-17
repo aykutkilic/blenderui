@@ -107,6 +107,64 @@ class BlenderColorScheme {
       iconShading = const Color(0xFFCC6670),
       iconFolder = const Color(0xFFCCAD63);
 
+  /// Blender Light, transcribed from blenderapp's
+  /// `scripts/presets/interface_theme/Blender_Light.xml` widget palette.
+  ///
+  /// The original keeps a dark toolbar and tooltip treatment for contrast;
+  /// BlenderUI preserves that characteristic rather than using a generic
+  /// white Material-style color scheme.
+  const BlenderColorScheme.light()
+    : canvas = const Color(0xFFB3B3B3),
+      surface = const Color(0xFFC0C0C0),
+      surfaceElevated = const Color(0xFFCCCCCC),
+      surfaceRaised = const Color(0xFFDBDBDB),
+      border = const Color(0xFF999999),
+      borderSubtle = const Color(0xFFA6A6A6),
+      foreground = const Color(0xFF1A1A1A),
+      foregroundMuted = const Color(0xFF4D4D4D),
+      foregroundDisabled = const Color(0xFF777777),
+      accent = const Color(0xFF5680C2),
+      accentHover = const Color(0xFF668CCC),
+      selection = const Color(0xFF668CCC),
+      focus = const Color(0xFF3399E6),
+      warning = const Color(0xFFAC8737),
+      error = const Color(0xFF991616),
+      success = const Color(0xFF188625),
+      info = const Color(0xFF28487D),
+      button = const Color(0xFFDBDBDB),
+      buttonHover = const Color(0xFFE6E6E6),
+      buttonPressed = const Color(0xFFC0C0C0),
+      buttonSelected = const Color(0xFF5680C2),
+      textField = const Color(0xFFF4F4F4),
+      topBar = const Color(0xFF434343),
+      menuBackground = const Color(0xFFC0C0C0),
+      menuSelection = const Color(0xFF5680C2),
+      propertiesBackground = const Color(0xFFB3B3B3),
+      panelHeader = const Color(0xFFCCCCCC),
+      panelBackground = const Color(0xFFCCCCCC),
+      panelSubSurface = const Color(0x1F000000),
+      panelOutline = const Color(0x22FFFFFF),
+      tab = const Color(0xCC808080),
+      tabSelected = const Color(0xFFB3B3B3),
+      tabText = const Color(0xFF1A1A1A),
+      tabTextSelected = const Color(0xFF000000),
+      editorBorder = const Color(0xFF999999),
+      editorOutline = const Color(0xFFB3B3B3),
+      editorOutlineActive = const Color(0xFFCCCCCC),
+      link = const Color(0xFF6FA9E6),
+      cursor = const Color(0xFF3399E6),
+      axisX = const Color(0xFFFF3352),
+      axisY = const Color(0xFF8BDC00),
+      axisZ = const Color(0xFF2890FF),
+      axisW = const Color(0xFFB47AFF),
+      iconScene = const Color(0xFFE6E6E6),
+      iconCollection = const Color(0xFFF4F4F4),
+      iconObject = const Color(0xFFEE9E5D),
+      iconObjectData = const Color(0xFF00D4A3),
+      iconModifier = const Color(0xFF84B8FF),
+      iconShading = const Color(0xFFEA7581),
+      iconFolder = const Color(0xFFE3C16E);
+
   final Color canvas;
   final Color surface;
   final Color surfaceElevated;
@@ -316,6 +374,18 @@ class BlenderTextTheme {
       panelTitle: panelTitle ?? this.panelTitle,
     );
   }
+
+  BlenderTextTheme scaled(double factor) {
+    TextStyle scale(TextStyle style) =>
+        style.copyWith(fontSize: (style.fontSize ?? 14) * factor);
+    return BlenderTextTheme(
+      body: scale(body),
+      label: scale(label),
+      caption: scale(caption),
+      heading: scale(heading),
+      panelTitle: scale(panelTitle),
+    );
+  }
 }
 
 @immutable
@@ -353,6 +423,15 @@ class BlenderDensity {
       iconSize: iconSize ?? this.iconSize,
     );
   }
+
+  BlenderDensity scaled(double factor) => BlenderDensity(
+    controlHeight: controlHeight * factor,
+    rowHeight: rowHeight * factor,
+    headerHeight: headerHeight * factor,
+    spacing: spacing * factor,
+    panelPadding: panelPadding * factor,
+    iconSize: iconSize * factor,
+  );
 }
 
 @immutable
@@ -422,6 +501,11 @@ class BlenderThemeData {
   final BlenderDensity density;
   final BlenderShapeTheme shapes;
   final BlenderIconThemeData iconTheme;
+
+  static const BlenderThemeData dark = BlenderThemeData();
+  static const BlenderThemeData light = BlenderThemeData(
+    colors: BlenderColorScheme.light(),
+  );
 
   BlenderThemeData copyWith({
     BlenderColorScheme? colors,

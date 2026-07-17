@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'icons.dart';
+import 'services.dart';
 import 'theme.dart';
 
 enum BlenderControlState {
@@ -844,7 +845,7 @@ class BlenderNumberField extends StatefulWidget {
     this.suffix,
     this.fieldWidth,
     this.backgroundColor,
-    this.showSteppers = true,
+    this.showSteppers,
     this.enabled = true,
   });
 
@@ -862,9 +863,10 @@ class BlenderNumberField extends StatefulWidget {
   /// Shows Blender-style increment/decrement handles while hovered.
   ///
   /// Blender's bounded factor properties use a `NumSlider` instead of a
-  /// number button. Set this to false for those fields so the range fill can
-  /// occupy the complete control, matching `PROP_FACTOR` behavior.
-  final bool showSteppers;
+  /// number button. Set this explicitly to override the app-wide Interface
+  /// preference; use `false` for factor fields so the range fill can occupy
+  /// the complete control, matching `PROP_FACTOR` behavior.
+  final bool? showSteppers;
   final bool enabled;
 
   @override
@@ -990,6 +992,12 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final showSteppers =
+        widget.showSteppers ??
+        BlenderServiceScope.maybeRead<BlenderInterfacePreferencesService>(
+          context,
+        )?.value.showNumericInputArrows ??
+        true;
     final range = widget.min != null && widget.max != null
         ? widget.max! - widget.min!
         : 0.0;
@@ -1013,17 +1021,17 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
       enabled: widget.enabled,
       // Blender keeps a factor field's slider layer visible while its value
       // is edited. The range fill is supplied by the parent stack below.
-      backgroundColor: !widget.showSteppers && range > 0
+      backgroundColor: !showSteppers && range > 0
           ? const Color(0x00000000)
           : widget.backgroundColor ?? theme.colors.button,
       textAlign: TextAlign.center,
-      leading: _hovered && widget.showSteppers
+      leading: _hovered && showSteppers
           ? _BlenderNumberStepper(
               previous: true,
               onPressed: () => _setValue(widget.value - widget.step),
             )
           : null,
-      trailing: _hovered && widget.showSteppers
+      trailing: _hovered && showSteppers
           ? _BlenderNumberStepper(
               previous: false,
               onPressed: () => _setValue(widget.value + widget.step),
@@ -1041,7 +1049,7 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
         _finishEditing();
       },
     );
-    final editingField = !widget.showSteppers && range > 0
+    final editingField = !showSteppers && range > 0
         ? Stack(
             fit: StackFit.expand,
             children: <Widget>[
@@ -1079,7 +1087,6 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
             return Container(
               key: const ValueKey<String>('blender-number-field-surface'),
               height: theme.density.controlHeight,
-              padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
               decoration: BoxDecoration(
                 color: _dragging
                     ? theme.colors.textField
@@ -1097,32 +1104,35 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                           ? theme.colors.buttonSelected
                           : theme.colors.borderSubtle,
                     ),
-                  Row(
-                    children: <Widget>[
-                      if (_hovered && widget.showSteppers)
-                        _BlenderNumberStepper(
-                          previous: true,
-                          onPressed: () =>
-                              _setValue(widget.value - widget.step),
-                        ),
-                      Expanded(
-                        child: Text(
-                          '${_format(widget.value)}${widget.suffix ?? ''}',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.body.copyWith(
-                            color: widget.enabled
-                                ? theme.colors.foreground
-                                : theme.colors.foregroundDisabled,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
+                    child: Row(
+                      children: <Widget>[
+                        if (_hovered && showSteppers)
+                          _BlenderNumberStepper(
+                            previous: true,
+                            onPressed: () =>
+                                _setValue(widget.value - widget.step),
+                          ),
+                        Expanded(
+                          child: Text(
+                            '${_format(widget.value)}${widget.suffix ?? ''}',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.body.copyWith(
+                              color: widget.enabled
+                                  ? theme.colors.foreground
+                                  : theme.colors.foregroundDisabled,
+                            ),
                           ),
                         ),
-                      ),
-                      if (_hovered && widget.showSteppers)
-                        _BlenderNumberStepper(
-                          previous: false,
-                          onPressed: () =>
-                              _setValue(widget.value + widget.step),
-                        ),
-                    ],
+                        if (_hovered && showSteppers)
+                          _BlenderNumberStepper(
+                            previous: false,
+                            onPressed: () =>
+                                _setValue(widget.value + widget.step),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1259,7 +1269,10 @@ Future<T?> showBlenderDialog<T>({
     barrierColor: const Color(0x99000000),
     transitionDuration: const Duration(milliseconds: 120),
     pageBuilder: (dialogContext, animation, secondaryAnimation) =>
-        SafeArea(child: Center(child: builder(dialogContext))),
+        InheritedTheme.captureAll(
+          context,
+          SafeArea(child: Center(child: builder(dialogContext))),
+        ),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
@@ -1584,27 +1597,31 @@ class _BlenderPopoverState extends State<BlenderPopover> {
       barrierLabel: 'Dismiss popover',
       barrierColor: const Color(0x00000000),
       transitionDuration: const Duration(milliseconds: 80),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) => Stack(
-        children: <Widget>[
-          CustomSingleChildLayout(
-            delegate: _BlenderPopoverPositionDelegate(
-              target: Rect.fromLTWH(
-                origin.dx,
-                origin.dy,
-                renderObject.size.width,
-                renderObject.size.height,
-              ),
-              offset: widget.offset,
-              targetAnchor: widget.targetAnchor,
-              followerAnchor: widget.followerAnchor,
-            ),
-            child: widget.popover(
-              dialogContext,
-              () => Navigator.of(dialogContext).pop(),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) =>
+          InheritedTheme.captureAll(
+            context,
+            Stack(
+              children: <Widget>[
+                CustomSingleChildLayout(
+                  delegate: _BlenderPopoverPositionDelegate(
+                    target: Rect.fromLTWH(
+                      origin.dx,
+                      origin.dy,
+                      renderObject.size.width,
+                      renderObject.size.height,
+                    ),
+                    offset: widget.offset,
+                    targetAnchor: widget.targetAnchor,
+                    followerAnchor: widget.followerAnchor,
+                  ),
+                  child: widget.popover(
+                    dialogContext,
+                    () => Navigator.of(dialogContext).pop(),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
     );
     if (mounted) {
       setState(() => _open = false);
@@ -1812,6 +1829,26 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
 
   @override
   Widget build(BuildContext context) {
+    final preferences =
+        BlenderServiceScope.maybeRead<BlenderInterfacePreferencesService>(
+          context,
+        );
+    if (preferences == null) return _buildTarget();
+    return AnimatedBuilder(
+      animation: preferences,
+      builder: (context, child) {
+        if (!preferences.value.showTooltips) {
+          _cancelShow();
+          _hide();
+          return widget.child;
+        }
+        return child!;
+      },
+      child: _buildTarget(),
+    );
+  }
+
+  Widget _buildTarget() {
     return CompositedTransformTarget(
       link: _link,
       child: Semantics(
@@ -1911,24 +1948,28 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
       barrierLabel: 'Dismiss menu',
       barrierColor: const Color(0x00000000),
       transitionDuration: const Duration(milliseconds: 80),
-      pageBuilder: (context, animation, secondaryAnimation) => Stack(
-        children: <Widget>[
-          Positioned(
-            left: origin.dx,
-            top: origin.dy + renderObject.size.height + 2,
-            child: BlenderMenu<T>(
-              items: [
-                for (final item in widget.items)
-                  item.copyWith(selected: item.value == widget.value),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) =>
+          InheritedTheme.captureAll(
+            context,
+            Stack(
+              children: <Widget>[
+                Positioned(
+                  left: origin.dx,
+                  top: origin.dy + renderObject.size.height + 2,
+                  child: BlenderMenu<T>(
+                    items: [
+                      for (final item in widget.items)
+                        item.copyWith(selected: item.value == widget.value),
+                    ],
+                    onSelected: (item) {
+                      widget.onChanged?.call(item.value);
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ),
               ],
-              onSelected: (item) {
-                widget.onChanged?.call(item.value);
-                Navigator.of(context).pop();
-              },
             ),
           ),
-        ],
-      ),
     );
   }
 
@@ -2243,23 +2284,25 @@ class BlenderContextMenu<T> extends StatelessWidget {
       barrierLabel: 'Dismiss context menu',
       barrierColor: const Color(0x00000000),
       transitionDuration: const Duration(milliseconds: 80),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: <Widget>[
-            Positioned(
-              left: position.dx,
-              top: position.dy,
-              child: BlenderMenu<T>(
-                items: items,
-                onSelected: (item) {
-                  onSelected?.call(item.value);
-                  Navigator.of(context).pop();
-                },
-              ),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) =>
+          InheritedTheme.captureAll(
+            context,
+            Stack(
+              children: <Widget>[
+                Positioned(
+                  left: position.dx,
+                  top: position.dy,
+                  child: BlenderMenu<T>(
+                    items: items,
+                    onSelected: (item) {
+                      onSelected?.call(item.value);
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        );
-      },
+          ),
     );
   }
 

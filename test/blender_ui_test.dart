@@ -202,6 +202,134 @@ void main() {
     expect(find.text('4:true'), findsOneWidget);
   });
 
+  testWidgets('interface preferences apply Blender Light and live UI scaling', (
+    tester,
+  ) async {
+    final interfacePreferences = BlenderInterfacePreferencesService(
+      initial: const BlenderInterfacePreferences(
+        theme: BlenderThemePreset.light,
+        uiScale: 1.25,
+        lineWidth: BlenderInterfaceLineWidth.thick,
+      ),
+    );
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      interfacePreferences: interfacePreferences,
+    );
+    addTearDown(application.dispose);
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderApplicationScope<Object?>(
+          controller: application,
+          child: Builder(
+            builder: (context) {
+              final theme = BlenderTheme.of(context);
+              return Text(
+                '${theme.colors.canvas.toARGB32()}:${theme.density.controlHeight}:${theme.shapes.borderWidth}',
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('${const Color(0xFFB3B3B3).toARGB32()}:25.0:1.5'),
+      findsOneWidget,
+    );
+    expect(
+      BlenderServiceScope.read<BlenderInterfacePreferencesService>(
+        tester.element(find.textContaining(':25.0:')),
+      ),
+      same(interfacePreferences),
+    );
+  });
+
+  testWidgets('application scope applies the selected Blender theme service', (
+    tester,
+  ) async {
+    final interfacePreferences = BlenderInterfacePreferencesService();
+    final themes = BlenderThemeService();
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      interfacePreferences: interfacePreferences,
+      themeService: themes,
+    );
+    addTearDown(application.dispose);
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderApplicationScope<Object?>(
+          controller: application,
+          child: Builder(
+            builder: (context) => Text(
+              BlenderTheme.of(context).colors.canvas.toARGB32().toString(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    themes.select('blender-light');
+    await tester.pump();
+    expect(
+      find.text(const Color(0xFFB3B3B3).toARGB32().toString()),
+      findsOneWidget,
+    );
+
+    themes.updateActiveColor(
+      BlenderThemeColorRole.canvas,
+      const Color(0xFFEEF7FA),
+    );
+    await tester.pump();
+    expect(
+      find.text(const Color(0xFFEEF7FA).toARGB32().toString()),
+      findsOneWidget,
+    );
+    expect(themes.activeTheme.isBuiltIn, isFalse);
+  });
+
+  testWidgets('theme Preferences delegate Blender XML files to the host', (
+    tester,
+  ) async {
+    final themes = BlenderThemeService();
+    addTearDown(themes.dispose);
+    String? savedXml;
+    await tester.pumpWidget(
+      BlenderApp(
+        home: SingleChildScrollView(
+          child: BlenderThemePreferencesEditor(
+            service: themes,
+            fileActions: BlenderThemeFileActions(
+              onInstall: () async => const BlenderThemeFileContent(
+                name: 'Installed_Theme.xml',
+                xml:
+                    '<bpy><Theme name="From Blender">'
+                    '<user_interface><ThemeUserInterface '
+                    'editor_border="#123456FF" /></user_interface>'
+                    '</Theme><ThemeStyle /></bpy>',
+              ),
+              onSave: (content) async => savedXml = content.xml,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('blender-theme-install')),
+    );
+    await tester.pumpAndSettle();
+    expect(themes.activeTheme.name, 'Installed Theme');
+    expect(themes.activeTheme.colors.editorBorder, const Color(0xFF123456));
+
+    await tester.tap(find.byKey(const ValueKey<String>('blender-theme-save')));
+    await tester.pump();
+    expect(savedXml, contains('<bpy>'));
+    expect(savedXml, contains('<Theme name="Installed Theme">'));
+  });
+
   testWidgets('application shell restores persisted editor context', (
     tester,
   ) async {
@@ -1737,6 +1865,67 @@ void main() {
     await tester.tap(find.text('Open File'));
     await tester.pump();
     expect(selected, 'open');
+  });
+
+  testWidgets('route menus retain the nearest scoped Blender theme', (
+    tester,
+  ) async {
+    final preferences = BlenderInterfacePreferencesService(
+      initial: const BlenderInterfacePreferences(
+        theme: BlenderThemePreset.light,
+      ),
+    );
+    final application = BlenderApplicationController<Object?>(
+      initialState: null,
+      interfacePreferences: preferences,
+    );
+    addTearDown(application.dispose);
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: BlenderApplicationScope<Object?>(
+          controller: application,
+          child: const Directionality(
+            textDirection: TextDirection.ltr,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 80,
+                child: BlenderMenuButton<String>(
+                  label: 'File',
+                  items: const <BlenderMenuItem<String>>[
+                    BlenderMenuItem<String>(value: 'open', label: 'Open'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.ancestor(
+        of: find.text('File'),
+        matching: find.byType(BlenderMenuButton<String>),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final surface = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byType(BlenderMenu<String>),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox && widget.decoration is BoxDecoration,
+            ),
+          )
+          .first,
+    );
+    expect(
+      (surface.decoration as BoxDecoration).color,
+      const BlenderColorScheme.light().menuBackground,
+    );
   });
 
   testWidgets(
@@ -3360,6 +3549,20 @@ void main() {
     );
     expect(fill.widthFactor, closeTo(.36, .001));
     expect(tester.getSize(find.byType(FractionallySizedBox)).height, 20);
+    expect(
+      tester.getSize(find.byType(FractionallySizedBox)).width,
+      closeTo(
+        tester
+                .getSize(
+                  find.byKey(
+                    const ValueKey<String>('blender-number-field-surface'),
+                  ),
+                )
+                .width *
+            .36,
+        .001,
+      ),
+    );
 
     final pointer = await tester.createGesture();
     await pointer.moveTo(tester.getCenter(find.byType(BlenderNumberField)));

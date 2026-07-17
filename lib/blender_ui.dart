@@ -33,6 +33,27 @@ export 'src/application.dart'
         BlenderSplashScreenConfiguration,
         BlenderWorkspaceShell,
         showBlenderPreferencesWindow;
+export 'src/interface_preferences.dart'
+    show
+        BlenderInterfaceTheme,
+        BlenderInterfacePreferencesEditor,
+        blenderInterfacePreferenceSections,
+        BlenderThemeDataInterfacePreferences;
+export 'src/theme_preferences.dart'
+    show
+        BlenderThemeFileActions,
+        BlenderThemeFileContent,
+        BlenderThemePreferencesEditor,
+        blenderThemePreferenceSection;
+export 'src/theme_service.dart'
+    show
+        BlenderThemeColorRole,
+        BlenderThemeColorRolePresentation,
+        BlenderThemeDefinition,
+        BlenderThemePersistence,
+        BlenderThemeService,
+        BlenderThemeXmlCodec,
+        BlenderThemeXmlException;
 export 'src/controls.dart'
     show
         BlenderButton,
@@ -228,6 +249,12 @@ export 'src/services.dart'
         BlenderEditorSessionService,
         BlenderEditorSessionScope,
         BlenderHistoryStore,
+        BlenderColorPickerType,
+        BlenderFactorDisplayType,
+        BlenderInterfaceLineWidth,
+        BlenderInterfacePreferences,
+        BlenderInterfacePreferencesPersistence,
+        BlenderInterfacePreferencesService,
         BlenderPersistentStorage,
         BlenderServiceContainer,
         BlenderServiceDisposable,
@@ -239,7 +266,8 @@ export 'src/services.dart'
         BlenderStateUpdater,
         BlenderStatusLevel,
         BlenderStatusMessage,
-        BlenderStatusService;
+        BlenderStatusService,
+        BlenderThemePreset;
 export 'src/specialized_templates.dart'
     show
         BlenderAssetShelfPopover,

@@ -23,6 +23,41 @@ live in [the decision records](decisions/).
 - Corrected the shared fill geometry to occupy the full control height. The
   previous width-only fraction had a zero-height empty decoration at runtime,
   which made the widget present in tree tests but invisible in the example.
+- Moved number-field content padding inside the text/stepper row so the range
+  fill starts at the complete decorated slider surface, matching Blender's
+  `widget_numslider` rectangle geometry.
+
+## 2026-07-17 — Added universal interface preferences and Blender Light
+
+- Examined blenderapp's Interface Display and Editors panels plus its
+  `Blender_Light.xml` theme preset, then added a persistable, app-scoped
+  interface-preferences service to BlenderUI. It supplies reusable Display,
+  Editors, and Themes preference sections while retaining application-owned
+  storage and domain settings.
+- Added live Blender Dark/Light palette selection, resolution scaling, and
+  line-width policy through the application scope. The example app now uses
+  the shared sections instead of its inert copied Interface controls.
+- Recorded the ownership boundary, source mapping, light-theme transcription,
+  and the sandboxed Flutter cache workaround in
+  [`2026-07-17-universal-interface-preferences-and-light-theme.md`](decisions/2026-07-17-universal-interface-preferences-and-light-theme.md).
+
+## 2026-07-17 — Added Blender-compatible portable theme service
+
+- Examined blenderapp's Themes preference preset menu, XML reader/writer, and
+  install operator. Added the app-scoped `BlenderThemeService`, a safe portable
+  `ThemeUserInterface`/widget XML mapping, custom-theme persistence, and live
+  palette application through the existing application scope.
+- Added a reusable Themes preferences surface with Blender-style preset,
+  create/remove/save/install/reset actions. Host apps provide platform file
+  actions while BlenderUI owns XML content, validation, state, and persistence.
+- Documented compatibility limits, source mapping, lifecycle ownership, test
+  coverage, and the SDK formatter lesson in
+  [`2026-07-17-blender-compatible-theme-service.md`](decisions/2026-07-17-blender-compatible-theme-service.md).
+- Fixed theme propagation across route-owned menus and application-owned
+  Properties subsections. The library now captures the initiating theme for
+  popovers/dialogs, while the example resolves custom panel colors beneath the
+  app scope; compact icon actions also keep the Themes header usable at narrow
+  Preferences widths.
 
 ## 2026-07-17 — Consolidated app services and interactive documentation
 

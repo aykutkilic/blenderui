@@ -237,6 +237,121 @@ void main() {
     },
   );
 
+  test('interface preferences persist portable values', () async {
+    final storage = _MemoryStorage();
+    final persistence = BlenderInterfacePreferencesPersistence(
+      storage: storage,
+      storageKey: 'interface-preferences',
+    );
+    final preferences = BlenderInterfacePreferencesService(
+      persistence: persistence,
+    );
+    preferences.update(
+      (value) => value.copyWith(
+        theme: BlenderThemePreset.light,
+        uiScale: 1.25,
+        lineWidth: BlenderInterfaceLineWidth.thick,
+        showSplash: false,
+        factorDisplayType: BlenderFactorDisplayType.percentage,
+      ),
+    );
+    await preferences.flush();
+    preferences.dispose();
+
+    final restored = BlenderInterfacePreferencesService(
+      persistence: persistence,
+    );
+    addTearDown(restored.dispose);
+    expect(await restored.restore(), isTrue);
+    expect(restored.value.theme, BlenderThemePreset.light);
+    expect(restored.value.uiScale, 1.25);
+    expect(restored.value.lineWidth, BlenderInterfaceLineWidth.thick);
+    expect(restored.value.showSplash, isFalse);
+    expect(
+      restored.value.factorDisplayType,
+      BlenderFactorDisplayType.percentage,
+    );
+  });
+
+  test(
+    'theme service imports Blender XML and persists custom themes',
+    () async {
+      const xml = '''<bpy>
+  <Theme name="Portable Light">
+    <user_interface>
+      <ThemeUserInterface editor_border="#2D2D2DFF" editor_outline="#3A3A3AFF" editor_outline_active="#4F78BFFF" widget_text_cursor="#111111FF" link="#0A66C2FF" panel_header="#D5D5D5FF" panel_back="#C4C4C4FF" panel_sub_back="#B7B7B7FF" panel_outline="#707070FF">
+        <wcol_regular><ThemeWidgetColors outline="#808080FF" inner="#D9D9D9FF" inner_sel="#A3C4F3FF" text="#202020FF" /></wcol_regular>
+        <wcol_text><ThemeWidgetColors inner="#FFFFFFFF" text="#202020FF" /></wcol_text>
+        <wcol_toolbar_item><ThemeWidgetColors inner="#C9C9C9FF" /></wcol_toolbar_item>
+        <wcol_menu_back><ThemeWidgetColors inner="#E6E6E6FF" inner_sel="#A3C4F3FF" text="#555555FF" /></wcol_menu_back>
+        <wcol_tab><ThemeWidgetColors inner="#CFCFCFFF" inner_sel="#F2F2F2FF" text="#303030FF" text_sel="#111111FF" /></wcol_tab>
+        <wcol_list_item><ThemeWidgetColors inner_sel="#A3C4F3FF" /></wcol_list_item>
+        <wcol_state><ThemeWidgetStateColors warning="#D99200FF" error="#C23B22FF" success="#2F8F4EFF" /></wcol_state>
+      </ThemeUserInterface>
+    </user_interface>
+    <preferences><ThemePreferences back="#B3B3B3FF" /></preferences>
+    <properties><ThemeProperties><space><ThemeSpaceGeneric back="#BABABAFF" /></space></ThemeProperties></properties>
+  </Theme>
+  <ThemeStyle />
+</bpy>''';
+      final storage = _MemoryStorage();
+      final persistence = BlenderThemePersistence(
+        storage: storage,
+        storageKey: 'themes',
+      );
+      final service = BlenderThemeService(persistence: persistence);
+      final imported = service.importBlenderXml(
+        xml,
+        sourceFileName: 'light.xml',
+      );
+
+      expect(imported.name, 'Portable Light');
+      expect(imported.colors.canvas, const Color(0xFFB3B3B3));
+      expect(imported.colors.buttonSelected, const Color(0xFFA3C4F3));
+      expect(imported.colors.propertiesBackground, const Color(0xFFBABABA));
+      expect(imported.sourceFileName, 'light.xml');
+      expect(service.themes, hasLength(3));
+
+      final encoded = service.exportActiveBlenderXml();
+      final roundTrip = const BlenderThemeXmlCodec().decode(
+        encoded,
+        id: 'round-trip',
+      );
+      expect(roundTrip.colors.canvas, imported.colors.canvas);
+      expect(roundTrip.colors.menuSelection, imported.colors.menuSelection);
+      expect(
+        roundTrip.colors.propertiesBackground,
+        imported.colors.propertiesBackground,
+      );
+
+      await service.flush();
+      service.dispose();
+      final restored = BlenderThemeService(persistence: persistence);
+      addTearDown(restored.dispose);
+      expect(await restored.restore(), isTrue);
+      expect(restored.activeTheme.name, 'Portable Light');
+      expect(restored.activeTheme.colors.canvas, const Color(0xFFB3B3B3));
+      restored.resetToDefault();
+      expect(restored.activeTheme.id, 'blender-dark');
+      expect(restored.themes, hasLength(3));
+    },
+  );
+
+  test('theme service makes a custom copy before editing a built-in', () {
+    final service = BlenderThemeService();
+    addTearDown(service.dispose);
+
+    service.updateActiveColor(
+      BlenderThemeColorRole.accent,
+      const Color(0xFF00AA88),
+    );
+
+    expect(service.activeTheme.isBuiltIn, isFalse);
+    expect(service.activeTheme.name, 'Blender Dark Custom');
+    expect(service.activeTheme.colors.accent, const Color(0xFF00AA88));
+    expect(service.themes.first.colors.accent, isNot(const Color(0xFF00AA88)));
+  });
+
   testWidgets('state and service scopes expose typed values', (tester) async {
     final state = BlenderStateStore<int>(4);
     final services = BlenderServiceContainer()

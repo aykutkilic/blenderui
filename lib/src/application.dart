@@ -6,10 +6,12 @@ import 'package:flutter/widgets.dart';
 import 'controls.dart';
 import 'docking.dart';
 import 'docking_model.dart';
+import 'interface_preferences.dart';
 import 'layout.dart';
 import 'non3d_editors.dart';
 import 'services.dart';
 import 'theme.dart';
+import 'theme_service.dart';
 import 'workspaces.dart';
 
 /// A top-level application menu descriptor for [BlenderApplicationMenuBar].
@@ -405,10 +407,14 @@ class BlenderApplicationPresentationService
   bool _startupSplashShown = false;
   bool _disposed = false;
 
-  Future<bool> showStartupSplash(BuildContext context) async {
+  Future<bool> showStartupSplash(
+    BuildContext context, {
+    bool enabled = true,
+  }) async {
     final splash = this.splash;
     if (_disposed ||
         _startupSplashShown ||
+        !enabled ||
         splash == null ||
         !splash.showOnStartup) {
       return false;
@@ -572,6 +578,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     BlenderStatusService? status,
     BlenderCommandBindings? commandBindings,
     BlenderEditorSessionService? editorSession,
+    BlenderInterfacePreferencesService? interfacePreferences,
+    BlenderThemeService? themeService,
     this.preferences,
     BlenderApplicationPresentationService? presentation,
     this.historyLimit = 50,
@@ -587,6 +595,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
        status = status ?? BlenderStatusService(),
        commandBindings = commandBindings ?? BlenderCommandBindings(),
        editorSession = editorSession ?? BlenderEditorSessionService(),
+       interfacePreferences = interfacePreferences,
+       themeService = themeService,
        presentation = presentation ?? BlenderApplicationPresentationService(),
        workspaces =
            workspaceService ??
@@ -662,6 +672,16 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
       ..registerSingleton<BlenderApplicationPresentationService>(
         this.presentation,
       );
+    final interfacePreferences = this.interfacePreferences;
+    if (interfacePreferences != null) {
+      services.registerSingleton<BlenderInterfacePreferencesService>(
+        interfacePreferences,
+      );
+    }
+    final themeService = this.themeService;
+    if (themeService != null) {
+      services.registerSingleton<BlenderThemeService>(themeService);
+    }
     final preferences = this.preferences;
     if (preferences != null) {
       services.registerSingleton<BlenderPreferencesService>(preferences);
@@ -679,6 +699,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
   final BlenderCommandBindings commandBindings;
   final BlenderStatusService status;
   final BlenderEditorSessionService editorSession;
+  final BlenderInterfacePreferencesService? interfacePreferences;
+  final BlenderThemeService? themeService;
   final BlenderPreferencesService? preferences;
   final BlenderApplicationPresentationService presentation;
   final BlenderServiceContainer services;
@@ -706,10 +728,12 @@ class BlenderApplicationScope<T> extends StatefulWidget {
     super.key,
     required this.controller,
     required this.child,
+    this.baseTheme = const BlenderThemeData(),
   });
 
   final BlenderApplicationController<T> controller;
   final Widget child;
+  final BlenderThemeData baseTheme;
 
   @override
   State<BlenderApplicationScope<T>> createState() =>
@@ -723,9 +747,23 @@ class _BlenderApplicationScopeState<T> extends State<BlenderApplicationScope<T>>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(widget.controller.editorSession.restore());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    final interfacePreferences = widget.controller.interfacePreferences;
+    if (interfacePreferences != null) {
+      unawaited(interfacePreferences.restore());
+    }
+    final themeService = widget.controller.themeService;
+    if (themeService != null) unawaited(themeService.restore());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      unawaited(widget.controller.presentation.showStartupSplash(context));
+      if (interfacePreferences != null) await interfacePreferences.restore();
+      if (themeService != null) await themeService.restore();
+      if (!mounted) return;
+      unawaited(
+        widget.controller.presentation.showStartupSplash(
+          context,
+          enabled: interfacePreferences?.value.showSplash ?? true,
+        ),
+      );
     });
   }
 
@@ -735,6 +773,8 @@ class _BlenderApplicationScopeState<T> extends State<BlenderApplicationScope<T>>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(widget.controller.editorSession.flush());
+      unawaited(widget.controller.interfacePreferences?.flush());
+      unawaited(widget.controller.themeService?.flush());
     }
   }
 
@@ -742,13 +782,15 @@ class _BlenderApplicationScopeState<T> extends State<BlenderApplicationScope<T>>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(widget.controller.editorSession.flush());
+    unawaited(widget.controller.interfacePreferences?.flush());
+    unawaited(widget.controller.themeService?.flush());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    return BlenderCommandBindingScope(
+    final child = BlenderCommandBindingScope(
       commands: controller.commands,
       bindings: controller.commandBindings,
       child: BlenderServiceScope(
@@ -761,6 +803,14 @@ class _BlenderApplicationScopeState<T> extends State<BlenderApplicationScope<T>>
           ),
         ),
       ),
+    );
+    final interfacePreferences = controller.interfacePreferences;
+    if (interfacePreferences == null) return child;
+    return BlenderInterfaceTheme(
+      preferences: interfacePreferences,
+      baseTheme: widget.baseTheme,
+      themeService: controller.themeService,
+      child: child,
     );
   }
 }
@@ -853,6 +903,7 @@ class _BlenderWorkspaceShellState<T> extends State<BlenderWorkspaceShell<T>>
       navigatorKey: widget.navigatorKey,
       home: BlenderApplicationScope<T>(
         controller: controller,
+        baseTheme: widget.theme,
         child: BlenderEditorShell(
           topBar: widget.topBar,
           main:

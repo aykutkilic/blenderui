@@ -19,6 +19,9 @@ class ShowcaseApp extends StatefulWidget {
 class _ShowcaseAppState extends State<ShowcaseApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final BlenderApplicationController<Object?> _application;
+  final BlenderInterfacePreferencesService _interfacePreferences =
+      BlenderInterfacePreferencesService();
+  final BlenderThemeService _themeService = BlenderThemeService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _fileSearchController = TextEditingController();
   final TextEditingController _keymapSearchController = TextEditingController();
@@ -506,6 +509,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       preferences: BlenderPreferencesService(
         configuration: _preferencesConfiguration,
       ),
+      interfacePreferences: _interfacePreferences,
+      themeService: _themeService,
       presentation: BlenderApplicationPresentationService(
         splash: const BlenderSplashScreenConfiguration(
           title: 'Blender UI showcase',
@@ -12711,20 +12716,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     }
 
     return <BlenderPreferenceSection>[
-      section('Interface', 'display', 'Display', <Widget>[
-        number('Resolution Scale', 1),
-        number('Line Width', 1),
-        check('Splash Screen'),
-        check('Developer Extras', value: false),
-        panel('Tooltips', <Widget>[
-          check('User Tooltips'),
-          check('Python Tooltips', value: false),
-        ], expanded: true),
-        panel('Search', <Widget>[
-          check('Sort by Most Recent'),
-          check('Show Hidden'),
-        ]),
-      ], expanded: true),
+      ...blenderInterfacePreferenceSections(
+        preferences: _interfacePreferences,
+        themeService: _themeService,
+        idPrefix: 'showcase-interface',
+      ),
       section('Interface', 'text', 'Text Rendering', <Widget>[
         check('Anti-Aliasing'),
         choice('Hinting', 'Auto', <String>['Auto', 'None', 'Slight', 'Full']),
@@ -12753,38 +12749,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       section('Interface', 'accessibility', 'Accessibility', <Widget>[
         check('Reduce Motion', value: false),
       ]),
-      section('Interface', 'editors', 'Editors', <Widget>[
-        check('Region Overlap'),
-        check('Area Handles'),
-        check('Numeric Input Arrows'),
-        choice('Color Picker Type', 'Circle', <String>[
-          'Circle',
-          'Square',
-          'Picker',
-        ]),
-        panel('Temporary Editors', <Widget>[
-          choice('Render In', 'Image Editor', <String>[
-            'Image Editor',
-            'New Window',
-          ]),
-          choice('File Browser', 'Temporary Window', <String>[
-            'Temporary Window',
-            'Full Screen',
-          ]),
-          choice('Preferences', 'Temporary Window', <String>[
-            'Temporary Window',
-            'Full Screen',
-          ]),
-        ]),
-        panel('Status Bar', <Widget>[
-          check('Scene Statistics'),
-          check('Scene Duration'),
-          check('System Memory'),
-          check('Video Memory'),
-          check('Extensions Updates'),
-          check('Blender Version'),
-        ]),
-      ], expanded: true),
       section('Interface', 'menus', 'Menus', <Widget>[
         check('Close Menus on Mouse Click'),
         panel('Open on Mouse Over', <Widget>[
@@ -13976,127 +13940,138 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     required VoidCallback onToggle,
     required Widget child,
     Widget? headerAction,
-  }) {
-    final theme = BlenderTheme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.panelBackground,
-        border: Border.all(color: theme.colors.panelOutline),
-        borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onToggle,
-            child: SizedBox(
-              height: theme.density.headerHeight,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  children: <Widget>[
-                    BlenderIcon(
-                      key: ValueKey<String>(
-                        'tool-settings-panel-disclosure-$title',
+  }) => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      return DecoratedBox(
+        key: ValueKey<String>('showcase-tool-settings-panel-$title'),
+        decoration: BoxDecoration(
+          color: theme.colors.panelBackground,
+          border: Border.all(color: theme.colors.panelOutline),
+          borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggle,
+              child: SizedBox(
+                height: theme.density.headerHeight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    children: <Widget>[
+                      BlenderIcon(
+                        key: ValueKey<String>(
+                          'tool-settings-panel-disclosure-$title',
+                        ),
+                        expanded
+                            ? BlenderGlyph.panelDisclosureDown
+                            : BlenderGlyph.panelDisclosureRight,
+                        size: 9,
+                        color: theme.colors.foregroundMuted,
                       ),
-                      expanded
-                          ? BlenderGlyph.panelDisclosureDown
-                          : BlenderGlyph.panelDisclosureRight,
-                      size: 9,
-                      color: theme.colors.foregroundMuted,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        title,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.body,
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.body,
+                        ),
                       ),
-                    ),
-                    if (headerAction != null) headerAction,
-                    BlenderIcon(
-                      key: ValueKey<String>('tool-settings-drag-handle-$title'),
-                      BlenderGlyph.dragHandle,
-                      size: 9,
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ],
+                      if (headerAction != null) headerAction,
+                      BlenderIcon(
+                        key: ValueKey<String>(
+                          'tool-settings-drag-handle-$title',
+                        ),
+                        BlenderGlyph.dragHandle,
+                        size: 9,
+                        color: theme.colors.foregroundMuted,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          if (expanded) child,
-        ],
-      ),
-    );
-  }
+            if (expanded) child,
+          ],
+        ),
+      );
+    },
+  );
 
   Widget _buildWorkspaceAddonRow({
     required String label,
     required bool enabled,
     required ValueChanged<bool> onChanged,
-  }) {
-    final theme = BlenderTheme.of(context);
-    final active = _workspaceFilterByOwner;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.body.copyWith(
-                color: active
-                    ? theme.colors.foreground
-                    : theme.colors.foregroundDisabled,
+  }) => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      final active = _workspaceFilterByOwner;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.body.copyWith(
+                  color: active
+                      ? theme.colors.foreground
+                      : theme.colors.foregroundDisabled,
+                ),
               ),
             ),
-          ),
-          BlenderCheckbox(
-            value: enabled,
-            label: '',
-            onChanged: active ? onChanged : null,
-          ),
-        ],
-      ),
-    );
-  }
+            BlenderCheckbox(
+              value: enabled,
+              label: '',
+              onChanged: active ? onChanged : null,
+            ),
+          ],
+        ),
+      );
+    },
+  );
 
   Widget _buildToolCheckbox({
     required bool value,
     required String label,
     required ValueChanged<bool> onChanged,
-  }) {
-    final theme = BlenderTheme.of(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color: value ? theme.colors.buttonSelected : theme.colors.button,
-              border: Border.all(
+  }) => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onChanged(!value),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
                 color: value
                     ? theme.colors.buttonSelected
-                    : theme.colors.borderSubtle,
+                    : theme.colors.button,
+                border: Border.all(
+                  color: value
+                      ? theme.colors.buttonSelected
+                      : theme.colors.borderSubtle,
+                ),
+                borderRadius: BorderRadius.circular(2),
               ),
-              borderRadius: BorderRadius.circular(2),
+              child: value
+                  ? const BlenderIcon(BlenderGlyph.check, size: 13)
+                  : null,
             ),
-            child: value
-                ? const BlenderIcon(BlenderGlyph.check, size: 13)
-                : null,
-          ),
-          const SizedBox(width: 5),
-          Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
-        ],
-      ),
-    );
-  }
+            const SizedBox(width: 5),
+            Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
+      );
+    },
+  );
 
   Widget _buildWorkspaceToolPanel() {
     final theme = BlenderTheme.of(context);
@@ -14783,64 +14758,68 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     required bool expanded,
     required VoidCallback onToggle,
     required Widget child,
-  }) {
-    final theme = BlenderTheme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.panelBackground,
-        border: Border.all(color: theme.colors.panelOutline),
-        borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _buildNestedToolHeader(
-            title: title,
-            expanded: expanded,
-            onToggle: onToggle,
-          ),
-          if (expanded) child,
-        ],
-      ),
-    );
-  }
+  }) => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colors.panelBackground,
+          border: Border.all(color: theme.colors.panelOutline),
+          borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _buildNestedToolHeader(
+              title: title,
+              expanded: expanded,
+              onToggle: onToggle,
+            ),
+            if (expanded) child,
+          ],
+        ),
+      );
+    },
+  );
 
   Widget _buildNestedToolHeader({
     required String title,
     required bool expanded,
     required VoidCallback onToggle,
-  }) {
-    final theme = BlenderTheme.of(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggle,
-      child: Container(
-        height: theme.density.headerHeight,
-        color: theme.colors.panelBackground,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Row(
-          children: <Widget>[
-            BlenderIcon(
-              key: ValueKey<String>('tool-settings-nested-disclosure-$title'),
-              expanded
-                  ? BlenderGlyph.panelDisclosureDown
-                  : BlenderGlyph.panelDisclosureRight,
-              size: 9,
-              color: theme.colors.foregroundMuted,
-            ),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Text(
-                title,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.body,
+  }) => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onToggle,
+        child: Container(
+          height: theme.density.headerHeight,
+          color: theme.colors.panelBackground,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: <Widget>[
+              BlenderIcon(
+                key: ValueKey<String>('tool-settings-nested-disclosure-$title'),
+                expanded
+                    ? BlenderGlyph.panelDisclosureDown
+                    : BlenderGlyph.panelDisclosureRight,
+                size: 9,
+                color: theme.colors.foregroundMuted,
               ),
-            ),
-          ],
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.body,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 
   void _setStatus(String message) {
     _application.status.report(message);
@@ -14947,7 +14926,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     };
   }
 
-  Widget _buildMainToolbar() {
+  Widget _buildMainToolbar() =>
+      Builder(builder: (context) => _buildMainToolbarForTheme(context));
+
+  Widget _buildMainToolbarForTheme(BuildContext context) {
     Widget menu(
       String label,
       List<BlenderMenuItem<String>> items, {
@@ -19187,7 +19169,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     );
   }
 
-  Widget _buildPropertiesHeader() {
+  Widget _buildPropertiesHeader() =>
+      Builder(builder: (context) => _buildPropertiesHeaderForTheme(context));
+
+  Widget _buildPropertiesHeaderForTheme(BuildContext context) {
     return BlenderAreaHeader(
       key: const ValueKey<String>('properties-area-header'),
       // Blender keeps the area-type selector separate from the Properties
@@ -19223,65 +19208,67 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     });
   }
 
-  Widget _buildPropertiesContextOptions() {
-    final theme = BlenderTheme.of(context);
-    return BlenderPopover(
-      targetAnchor: Alignment.bottomRight,
-      followerAnchor: Alignment.topRight,
-      onOpenChanged: (open) =>
-          setState(() => _propertiesContextMenuOpen = open),
-      child: BlenderIconButton(
-        key: const ValueKey<String>('properties-context-options-button'),
-        glyph: BlenderGlyph.panelDisclosureDown,
-        selected: _propertiesContextMenuOpen,
-        tooltip: 'Properties context options',
-        size: 20,
-      ),
-      popover: (context, close) => SizedBox(
-        width: 320,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: theme.colors.menuBackground,
-            border: Border.all(color: theme.colors.borderSubtle),
-            borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(
-                color: Color(0x99000000),
-                blurRadius: 10,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  'Sync with Outliner',
-                  style: theme.textTheme.body.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                BlenderSegmentedControl<String>(
-                  value: _syncWithOutliner,
-                  items: const <BlenderMenuItem<String>>[
-                    BlenderMenuItem<String>(value: 'Always', label: 'Always'),
-                    BlenderMenuItem<String>(value: 'Never', label: 'Never'),
-                    BlenderMenuItem<String>(value: 'Auto', label: 'Auto'),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _syncWithOutliner = value),
+  Widget _buildPropertiesContextOptions() => Builder(
+    builder: (context) {
+      final theme = BlenderTheme.of(context);
+      return BlenderPopover(
+        targetAnchor: Alignment.bottomRight,
+        followerAnchor: Alignment.topRight,
+        onOpenChanged: (open) =>
+            setState(() => _propertiesContextMenuOpen = open),
+        child: BlenderIconButton(
+          key: const ValueKey<String>('properties-context-options-button'),
+          glyph: BlenderGlyph.panelDisclosureDown,
+          selected: _propertiesContextMenuOpen,
+          tooltip: 'Properties context options',
+          size: 20,
+        ),
+        popover: (context, close) => SizedBox(
+          width: 320,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colors.menuBackground,
+              border: Border.all(color: theme.colors.borderSubtle),
+              borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: Color(0x99000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'Sync with Outliner',
+                    style: theme.textTheme.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  BlenderSegmentedControl<String>(
+                    value: _syncWithOutliner,
+                    items: const <BlenderMenuItem<String>>[
+                      BlenderMenuItem<String>(value: 'Always', label: 'Always'),
+                      BlenderMenuItem<String>(value: 'Never', label: 'Never'),
+                      BlenderMenuItem<String>(value: 'Auto', label: 'Auto'),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _syncWithOutliner = value),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 
   Widget _buildAnimationPopoverPanel(String title, List<Widget> children) {
     return SizedBox(
