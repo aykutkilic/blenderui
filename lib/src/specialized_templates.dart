@@ -6,6 +6,7 @@ import 'controls.dart';
 import 'editors.dart';
 import 'icons.dart';
 import 'layout.dart';
+import 'services.dart';
 import 'templates.dart';
 import 'theme.dart';
 import 'tree_state.dart';
@@ -2578,6 +2579,42 @@ class BlenderReportBanner extends StatelessWidget {
             onTap: onPressed,
             child: semantic,
           );
+  }
+}
+
+/// Displays the latest report from an application report service.
+class BlenderLatestReportBanner extends StatelessWidget {
+  const BlenderLatestReportBanner({
+    super.key,
+    required this.reports,
+    this.onPressed,
+    this.maxWidth = 800,
+  });
+
+  final BlenderReportService reports;
+  final ValueChanged<BlenderReport>? onPressed;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: reports,
+      builder: (context, _) {
+        final report = reports.latest;
+        if (report == null) return const SizedBox.shrink();
+        return BlenderReportBanner(
+          message: report.message,
+          level: switch (report.level) {
+            BlenderStatusLevel.info => BlenderNoticeLevel.info,
+            BlenderStatusLevel.success => BlenderNoticeLevel.success,
+            BlenderStatusLevel.warning => BlenderNoticeLevel.warning,
+            BlenderStatusLevel.error => BlenderNoticeLevel.error,
+          },
+          maxWidth: maxWidth,
+          onPressed: onPressed == null ? null : () => onPressed!(report),
+        );
+      },
+    );
   }
 }
 

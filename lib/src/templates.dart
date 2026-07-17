@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show PointMode;
 
@@ -7,6 +8,7 @@ import 'advanced_controls.dart';
 import 'controls.dart';
 import 'icons.dart';
 import 'layout.dart';
+import 'services.dart';
 import 'theme.dart';
 
 /// A compact row of Blender-style numeric vector components.
@@ -981,6 +983,7 @@ class BlenderJobProgress extends StatelessWidget {
     this.iconTooltip,
     this.remainingTime,
     this.elapsedTime,
+    this.statusLabel,
   });
 
   final String name;
@@ -993,6 +996,7 @@ class BlenderJobProgress extends StatelessWidget {
   final String? iconTooltip;
   final String? remainingTime;
   final String? elapsedTime;
+  final String? statusLabel;
 
   String? get _progressTooltip {
     if (remainingTime == null && elapsedTime == null) return null;
@@ -1004,9 +1008,9 @@ class BlenderJobProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final clampedProgress = progress.clamp(0, 1).toDouble();
-    final status = active
-        ? '${(clampedProgress * 100).round()}%'
-        : 'Canceling...';
+    final status =
+        statusLabel ??
+        (active ? '${(clampedProgress * 100).round()}%' : 'Canceling...');
     Widget jobIcon = BlenderIcon(
       icon,
       size: 14,
@@ -1042,7 +1046,7 @@ class BlenderJobProgress extends StatelessWidget {
           const SizedBox(width: 5),
           Expanded(
             child: Text(
-              active ? name : 'Canceling...',
+              active ? name : statusLabel ?? 'Canceling...',
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.label,
             ),
@@ -1067,13 +1071,14 @@ class BlenderJobProgress extends StatelessWidget {
 /// The complete running-jobs strip used by Blender headers and status areas.
 ///
 /// Blender's native template can also expose animation playback and remote
-/// asset downloads next to the ordinary job row. These are intentionally
-/// caller-owned visual states; the package does not model Blender's job
-/// manager or cancellation system.
+/// asset downloads next to the ordinary job row. [service] binds the panel to
+/// the reusable job model while [jobs] remains available for custom visual
+/// compositions and backwards compatibility.
 class BlenderRunningJobsPanel extends StatelessWidget {
   const BlenderRunningJobsPanel({
     super.key,
     this.jobs = const <BlenderJobProgress>[],
+    this.service,
     this.onStopAnimation,
     this.animationLabel = 'Anim Player',
     this.assetDownloadProgress,
@@ -1082,6 +1087,7 @@ class BlenderRunningJobsPanel extends StatelessWidget {
   });
 
   final List<BlenderJobProgress> jobs;
+  final BlenderJobService? service;
   final VoidCallback? onStopAnimation;
   final String animationLabel;
   final double? assetDownloadProgress;
@@ -1090,16 +1096,47 @@ class BlenderRunningJobsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final service = this.service;
+    if (service != null) {
+      return AnimatedBuilder(
+        animation: service,
+        builder: (context, _) => _build(context, <BlenderJobProgress>[
+          for (final job in service.jobs) _jobProgress(service, job),
+        ]),
+      );
+    }
+    return _build(context, jobs);
+  }
+
+  BlenderJobProgress _jobProgress(BlenderJobService service, BlenderJob job) {
+    final (active, status) = switch (job.state) {
+      BlenderJobState.running => (true, null),
+      BlenderJobState.cancelRequested => (false, 'Canceling...'),
+      BlenderJobState.completed => (true, '100%'),
+      BlenderJobState.failed => (false, 'Failed'),
+    };
+    return BlenderJobProgress(
+      name: job.name,
+      progress: job.progress,
+      active: active,
+      statusLabel: status,
+      remainingTime: job.remainingTime,
+      elapsedTime: job.elapsedTime,
+      onCancel: job.canCancel ? () => unawaited(service.cancel(job.id)) : null,
+    );
+  }
+
+  Widget _build(BuildContext context, List<BlenderJobProgress> visibleJobs) {
     final theme = BlenderTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        for (var index = 0; index < jobs.length; index++) ...<Widget>[
+        for (var index = 0; index < visibleJobs.length; index++) ...<Widget>[
           if (index > 0) const SizedBox(height: 2),
-          jobs[index],
+          visibleJobs[index],
         ],
         if (onStopAnimation != null) ...<Widget>[
-          if (jobs.isNotEmpty) const SizedBox(height: 2),
+          if (visibleJobs.isNotEmpty) const SizedBox(height: 2),
           Align(
             alignment: Alignment.centerLeft,
             child: BlenderButton(
@@ -1115,7 +1152,7 @@ class BlenderRunningJobsPanel extends StatelessWidget {
           ),
         ],
         if (assetDownloadProgress != null) ...<Widget>[
-          if (jobs.isNotEmpty || onStopAnimation != null)
+          if (visibleJobs.isNotEmpty || onStopAnimation != null)
             const SizedBox(height: 4),
           Text(assetDownloadsLabel, style: theme.textTheme.label),
           const SizedBox(height: 2),

@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:blender_ui/blender_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../demo/demo_workbench.dart';
 import 'showcase_status_bar.dart';
 import '../showcase_viewport.dart';
+import 'window_appearance_adapter.dart';
 
 part 'showcase_catalog_actions.dart';
 
@@ -18,11 +18,10 @@ class ShowcaseApp extends StatefulWidget {
 }
 
 class _ShowcaseAppState extends State<ShowcaseApp> {
-  static const MethodChannel _windowChromeChannel = MethodChannel(
-    'blender_ui/window_chrome',
-  );
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final BlenderApplicationController<Object?> _application;
+  late final Map<BlenderEditorType, BlenderEditorHeaderPreset>
+  _editorHeaderPresets;
   final BlenderInterfacePreferencesService _interfacePreferences =
       BlenderInterfacePreferencesService();
   final BlenderThemeService _themeService = BlenderThemeService();
@@ -439,9 +438,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     Offset(.35, .72),
     Offset(1, 1),
   ];
-  BlenderEditorType _mainEditorType = BlenderEditorType.view3d;
-  BlenderEditorType _rightTopEditorType = BlenderEditorType.outliner;
-  BlenderEditorType _rightBottomEditorType = BlenderEditorType.properties;
+  late final BlenderEditorAreaController<BlenderEditorType> _mainEditorArea;
+  late final BlenderEditorAreaController<BlenderEditorType> _rightTopEditorArea;
+  late final BlenderEditorAreaController<BlenderEditorType>
+  _rightBottomEditorArea;
+
+  BlenderEditorType get _mainEditorType => _mainEditorArea.value;
+  BlenderEditorType get _rightTopEditorType => _rightTopEditorArea.value;
+  BlenderEditorType get _rightBottomEditorType => _rightBottomEditorArea.value;
   String _selectedObject = 'Cube';
   String? _selectedFile;
   String? _selectedShortcut;
@@ -480,7 +484,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   @override
   void initState() {
     super.initState();
-    _themeService.addListener(_syncNativeWindowAppearance);
     _application = BlenderApplicationController<Object?>(
       initialState: null,
       workspace: const BlenderDockSplitNode<String>(
@@ -516,6 +519,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ),
       interfacePreferences: _interfacePreferences,
       themeService: _themeService,
+      windowAppearanceAdapter: const ShowcaseWindowAppearanceAdapter(),
       presentation: BlenderApplicationPresentationService(
         splash: const BlenderSplashScreenConfiguration(
           title: 'Blender UI showcase',
@@ -528,52 +532,75 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ),
     );
+    _editorHeaderPresets = <BlenderEditorType, BlenderEditorHeaderPreset>{
+      for (final type in BlenderEditorType.values)
+        type: BlenderEditorHeaderPreset.forType(type),
+    };
+    for (final preset in _editorHeaderPresets.values) {
+      preset.registerCommands(
+        _application.commands,
+        (commandId) => _setStatus(commandId),
+      );
+    }
+    _mainEditorArea = BlenderEditorAreaController<BlenderEditorType>(
+      session: _application.editorSession,
+      workspaceId: 'showcase',
+      areaId: 'main-area',
+      initialValue: BlenderEditorType.view3d,
+      codec: blenderEditorTypeViewCodec,
+      availableValues: BlenderEditorType.values,
+    )..addListener(_editorAreaChanged);
+    _rightTopEditorArea = BlenderEditorAreaController<BlenderEditorType>(
+      session: _application.editorSession,
+      workspaceId: 'showcase',
+      areaId: 'outliner-area',
+      initialValue: BlenderEditorType.outliner,
+      codec: blenderEditorTypeViewCodec,
+      availableValues: BlenderEditorType.values,
+    )..addListener(_editorAreaChanged);
+    _rightBottomEditorArea = BlenderEditorAreaController<BlenderEditorType>(
+      session: _application.editorSession,
+      workspaceId: 'showcase',
+      areaId: 'properties-area',
+      initialValue: BlenderEditorType.properties,
+      codec: blenderEditorTypeViewCodec,
+      availableValues: BlenderEditorType.values,
+    )..addListener(_editorAreaChanged);
     _application.status.report('Ready');
+    _application.reports.report(
+      'Saved "scene.blend"',
+      level: BlenderStatusLevel.success,
+    );
+    _application.jobs.register(
+      BlenderJob(
+        id: 'asset-preview',
+        name: 'Building Asset Preview',
+        progress: .68,
+        remainingTime: '00:12',
+        elapsedTime: '00:08',
+        onCancel: () => _setStatus('Job canceled'),
+      ),
+    );
     _application.editorSession
-      ..selectView(
-        workspaceId: 'showcase',
-        areaId: 'main-area',
-        viewId: _mainEditorType.name,
-      )
-      ..selectView(
-        workspaceId: 'showcase',
-        areaId: 'outliner-area',
-        viewId: _rightTopEditorType.name,
-      )
-      ..selectView(
-        workspaceId: 'showcase',
-        areaId: 'properties-area',
-        viewId: _rightBottomEditorType.name,
-      )
       ..selectOutlinerItem('showcase', _selectedObject)
       ..inspectPropertiesTarget('showcase', _propertyTabs[_propertyTab].id);
-    _syncNativeWindowAppearance();
   }
 
-  Future<void> _applyNativeWindowAppearance() async {
-    final appearance =
-        _themeService.activeTheme.colors.canvas.computeLuminance() > .5
-        ? 'light'
-        : 'dark';
-    try {
-      await _windowChromeChannel.invokeMethod<void>(
-        'setAppearance',
-        appearance,
-      );
-    } on MissingPluginException {
-      // The channel is implemented by the desktop example runners only.
-    } on PlatformException {
-      // Native title-bar styling is best effort and must not affect editing.
-    }
-  }
-
-  void _syncNativeWindowAppearance() {
-    unawaited(_applyNativeWindowAppearance());
+  void _editorAreaChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _themeService.removeListener(_syncNativeWindowAppearance);
+    _mainEditorArea
+      ..removeListener(_editorAreaChanged)
+      ..dispose();
+    _rightTopEditorArea
+      ..removeListener(_editorAreaChanged)
+      ..dispose();
+    _rightBottomEditorArea
+      ..removeListener(_editorAreaChanged)
+      ..dispose();
     _application.dispose();
     _searchController.dispose();
     _fileSearchController.dispose();
@@ -1032,66 +1059,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   }
 
   List<BlenderPropertyGroup> get _propertyGroups {
-    BlenderPropertyDescriptor<bool> boolProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> choice(
-      String id,
-      String label,
-      String value,
-      List<String> values,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: <BlenderMenuItem<String>>[
-            for (final item in values)
-              BlenderMenuItem<String>(value: item, label: item),
-          ],
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
         id: 'format',
@@ -1383,9 +1350,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Post Processing',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          boolProperty('post-compositing', 'Compositing', true),
-          boolProperty('post-sequencer', 'Sequencer', true),
-          numberProperty('post-dither', 'Dither', 1, min: 0, max: 2),
+          BlenderPropertyFactory.boolean(
+            'post-compositing',
+            'Compositing',
+            true,
+          ),
+          BlenderPropertyFactory.boolean('post-sequencer', 'Sequencer', true),
+          BlenderPropertyFactory.number(
+            'post-dither',
+            'Dither',
+            1,
+            min: 0,
+            max: 2,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -1393,14 +1370,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Metadata',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          choice('metadata-input', 'Input', 'Scene', <String>[
+          BlenderPropertyFactory.choice<String>(
+            'metadata-input',
+            'Input',
             'Scene',
-            'Strip',
-          ]),
-          boolProperty('metadata-date', 'Date', true),
-          boolProperty('metadata-time', 'Time', true),
-          boolProperty('metadata-frame', 'Frame', true),
-          boolProperty('metadata-camera', 'Camera', false),
+            <String>['Scene', 'Strip'],
+          ),
+          BlenderPropertyFactory.boolean('metadata-date', 'Date', true),
+          BlenderPropertyFactory.boolean('metadata-time', 'Time', true),
+          BlenderPropertyFactory.boolean('metadata-frame', 'Frame', true),
+          BlenderPropertyFactory.boolean('metadata-camera', 'Camera', false),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
@@ -1408,11 +1387,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Note',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              boolProperty('metadata-note-enabled', 'Use Note', false),
-              choice('metadata-note-text', 'Text', 'Showcase render', <String>[
+              BlenderPropertyFactory.boolean(
+                'metadata-note-enabled',
+                'Use Note',
+                false,
+              ),
+              BlenderPropertyFactory.choice<String>(
+                'metadata-note-text',
+                'Text',
                 'Showcase render',
-                'Preview output',
-              ]),
+                <String>['Showcase render', 'Preview output'],
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -1420,8 +1405,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Burn Into Image',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              boolProperty('metadata-burn-enabled', 'Use Stamp', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'metadata-burn-enabled',
+                'Use Stamp',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'metadata-font-size',
                 'Font Size',
                 24,
@@ -1429,7 +1418,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 128,
                 decimalDigits: 0,
               ),
-              boolProperty('metadata-labels', 'Include Labels', true),
+              BlenderPropertyFactory.boolean(
+                'metadata-labels',
+                'Include Labels',
+                true,
+              ),
             ],
           ),
         ],
@@ -1439,12 +1432,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Views',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          choice('views-format', 'Views Format', 'Individual', <String>[
+          BlenderPropertyFactory.choice<String>(
+            'views-format',
+            'Views Format',
             'Individual',
-            'Stereo 3D',
-          ]),
-          boolProperty('views-left', 'Left', true),
-          boolProperty('views-right', 'Right', true),
+            <String>['Individual', 'Stereo 3D'],
+          ),
+          BlenderPropertyFactory.boolean('views-left', 'Left', true),
+          BlenderPropertyFactory.boolean('views-right', 'Right', true),
         ],
       ),
       BlenderPropertyGroup(
@@ -1452,20 +1447,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Color Management',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          choice(
+          BlenderPropertyFactory.choice<String>(
             'output-color-mode',
             'Color Management',
             'Follow Scene',
             <String>['Follow Scene', 'Override'],
           ),
-          choice('output-display-device', 'Display Device', 'sRGB', <String>[
+          BlenderPropertyFactory.choice<String>(
+            'output-display-device',
+            'Display Device',
             'sRGB',
-            'Display P3',
-          ]),
-          choice('output-view-transform', 'View Transform', 'AgX', <String>[
+            <String>['sRGB', 'Display P3'],
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'output-view-transform',
+            'View Transform',
             'AgX',
-            'Standard',
-          ]),
+            <String>['AgX', 'Standard'],
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -1473,7 +1472,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Pixel Density',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'pixel-density-pixels',
             'Pixels',
             72,
@@ -1481,13 +1480,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 10000,
             decimalDigits: 0,
           ),
-          choice('pixel-density-unit', 'Unit', 'Inch', <String>[
+          BlenderPropertyFactory.choice<String>(
+            'pixel-density-unit',
+            'Unit',
             'Inch',
-            'Centimeter',
-            'Meter',
-            'Custom',
-          ]),
-          numberProperty('pixel-density-base', 'Base', .0254, min: 0),
+            <String>['Inch', 'Centimeter', 'Meter', 'Custom'],
+          ),
+          BlenderPropertyFactory.number(
+            'pixel-density-base',
+            'Base',
+            .0254,
+            min: 0,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -1495,12 +1499,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Encoding',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          choice('encoding-container', 'Container', 'MPEG-4', <String>[
+          BlenderPropertyFactory.choice<String>(
+            'encoding-container',
+            'Container',
             'MPEG-4',
-            'Matroska',
-            'WebM',
-          ]),
-          boolProperty('encoding-autosplit', 'Autosplit Output', false),
+            <String>['MPEG-4', 'Matroska', 'WebM'],
+          ),
+          BlenderPropertyFactory.boolean(
+            'encoding-autosplit',
+            'Autosplit Output',
+            false,
+          ),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
@@ -1508,17 +1517,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Video',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              choice('encoding-codec', 'Codec', 'H.264', <String>[
+              BlenderPropertyFactory.choice<String>(
+                'encoding-codec',
+                'Codec',
                 'H.264',
-                'H.265',
-                'AV1',
-              ]),
-              choice('encoding-quality', 'Quality', 'Medium', <String>[
-                'Low',
+                <String>['H.264', 'H.265', 'AV1'],
+              ),
+              BlenderPropertyFactory.choice<String>(
+                'encoding-quality',
+                'Quality',
                 'Medium',
-                'High',
-              ]),
-              numberProperty(
+                <String>['Low', 'Medium', 'High'],
+              ),
+              BlenderPropertyFactory.number(
                 'encoding-bitrate',
                 'Bitrate',
                 8,
@@ -1533,17 +1544,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Audio',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              choice('encoding-audio-codec', 'Audio Codec', 'AAC', <String>[
+              BlenderPropertyFactory.choice<String>(
+                'encoding-audio-codec',
+                'Audio Codec',
                 'AAC',
-                'FLAC',
-                'PCM',
-              ]),
-              choice('encoding-audio-channels', 'Channels', 'Stereo', <String>[
-                'Mono',
+                <String>['AAC', 'FLAC', 'PCM'],
+              ),
+              BlenderPropertyFactory.choice<String>(
+                'encoding-audio-channels',
+                'Channels',
                 'Stereo',
-                '5.1',
-              ]),
-              numberProperty(
+                <String>['Mono', 'Stereo', '5.1'],
+              ),
+              BlenderPropertyFactory.number(
                 'encoding-sample-rate',
                 'Sample Rate',
                 48000,
@@ -1577,109 +1590,49 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Texture', label: 'Texture'),
     ];
 
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyGroup panel(
-      String id,
-      String title, {
-      bool expanded = false,
-      List<BlenderPropertyDescriptor<dynamic>> properties =
-          const <BlenderPropertyDescriptor<dynamic>>[],
-      List<BlenderPropertyGroup> children = const <BlenderPropertyGroup>[],
-    }) {
-      return BlenderPropertyGroup(
-        id: id,
-        title: title,
-        initiallyExpanded: expanded,
-        properties: properties,
-        children: children,
-      );
-    }
-
     return <BlenderPropertyGroup>[
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-sampling',
         'Sampling',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('workbench-render-aa', 'Render', '8', aaChoices),
-          enumProperty('workbench-viewport-aa', 'Viewport', '8', aaChoices),
+          BlenderPropertyFactory.choice<String>(
+            'workbench-render-aa',
+            'Render',
+            '8',
+            aaChoices,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'workbench-viewport-aa',
+            'Viewport',
+            '8',
+            aaChoices,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-film',
         'Film',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('workbench-transparent', 'Transparent', false),
+          BlenderPropertyFactory.boolean(
+            'workbench-transparent',
+            'Transparent',
+            false,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-lighting',
         'Lighting',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'workbench-lighting-type',
             'Lighting',
             'Studio',
             lightingChoices,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'workbench-studio-light',
             'Studio Light',
             'Basic.sl',
@@ -1688,26 +1641,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem(value: 'Paint.sl', label: 'Paint.sl'),
             ],
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'workbench-world-lighting',
             'World Space Lighting',
             false,
           ),
-          numberProperty('workbench-light-rotation', 'Rotation', 0),
+          BlenderPropertyFactory.number(
+            'workbench-light-rotation',
+            'Rotation',
+            0,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-color',
         'Object Color',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'workbench-color-type',
             'Color Type',
             'Material',
             colorChoices,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'workbench-background-type',
             'Background',
             'Theme',
@@ -1719,64 +1676,80 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-options',
         'Options',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'workbench-backface-culling',
             'Backface Culling',
             false,
           ),
-          booleanProperty('workbench-outline', 'Outline', true),
-          booleanProperty('workbench-xray', 'X-Ray', false),
-          booleanProperty('workbench-shadows', 'Shadows', true),
-          booleanProperty('workbench-depth-of-field', 'Depth of Field', false),
-          booleanProperty('workbench-cavity', 'Cavity', true),
-          numberProperty('workbench-shadow-direction', 'Shadow Direction', 0),
-          numberProperty('workbench-shadow-focus', 'Shadow Focus', .5),
+          BlenderPropertyFactory.boolean('workbench-outline', 'Outline', true),
+          BlenderPropertyFactory.boolean('workbench-xray', 'X-Ray', false),
+          BlenderPropertyFactory.boolean('workbench-shadows', 'Shadows', true),
+          BlenderPropertyFactory.boolean(
+            'workbench-depth-of-field',
+            'Depth of Field',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('workbench-cavity', 'Cavity', true),
+          BlenderPropertyFactory.number(
+            'workbench-shadow-direction',
+            'Shadow Direction',
+            0,
+          ),
+          BlenderPropertyFactory.number(
+            'workbench-shadow-focus',
+            'Shadow Focus',
+            .5,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-simplify',
         'Simplify',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-simplify-viewport',
             'Viewport',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-subdivision',
                 'Max Subdivision',
                 2,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-particles',
                 'Max Child Particles',
                 1,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-volumes',
                 'Volume Resolution',
                 1,
                 decimalDigits: 0,
               ),
-              booleanProperty('workbench-simplify-normals', 'Normals', true),
+              BlenderPropertyFactory.boolean(
+                'workbench-simplify-normals',
+                'Normals',
+                true,
+              ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-simplify-render',
             'Render',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-render-subdivision',
                 'Max Subdivision',
                 2,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-render-particles',
                 'Max Child Particles',
                 1,
@@ -1784,11 +1757,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-simplify-grease-pencil',
             'Grease Pencil',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-simplify-gp',
                 'Simplify Grease Pencil',
                 0,
@@ -1797,15 +1770,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-color-management',
         'Color Management',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-color-working-space',
             'Working Space',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'workbench-working-file',
                 'File',
                 'sRGB',
@@ -1816,43 +1789,47 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-color-advanced',
             'Advanced',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('workbench-emulation', 'Emulation', false),
+              BlenderPropertyFactory.boolean(
+                'workbench-emulation',
+                'Emulation',
+                false,
+              ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-color-curves',
             'Curves',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'workbench-color-curves-enabled',
                 'Use Curve Mapping',
                 false,
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'workbench-color-white-balance',
             'White Balance',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'workbench-white-temperature',
                 'Temperature',
                 6500,
               ),
-              numberProperty('workbench-white-tint', 'Tint', 10),
+              BlenderPropertyFactory.number('workbench-white-tint', 'Tint', 10),
             ],
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'workbench-freestyle',
         'Freestyle',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'workbench-freestyle-enable',
             'Enable Freestyle',
             false,
@@ -1880,117 +1857,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Ray Tracing', label: 'Ray Tracing'),
     ];
 
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      double step = 1,
-      int decimalDigits = 2,
-      String? suffix,
-      bool showSteppers = true,
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          step: step,
-          decimalDigits: decimalDigits,
-          suffix: suffix,
-          showSteppers: showSteppers,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    Widget headerToggle(String title) => BlenderCheckbox(
-      value: true,
-      onChanged: (value) =>
-          _setStatus('$title ${value ? 'enabled' : 'disabled'}'),
-    );
-
-    BlenderPropertyGroup panel(
-      String id,
-      String title, {
-      bool expanded = false,
-      bool toggle = false,
-      List<Widget>? headerActions,
-      List<BlenderPropertyDescriptor<dynamic>> properties =
-          const <BlenderPropertyDescriptor<dynamic>>[],
-      List<BlenderPropertyGroup> children = const <BlenderPropertyGroup>[],
-    }) {
-      return BlenderPropertyGroup(
-        id: id,
-        title: title,
-        initiallyExpanded: expanded,
-        headerLeading: toggle ? headerToggle(title) : null,
-        properties: properties,
-        children: children,
-      );
-    }
-
     return <BlenderPropertyGroup>[
-      panel(
+      BlenderPropertyFactory.panel(
         'render-sampling',
         'Sampling',
         expanded: true,
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-sampling-viewport',
             'Viewport',
             expanded: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-taa-samples',
                 'Samples',
                 64,
@@ -1998,24 +1876,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 4096,
                 decimalDigits: 0,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'render-temporal-reprojection',
                 'Temporal Reprojection',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'render-jittered-shadows',
                 'Jittered Shadows',
                 true,
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-sampling-render',
             'Render',
             expanded: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-samples',
                 'Samples',
                 64,
@@ -2025,13 +1903,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-sampling-shadows',
             'Shadows',
             toggle: true,
             expanded: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-shadow-rays',
                 'Rays',
                 1,
@@ -2039,7 +1917,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 128,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-shadow-steps',
                 'Steps',
                 4,
@@ -2047,8 +1925,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 64,
                 decimalDigits: 0,
               ),
-              booleanProperty('render-volume-shadows', 'Volume Shadows', true),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'render-volume-shadows',
+                'Volume Shadows',
+                true,
+              ),
+              BlenderPropertyFactory.number(
                 'render-volume-shadow-steps',
                 'Steps',
                 4,
@@ -2056,7 +1938,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 64,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-shadow-resolution',
                 'Resolution',
                 .763,
@@ -2068,11 +1950,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-sampling-advanced',
             'Advanced',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-light-threshold',
                 'Light Threshold',
                 .01,
@@ -2083,42 +1965,42 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-light-paths',
         'Light Paths',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-clamping',
             'Clamping',
             children: <BlenderPropertyGroup>[
-              panel(
+              BlenderPropertyFactory.panel(
                 'render-clamping-surface',
                 'Surface',
                 expanded: true,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'render-clamp-surface-direct',
                     'Direct Light',
                     10,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'render-clamp-surface-indirect',
                     'Indirect Light',
                     10,
                   ),
                 ],
               ),
-              panel(
+              BlenderPropertyFactory.panel(
                 'render-clamping-volume',
                 'Volume',
                 expanded: true,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'render-clamp-volume-direct',
                     'Direct Light',
                     10,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'render-clamp-volume-indirect',
                     'Indirect Light',
                     10,
@@ -2127,22 +2009,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-light-path-intensity',
             'Intensity',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('render-direct-intensity', 'Direct Light', 1),
-              numberProperty('render-indirect-intensity', 'Indirect Light', 1),
+              BlenderPropertyFactory.number(
+                'render-direct-intensity',
+                'Direct Light',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'render-indirect-intensity',
+                'Indirect Light',
+                1,
+              ),
             ],
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-raytracing',
         'Raytracing',
         toggle: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-raytracing-method',
             'Method',
             'Screen Tracing',
@@ -2157,7 +2047,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-raytracing-resolution',
             'Resolution',
             100,
@@ -2167,27 +2057,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-screen-tracing',
             'Screen Tracing',
             expanded: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-screen-trace-precision',
                 'Precision',
                 .5,
                 min: 0,
                 max: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-screen-trace-thickness',
                 'Thickness',
                 .2,
                 min: 0,
                 step: .01,
               ),
-              booleanProperty('render-screen-trace-backface', 'Backface', true),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'render-screen-trace-backface',
+                'Backface',
+                true,
+              ),
+              BlenderPropertyFactory.number(
                 'render-screen-trace-radiance',
                 'Radiance',
                 .5,
@@ -2196,25 +2090,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-fast-gi',
             'Fast GI Approximation',
             toggle: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-fast-gi-threshold',
                 'Threshold',
                 .5,
                 min: 0,
                 max: 1,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-fast-gi-method',
                 'Method',
                 'Screen Tracing',
                 giMethods,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-fast-gi-resolution',
                 'Resolution',
                 'Half',
@@ -2224,7 +2118,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Quarter', label: 'Quarter'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-fast-gi-rays',
                 'Rays',
                 4,
@@ -2232,7 +2126,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 64,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-fast-gi-steps',
                 'Steps',
                 8,
@@ -2240,34 +2134,56 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 64,
                 decimalDigits: 0,
               ),
-              numberProperty('render-fast-gi-distance', 'Distance', 3),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'render-fast-gi-distance',
+                'Distance',
+                3,
+              ),
+              BlenderPropertyFactory.number(
                 'render-fast-gi-thickness',
                 'Thickness',
                 .2,
                 min: 0,
                 step: .01,
               ),
-              numberProperty('render-fast-gi-bias', 'Bias', .5, min: 0, max: 1),
+              BlenderPropertyFactory.number(
+                'render-fast-gi-bias',
+                'Bias',
+                .5,
+                min: 0,
+                max: 1,
+              ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-denoising',
             'Denoising',
             toggle: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('render-denoise-spatial', 'Spatial', true),
-              booleanProperty('render-denoise-temporal', 'Temporal', true),
-              booleanProperty('render-denoise-bilateral', 'Bilateral', true),
+              BlenderPropertyFactory.boolean(
+                'render-denoise-spatial',
+                'Spatial',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'render-denoise-temporal',
+                'Temporal',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'render-denoise-bilateral',
+                'Bilateral',
+                true,
+              ),
             ],
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-volumes',
         'Volumes',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-volume-resolution',
             'Resolution',
             '8 px',
@@ -2277,7 +2193,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: '16 px', label: '16 px'),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-volume-steps',
             'Steps',
             64,
@@ -2285,14 +2201,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 1024,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-volume-distribution',
             'Distribution',
             .5,
             min: 0,
             max: 1,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-volume-depth',
             'Max Depth',
             64,
@@ -2302,44 +2218,48 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-volume-range',
             'Custom Range',
             toggle: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('render-volume-start', 'Start', 0),
-              numberProperty('render-volume-end', 'End', 100),
+              BlenderPropertyFactory.number('render-volume-start', 'Start', 0),
+              BlenderPropertyFactory.number('render-volume-end', 'End', 100),
             ],
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-depth-of-field',
         'Depth of Field',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-bokeh-max-size',
             'Max Size',
             10,
             min: 0,
             max: 100,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-bokeh-threshold',
             'Threshold',
             1,
             min: 0,
             max: 100,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-bokeh-neighbor-max',
             'Neighbor Max',
             10,
             min: 0,
             max: 100,
           ),
-          booleanProperty('render-bokeh-jittered', 'Jitter Camera', true),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'render-bokeh-jittered',
+            'Jitter Camera',
+            true,
+          ),
+          BlenderPropertyFactory.number(
             'render-bokeh-overblur',
             'Overblur',
             0,
@@ -2348,26 +2268,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-motion-blur',
         'Motion Blur',
         toggle: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-motion-position',
             'Position',
             'Center',
             axisChoices,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-motion-shutter',
             'Shutter',
             .5,
             min: 0,
             max: 2,
           ),
-          numberProperty('render-motion-depth-scale', 'Depth Scale', 1, min: 0),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'render-motion-depth-scale',
+            'Depth Scale',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
             'render-motion-max',
             'Max',
             64,
@@ -2375,7 +2300,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 256,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-motion-steps',
             'Steps',
             2,
@@ -2385,11 +2310,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-shutter-curve',
             'Shutter Curve',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-shutter-curve-shape',
                 'Preset',
                 'Smooth',
@@ -2404,20 +2329,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-film',
         'Film',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-filter-size',
             'Filter Size',
             1.5,
             min: 0,
             max: 20,
           ),
-          booleanProperty('render-film-transparent', 'Transparent', false),
-          booleanProperty('render-overscan', 'Overscan', false),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'render-film-transparent',
+            'Transparent',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('render-overscan', 'Overscan', false),
+          BlenderPropertyFactory.number(
             'render-overscan-size',
             'Size',
             3,
@@ -2427,11 +2356,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-curves',
         'Curves',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-curves-shape',
             'Shape',
             '3D Curves',
@@ -2440,7 +2369,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: '2D Curves', label: '2D Curves'),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'render-curves-subdivision',
             'Subdivision',
             2,
@@ -2450,22 +2379,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-performance',
         'Performance',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-performance-memory',
             'Memory',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-shadow-pool',
                 'Shadow Pool',
                 512,
                 min: 0,
                 suffix: ' MB',
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-probe-pool',
                 'Light Probes Volume Pool',
                 256,
@@ -2474,11 +2403,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-performance-viewport',
             'Viewport',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-preview-pixel-size',
                 'Pixel Size',
                 1,
@@ -2488,17 +2417,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-performance-compositor',
             'Compositor',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-compositor-device',
                 'Device',
                 'CPU',
                 deviceChoices,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-compositor-precision',
                 'Precision',
                 'Full',
@@ -2509,17 +2438,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
             children: <BlenderPropertyGroup>[
-              panel(
+              BlenderPropertyFactory.panel(
                 'render-performance-denoise',
                 'Denoise Nodes',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'render-denoise-device',
                     'Denoising Device',
                     'CPU',
                     deviceChoices,
                   ),
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'render-denoise-preview-quality',
                     'Preview Quality',
                     'Fast',
@@ -2531,7 +2460,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       ),
                     ],
                   ),
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'render-denoise-final-quality',
                     'Final Quality',
                     'High',
@@ -2546,15 +2475,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-grease-pencil',
         'Grease Pencil',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-grease-pencil-viewport',
             'Viewport',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-gp-smaa-viewport',
                 'SMAA Threshold',
                 .1,
@@ -2563,18 +2492,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-grease-pencil-render',
             'Render',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-gp-smaa-render',
                 'SMAA Threshold',
                 .1,
                 min: 0,
                 max: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-gp-ssaa-samples',
                 'SSAA Samples',
                 8,
@@ -2582,7 +2511,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 64,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-gp-motion-steps',
                 'Motion Blur Steps',
                 4,
@@ -2594,16 +2523,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-simplify',
         'Simplify',
         toggle: true,
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-simplify-viewport',
             'Viewport',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-simplify-subdivision',
                 'Max Subdivision',
                 2,
@@ -2611,7 +2540,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 12,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-simplify-particles',
                 'Max Child Particles',
                 1,
@@ -2619,7 +2548,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 100000,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-simplify-volumes',
                 'Volume Resolution',
                 1,
@@ -2627,14 +2556,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 100,
                 decimalDigits: 0,
               ),
-              booleanProperty('render-simplify-normals', 'Normals', true),
+              BlenderPropertyFactory.boolean(
+                'render-simplify-normals',
+                'Normals',
+                true,
+              ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-simplify-render',
             'Render',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-simplify-render-subdivision',
                 'Max Subdivision',
                 2,
@@ -2642,7 +2575,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 12,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-simplify-render-particles',
                 'Max Child Particles',
                 1,
@@ -2652,11 +2585,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-simplify-grease-pencil',
             'Grease Pencil',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'render-simplify-gp',
                 'Simplify Grease Pencil',
                 true,
@@ -2665,15 +2598,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-color-management',
         'Color Management',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'render-color-working-space',
             'Working Space',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-working-file',
                 'File',
                 'sRGB',
@@ -2682,7 +2615,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'ACEScg', label: 'ACEScg'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-working-sequencer',
                 'Sequencer',
                 'sRGB',
@@ -2693,11 +2626,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-color-advanced',
             'Advanced',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'render-color-emulation',
                 'Emulation',
                 'sRGB',
@@ -2711,24 +2644,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-color-curves',
             'Curves',
             toggle: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'render-color-curve-mapping',
                 'Use Curve Mapping',
                 true,
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'render-color-white-balance',
             'White Balance',
             toggle: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-white-temperature',
                 'Temperature',
                 6500,
@@ -2737,7 +2670,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 decimalDigits: 0,
                 suffix: ' K',
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'render-white-tint',
                 'Tint',
                 10,
@@ -2748,7 +2681,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-display-device',
             'Display Device',
             'sRGB',
@@ -2757,7 +2690,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Display P3', label: 'Display P3'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-view-transform',
             'View Transform',
             'AgX',
@@ -2766,7 +2699,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Standard', label: 'Standard'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'render-look',
             'Look',
             'None',
@@ -2778,16 +2711,28 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          numberProperty('render-exposure', 'Exposure', 0, min: -10, max: 10),
-          numberProperty('render-gamma', 'Gamma', 1, min: .1, max: 5),
+          BlenderPropertyFactory.number(
+            'render-exposure',
+            'Exposure',
+            0,
+            min: -10,
+            max: 10,
+          ),
+          BlenderPropertyFactory.number(
+            'render-gamma',
+            'Gamma',
+            1,
+            min: .1,
+            max: 5,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'render-freestyle',
         'Freestyle',
         toggle: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-line-thickness-mode',
             'Line Thickness Mode',
             'Absolute',
@@ -2796,7 +2741,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Relative', label: 'Relative'),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-line-thickness',
             'Line Thickness',
             1,
@@ -2827,77 +2772,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Inverse', label: 'Inverse'),
       BlenderMenuItem<String>(value: 'Linear', label: 'Linear'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      double step = 1,
-      int decimalDigits = 2,
-      String? suffix,
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          step: step,
-          decimalDigits: decimalDigits,
-          suffix: suffix,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     BlenderPropertyDescriptor<List<double>> vectorProperty(
       String id,
@@ -2935,40 +2809,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       );
     }
 
-    BlenderPropertyGroup panel(
-      String id,
-      String title, {
-      bool expanded = false,
-      bool toggle = false,
-      List<Widget>? headerActions,
-      List<BlenderPropertyDescriptor<dynamic>> properties =
-          const <BlenderPropertyDescriptor<dynamic>>[],
-      List<BlenderPropertyGroup> children = const <BlenderPropertyGroup>[],
-    }) {
-      return BlenderPropertyGroup(
-        id: id,
-        title: title,
-        initiallyExpanded: expanded,
-        headerLeading: toggle
-            ? BlenderCheckbox(
-                value: true,
-                onChanged: (value) =>
-                    _setStatus('$title ${value ? 'enabled' : 'disabled'}'),
-              )
-            : null,
-        headerActions: headerActions,
-        properties: properties,
-        children: children,
-      );
-    }
-
     return <BlenderPropertyGroup>[
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-scene',
         'Scene',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-camera',
             'Camera',
             'Camera',
@@ -2977,7 +2824,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Camera.001', label: 'Camera.001'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-background-set',
             'Background Set',
             'None',
@@ -2986,7 +2833,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ...sceneChoices,
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-active-clip',
             'Active Clip',
             'None',
@@ -3000,37 +2847,47 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-units',
         'Units',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-unit-system',
             'Unit System',
             'Metric',
             unitChoices,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-scale-length',
             'Scale Length',
             1,
             min: .0001,
             step: .01,
           ),
-          booleanProperty('scene-separate-units', 'Separate Units', false),
-          enumProperty(
+          BlenderPropertyFactory.boolean(
+            'scene-separate-units',
+            'Separate Units',
+            false,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'scene-rotation-system',
             'Rotation',
             'Degrees',
             rotationChoices,
           ),
-          enumProperty('scene-length-unit', 'Length', 'Meters', const <
-            BlenderMenuItem<String>
-          >[
-            BlenderMenuItem<String>(value: 'Meters', label: 'Meters'),
-            BlenderMenuItem<String>(value: 'Centimeters', label: 'Centimeters'),
-          ]),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
+            'scene-length-unit',
+            'Length',
+            'Meters',
+            const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'Meters', label: 'Meters'),
+              BlenderMenuItem<String>(
+                value: 'Centimeters',
+                label: 'Centimeters',
+              ),
+            ],
+          ),
+          BlenderPropertyFactory.choice<String>(
             'scene-mass-unit',
             'Mass',
             'Kilograms',
@@ -3039,7 +2896,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Grams', label: 'Grams'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-time-unit',
             'Time',
             'Seconds',
@@ -3048,7 +2905,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Frames', label: 'Frames'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-temperature-unit',
             'Temperature',
             'Kelvin',
@@ -3059,24 +2916,36 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-keying-sets',
         'Keying Sets',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'scene-keyframing-settings',
             'Keyframing Settings',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('scene-key-needed', 'Needed', true),
-              booleanProperty('scene-key-visual', 'Visual', false),
-              booleanProperty('scene-key-available', 'Available', true),
+              BlenderPropertyFactory.boolean(
+                'scene-key-needed',
+                'Needed',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'scene-key-visual',
+                'Visual',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'scene-key-available',
+                'Available',
+                true,
+              ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'scene-active-keying-set',
             'Active Keying Set',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'scene-key-target',
                 'Target ID-Block',
                 'Cube',
@@ -3085,7 +2954,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Camera', label: 'Camera'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'scene-key-data-path',
                 'Data Path',
                 'Location',
@@ -3094,8 +2963,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Rotation', label: 'Rotation'),
                 ],
               ),
-              booleanProperty('scene-key-array-all', 'Array All Items', true),
-              enumProperty(
+              BlenderPropertyFactory.boolean(
+                'scene-key-array-all',
+                'Array All Items',
+                true,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'scene-key-grouping',
                 'F-Curve Grouping',
                 'Named',
@@ -3108,7 +2981,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-keying-set',
             'Keying Set',
             'Location & Rotation',
@@ -3122,24 +2995,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-audio',
         'Audio',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('scene-audio-volume', 'Volume', 1, min: 0, max: 2),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'scene-audio-volume',
+            'Volume',
+            1,
+            min: 0,
+            max: 2,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'scene-audio-distance',
             'Distance Model',
             'HRTF',
             distanceChoices,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-audio-doppler-speed',
             'Doppler Speed',
             343,
             min: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-audio-doppler-factor',
             'Doppler Factor',
             1,
@@ -3148,7 +3027,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           actionProperty('scene-audio-bake', 'Bake Animation'),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-gravity',
         'Gravity',
         toggle: true,
@@ -3160,23 +3039,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ], step: .01),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-simulation',
         'Simulation',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'scene-custom-simulation-range',
             'Simulation Range',
             true,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-simulation-start',
             'Start',
             1,
             min: 0,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-simulation-end',
             'End',
             250,
@@ -3185,7 +3064,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-rigid-body-world',
         'Rigid Body World',
         toggle: true,
@@ -3193,18 +3072,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           actionProperty('scene-rigid-remove', 'Remove'),
         ],
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'scene-rigid-body-settings',
             'Settings',
             expanded: true,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'scene-rigid-collection',
                 'Collection',
                 'RigidBodyWorld',
                 sceneChoices,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'scene-rigid-constraints',
                 'Constraints',
                 'RigidBodyConstraints',
@@ -3216,19 +3095,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'None', label: 'None'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-speed',
                 'Speed',
                 1,
                 min: 0,
                 step: .01,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'scene-rigid-split-impulse',
                 'Split Impulse',
                 true,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-substeps',
                 'Substeps Per Frame',
                 10,
@@ -3236,7 +3115,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 100,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-solver-iterations',
                 'Solver Iterations',
                 10,
@@ -3246,25 +3125,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'scene-rigid-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-cache-start',
                 'Frame Start',
                 1,
                 min: 0,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-cache-end',
                 'End',
                 250,
                 min: 0,
                 decimalDigits: 0,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'scene-rigid-cache-type',
                 'Simulation',
                 'Replay',
@@ -3275,18 +3154,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'scene-rigid-field-weights',
             'Field Weights',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-gravity-weight',
                 'Gravity',
                 1,
                 min: 0,
                 max: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'scene-rigid-all-weight',
                 'All',
                 1,
@@ -3297,11 +3176,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-light-probes',
         'Light Probes',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'scene-probe-resolution',
             'Spheres Resolution',
             '256',
@@ -3314,24 +3193,35 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           actionProperty('scene-probe-bake', 'Bake All Light Probe Volumes'),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-animation',
         'Animation',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('scene-action', 'Action', 'SceneAction', const <
-            BlenderMenuItem<String>
-          >[
-            BlenderMenuItem<String>(value: 'SceneAction', label: 'SceneAction'),
-            BlenderMenuItem<String>(value: 'None', label: 'None'),
-          ]),
-          enumProperty('scene-slot', 'Slot', 'Scene', sceneChoices),
+          BlenderPropertyFactory.choice<String>(
+            'scene-action',
+            'Action',
+            'SceneAction',
+            const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'SceneAction',
+                label: 'SceneAction',
+              ),
+              BlenderMenuItem<String>(value: 'None', label: 'None'),
+            ],
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'scene-slot',
+            'Slot',
+            'Scene',
+            sceneChoices,
+          ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'scene-custom-properties',
         'Custom Properties',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'scene-custom-property',
             'example_value',
             1,
@@ -3343,97 +3233,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   }
 
   List<BlenderPropertyGroup> get _worldPropertyGroups {
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      double step = 1,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          step: step,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyGroup panel(
-      String id,
-      String title, {
-      bool expanded = false,
-      bool toggle = false,
-      List<BlenderPropertyDescriptor<dynamic>> properties =
-          const <BlenderPropertyDescriptor<dynamic>>[],
-      List<BlenderPropertyGroup> children = const <BlenderPropertyGroup>[],
-    }) {
-      return BlenderPropertyGroup(
-        id: id,
-        title: title,
-        initiallyExpanded: expanded,
-        headerLeading: toggle
-            ? BlenderCheckbox(
-                value: true,
-                onChanged: (value) =>
-                    _setStatus('$title ${value ? 'enabled' : 'disabled'}'),
-              )
-            : null,
-        properties: properties,
-        children: children,
-      );
-    }
-
     return <BlenderPropertyGroup>[
-      panel(
+      BlenderPropertyFactory.panel(
         'world-surface',
         'Surface',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'world-surface-node',
             'Surface',
             'Background',
@@ -3444,11 +3250,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-volume',
         'Volume',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'world-volume-node',
             'Volume',
             'Principled Volume',
@@ -3472,13 +3278,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-mist',
         'Mist Pass',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('world-mist-start', 'Start', 5, min: 0),
-          numberProperty('world-mist-depth', 'Depth', 25, min: 0),
-          enumProperty(
+          BlenderPropertyFactory.number('world-mist-start', 'Start', 5, min: 0),
+          BlenderPropertyFactory.number(
+            'world-mist-depth',
+            'Depth',
+            25,
+            min: 0,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'world-mist-falloff',
             'Falloff',
             'Quadratic',
@@ -3493,15 +3304,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-settings',
         'Settings',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'world-light-probe',
             'Light Probe',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'world-probe-resolution',
                 'Resolution',
                 '256',
@@ -3513,12 +3324,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'world-sun',
             'Sun',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('world-sun-threshold', 'Threshold', .1, min: 0),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'world-sun-threshold',
+                'Threshold',
+                .1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
                 'world-sun-angle',
                 'Angle',
                 .526,
@@ -3528,25 +3344,29 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
             children: <BlenderPropertyGroup>[
-              panel(
+              BlenderPropertyFactory.panel(
                 'world-sun-shadow',
                 'Shadow',
                 toggle: true,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('world-sun-shadow-jitter', 'Jitter', true),
-                  numberProperty(
+                  BlenderPropertyFactory.boolean(
+                    'world-sun-shadow-jitter',
+                    'Jitter',
+                    true,
+                  ),
+                  BlenderPropertyFactory.number(
                     'world-sun-shadow-overblur',
                     'Overblur',
                     .1,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'world-sun-shadow-filter',
                     'Filter',
                     3,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'world-sun-shadow-resolution',
                     'Resolution Limit',
                     2048,
@@ -3559,7 +3379,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-viewport-display',
         'Viewport Display',
         properties: <BlenderPropertyDescriptor<dynamic>>[
@@ -3574,17 +3394,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-animation',
         'Animation',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('world-action', 'World', 'WorldAction', const <
-            BlenderMenuItem<String>
-          >[
-            BlenderMenuItem<String>(value: 'WorldAction', label: 'WorldAction'),
-            BlenderMenuItem<String>(value: 'None', label: 'None'),
-          ]),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
+            'world-action',
+            'World',
+            'WorldAction',
+            const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'WorldAction',
+                label: 'WorldAction',
+              ),
+              BlenderMenuItem<String>(value: 'None', label: 'None'),
+            ],
+          ),
+          BlenderPropertyFactory.choice<String>(
             'world-node-action',
             'Shader Node Tree',
             'WorldNodes',
@@ -3595,93 +3421,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'world-custom-properties',
         'Custom Properties',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('world-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'world-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
   }
 
   List<BlenderPropertyGroup> get _materialPropertyGroups {
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      double step = 1,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          step: step,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyGroup panel(
-      String id,
-      String title, {
-      bool expanded = false,
-      List<BlenderPropertyDescriptor<dynamic>> properties =
-          const <BlenderPropertyDescriptor<dynamic>>[],
-      List<BlenderPropertyGroup> children = const <BlenderPropertyGroup>[],
-    }) {
-      return BlenderPropertyGroup(
-        id: id,
-        title: title,
-        initiallyExpanded: expanded,
-        properties: properties,
-        children: children,
-      );
-    }
-
     const shaderChoices = <BlenderMenuItem<String>>[
       BlenderMenuItem<String>(
         value: 'Principled BSDF',
@@ -3697,11 +3451,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     ];
 
     return <BlenderPropertyGroup>[
-      panel(
+      BlenderPropertyFactory.panel(
         'material-preview',
         'Preview',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-preview-shape',
             'Preview Shape',
             'Sphere',
@@ -3716,12 +3470,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-surface',
         'Surface',
         expanded: true,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-surface-node',
             'Surface',
             'Principled BSDF',
@@ -3729,11 +3483,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-volume',
         'Volume',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-volume-node',
             'Volume',
             'Principled BSDF',
@@ -3741,11 +3495,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-displacement',
         'Displacement',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-displacement-node',
             'Displacement',
             'None',
@@ -3753,11 +3507,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-thickness',
         'Thickness',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-thickness-node',
             'Thickness',
             'None',
@@ -3765,11 +3519,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-settings',
         'Settings',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'material-pass-index',
             'Pass Index',
             0,
@@ -3779,26 +3533,26 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'material-settings-surface',
             'Surface',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'material-backface-camera',
                 'Backface Culling Camera',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'material-backface-shadow',
                 'Backface Culling Shadow',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'material-backface-probe',
                 'Backface Culling Light Probe Volume',
                 false,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'material-displacement-method',
                 'Displacement',
                 'Bump',
@@ -3810,29 +3564,29 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'material-max-displacement',
                 'Max Distance',
                 0,
                 min: 0,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'material-transparent-shadow',
                 'Transparent Shadow',
                 true,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'material-render-method',
                 'Render Method',
                 'Dithered',
                 renderMethods,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'material-transparency-overlap',
                 'Transparency Overlap',
                 true,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'material-thickness-mode',
                 'Thickness',
                 'Slab',
@@ -3843,11 +3597,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          panel(
+          BlenderPropertyFactory.panel(
             'material-settings-volume',
             'Volume',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'material-volume-intersection',
                 'Intersection',
                 'Fast',
@@ -3860,7 +3614,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-viewport-display',
         'Viewport Display',
         properties: <BlenderPropertyDescriptor<dynamic>>[
@@ -3873,8 +3627,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               onPressed: () => _setStatus('Material color picker opened'),
             ),
           ),
-          numberProperty('material-metallic', 'Metallic', .2, min: 0, max: 1),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'material-metallic',
+            'Metallic',
+            .2,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.number(
             'material-roughness',
             'Roughness',
             .35,
@@ -3883,12 +3643,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-line-art',
         'Line Art',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('material-mask', 'Material Mask', false),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'material-mask',
+            'Material Mask',
+            false,
+          ),
+          BlenderPropertyFactory.number(
             'material-occlusion',
             'Levels',
             0,
@@ -3896,12 +3660,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 8,
             decimalDigits: 0,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'material-intersection-override',
             'Intersection Priority Override',
             false,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'material-intersection-priority',
             'Intersection Priority',
             0,
@@ -3911,7 +3675,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-freestyle-line',
         'Freestyle Line',
         properties: <BlenderPropertyDescriptor<dynamic>>[
@@ -3924,7 +3688,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               onPressed: () => _setStatus('Freestyle line color opened'),
             ),
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'material-freestyle-line-priority',
             'Priority',
             0,
@@ -3934,20 +3698,20 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-grease-pencil',
         'Grease Pencil',
         children: <BlenderPropertyGroup>[
-          panel(
+          BlenderPropertyFactory.panel(
             'material-grease-pencil-surface',
             'Surface',
             expanded: true,
             children: <BlenderPropertyGroup>[
-              panel(
+              BlenderPropertyFactory.panel(
                 'material-grease-pencil-stroke',
                 'Stroke',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'material-grease-pencil-stroke-mode',
                     'Mode',
                     'Line',
@@ -3957,7 +3721,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       BlenderMenuItem<String>(value: 'Box', label: 'Box'),
                     ],
                   ),
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'material-grease-pencil-stroke-style',
                     'Style',
                     'Solid',
@@ -3969,24 +3733,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       ),
                     ],
                   ),
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'material-grease-pencil-stroke-holdout',
                     'Holdout',
                     false,
                   ),
                 ],
                 children: <BlenderPropertyGroup>[
-                  panel(
+                  BlenderPropertyFactory.panel(
                     'material-grease-pencil-randomize',
                     'Randomize',
                     properties: <BlenderPropertyDescriptor<dynamic>>[
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'material-grease-pencil-random-radius',
                         'Radius',
                         0,
                         min: 0,
                       ),
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'material-grease-pencil-random-opacity',
                         'Opacity',
                         0,
@@ -3997,7 +3761,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              panel(
+              BlenderPropertyFactory.panel(
                 'material-grease-pencil-fill',
                 'Fill',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
@@ -4011,7 +3775,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                           onPressed: () => _setStatus('GP fill color picker'),
                         ),
                   ),
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'material-grease-pencil-fill-holdout',
                     'Holdout',
                     false,
@@ -4022,11 +3786,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-animation',
         'Animation',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-action',
             'Material',
             'MaterialAction',
@@ -4038,7 +3802,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'None', label: 'None'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'material-node-action',
             'Shader Node Tree',
             'MaterialNodes',
@@ -4052,11 +3816,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
       ),
-      panel(
+      BlenderPropertyFactory.panel(
         'material-custom-properties',
         'Custom Properties',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('material-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'material-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -4451,71 +4219,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Vertical', label: 'Vertical'),
     ];
 
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     Widget backgroundImages() => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -4550,13 +4253,49 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'camera-lens',
         title: 'Lens',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('camera-type', 'Type', 'Perspective', cameraTypes),
-          numberProperty('camera-lens', 'Focal Length', 50, min: 1, max: 500),
-          enumProperty('camera-lens-unit', 'Unit', 'Millimeters', lensUnits),
-          numberProperty('camera-shift-x', 'Shift X', 0, decimalDigits: 3),
-          numberProperty('camera-shift-y', 'Y', 0, decimalDigits: 3),
-          numberProperty('camera-clip-start', 'Clip Start', .1, min: .001),
-          numberProperty('camera-clip-end', 'End', 1000, min: .001),
+          BlenderPropertyFactory.choice<String>(
+            'camera-type',
+            'Type',
+            'Perspective',
+            cameraTypes,
+          ),
+          BlenderPropertyFactory.number(
+            'camera-lens',
+            'Focal Length',
+            50,
+            min: 1,
+            max: 500,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'camera-lens-unit',
+            'Unit',
+            'Millimeters',
+            lensUnits,
+          ),
+          BlenderPropertyFactory.number(
+            'camera-shift-x',
+            'Shift X',
+            0,
+            decimalDigits: 3,
+          ),
+          BlenderPropertyFactory.number(
+            'camera-shift-y',
+            'Y',
+            0,
+            decimalDigits: 3,
+          ),
+          BlenderPropertyFactory.number(
+            'camera-clip-start',
+            'Clip Start',
+            .1,
+            min: .001,
+          ),
+          BlenderPropertyFactory.number(
+            'camera-clip-end',
+            'End',
+            1000,
+            min: .001,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -4564,8 +4303,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Stereoscopy',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('camera-stereo-convergence', 'Convergence', true),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'camera-stereo-convergence',
+            'Convergence',
+            true,
+          ),
+          BlenderPropertyFactory.number(
             'camera-stereo-interocular',
             'Interocular Distance',
             .065,
@@ -4579,15 +4322,20 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Camera',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('camera-sensor-fit', 'Sensor Fit', 'Auto', sensorFits),
-          numberProperty(
+          BlenderPropertyFactory.choice<String>(
+            'camera-sensor-fit',
+            'Sensor Fit',
+            'Auto',
+            sensorFits,
+          ),
+          BlenderPropertyFactory.number(
             'camera-sensor-width',
             'Sensor Width',
             36,
             min: 1,
             max: 100,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'camera-sensor-height',
             'Sensor Height',
             24,
@@ -4600,13 +4348,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'camera-depth-of-field',
         title: 'Depth of Field',
         initiallyExpanded: false,
-        headerLeading: booleanProperty(
+        headerLeading: BlenderPropertyFactory.boolean(
           'camera-use-dof-header',
           '',
           true,
         ).buildEditor(context),
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'camera-focus-object',
             'Focus on Object',
             'Empty',
@@ -4615,7 +4363,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Cube', label: 'Cube'),
             ],
           ),
-          numberProperty('camera-focus-distance', 'Focus Distance', 10, min: 0),
+          BlenderPropertyFactory.number(
+            'camera-focus-distance',
+            'Focus Distance',
+            10,
+            min: 0,
+          ),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
@@ -4623,7 +4376,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Aperture',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'camera-fstop',
                 'F-Stop',
                 2.8,
@@ -4631,7 +4384,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 128,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'camera-aperture-blades',
                 'Blades',
                 6,
@@ -4639,13 +4392,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 32,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'camera-aperture-rotation',
                 'Rotation',
                 0,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'camera-aperture-ratio',
                 'Ratio',
                 1,
@@ -4669,13 +4422,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('camera-display-size', 'Size', 1, min: .01),
-          booleanProperty('camera-show-limits', 'Limits', false),
-          booleanProperty('camera-show-mist', 'Mist', false),
-          booleanProperty('camera-show-sensor', 'Sensor', true),
-          booleanProperty('camera-show-name', 'Name', true),
-          booleanProperty('camera-show-passepartout', 'Passepartout', true),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'camera-display-size',
+            'Size',
+            1,
+            min: .01,
+          ),
+          BlenderPropertyFactory.boolean('camera-show-limits', 'Limits', false),
+          BlenderPropertyFactory.boolean('camera-show-mist', 'Mist', false),
+          BlenderPropertyFactory.boolean('camera-show-sensor', 'Sensor', true),
+          BlenderPropertyFactory.boolean('camera-show-name', 'Name', true),
+          BlenderPropertyFactory.boolean(
+            'camera-show-passepartout',
+            'Passepartout',
+            true,
+          ),
+          BlenderPropertyFactory.number(
             'camera-passepartout-alpha',
             'Alpha',
             .5,
@@ -4690,11 +4452,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Composition Guides',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('camera-guides-thirds', 'Thirds', true),
-              booleanProperty('camera-guides-center', 'Center', false),
-              booleanProperty('camera-guides-diagonal', 'Diagonal', false),
-              booleanProperty('camera-guides-golden', 'Golden', false),
-              booleanProperty('camera-guides-harmony', 'Harmony', false),
+              BlenderPropertyFactory.boolean(
+                'camera-guides-thirds',
+                'Thirds',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'camera-guides-center',
+                'Center',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'camera-guides-diagonal',
+                'Diagonal',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'camera-guides-golden',
+                'Golden',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'camera-guides-harmony',
+                'Harmony',
+                false,
+              ),
             ],
           ),
         ],
@@ -4704,8 +4486,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Safe Areas',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('camera-safe-areas-show', 'Show Safe Areas', true),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'camera-safe-areas-show',
+            'Show Safe Areas',
+            true,
+          ),
+          BlenderPropertyFactory.number(
             'camera-safe-title',
             'Title',
             .8,
@@ -4713,7 +4499,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 1,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'camera-safe-action',
             'Action',
             .9,
@@ -4728,8 +4514,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Center-Cut Safe Areas',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('camera-safe-center', 'Show Center-Cut', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'camera-safe-center',
+                'Show Center-Cut',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'camera-safe-title-center',
                 'Title',
                 .8,
@@ -4737,7 +4527,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 1,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'camera-safe-action-center',
                 'Action',
                 .9,
@@ -4779,7 +4569,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('camera-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'camera-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -4807,70 +4601,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Profile', label: 'Profile'),
     ];
 
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
         id: 'curve-shape',
         title: 'Shape',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('curve-dimensions', 'Dimensions', '3D', dimensions),
-          numberProperty(
+          BlenderPropertyFactory.choice<String>(
+            'curve-dimensions',
+            'Dimensions',
+            '3D',
+            dimensions,
+          ),
+          BlenderPropertyFactory.number(
             'curve-resolution-preview',
             'Resolution Preview U',
             12,
@@ -4878,7 +4620,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 64,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'curve-resolution-render',
             'Render U',
             24,
@@ -4886,10 +4628,26 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 64,
             decimalDigits: 0,
           ),
-          enumProperty('curve-twist-mode', 'Twist Mode', 'Z-Up', twistModes),
-          numberProperty('curve-twist-smooth', 'Smooth', 12, min: 0, max: 32),
-          enumProperty('curve-fill-mode', 'Fill Mode', 'Half', fillModes),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
+            'curve-twist-mode',
+            'Twist Mode',
+            'Z-Up',
+            twistModes,
+          ),
+          BlenderPropertyFactory.number(
+            'curve-twist-smooth',
+            'Smooth',
+            12,
+            min: 0,
+            max: 32,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'curve-fill-mode',
+            'Fill Mode',
+            'Half',
+            fillModes,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'curve-fill-solver',
             'Fill Solver',
             'Even Offset',
@@ -4901,7 +4659,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'CDT', label: 'CDT'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'curve-fill-rule',
             'Fill Rule',
             'Even Odd',
@@ -4910,9 +4668,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Non Zero', label: 'Non Zero'),
             ],
           ),
-          booleanProperty('curve-use-radius', 'Curve Deform Radius', true),
-          booleanProperty('curve-use-stretch', 'Curve Deform Stretch', true),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
+            'curve-use-radius',
+            'Curve Deform Radius',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'curve-use-stretch',
+            'Curve Deform Stretch',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
             'curve-use-deform-bounds',
             'Curve Deform Bounds',
             false,
@@ -4924,11 +4690,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Texture Space',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('curve-auto-texspace', 'Auto Texture Space', true),
-          numberProperty('curve-texspace-x', 'Location X', 0),
-          numberProperty('curve-texspace-y', 'Location Y', 0),
-          numberProperty('curve-texspace-z', 'Location Z', 0),
-          numberProperty('curve-texspace-size', 'Size', 2),
+          BlenderPropertyFactory.boolean(
+            'curve-auto-texspace',
+            'Auto Texture Space',
+            true,
+          ),
+          BlenderPropertyFactory.number('curve-texspace-x', 'Location X', 0),
+          BlenderPropertyFactory.number('curve-texspace-y', 'Location Y', 0),
+          BlenderPropertyFactory.number('curve-texspace-z', 'Location Z', 0),
+          BlenderPropertyFactory.number('curve-texspace-size', 'Size', 2),
         ],
       ),
       BlenderPropertyGroup(
@@ -4936,8 +4706,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Geometry',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('curve-offset', 'Offset', 0),
-          numberProperty('curve-extrude', 'Extrude', 0, min: 0),
+          BlenderPropertyFactory.number('curve-offset', 'Offset', 0),
+          BlenderPropertyFactory.number('curve-extrude', 'Extrude', 0, min: 0),
           BlenderPropertyDescriptor<String>(
             id: 'curve-taper-object',
             label: 'Taper Object',
@@ -4954,7 +4724,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Taper Object changed'),
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'curve-taper-radius-mode',
             'Taper Radius Mode',
             'Override',
@@ -4970,9 +4740,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Bevel',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty('curve-bevel-mode', 'Mode', 'Round', bevelModes),
-              numberProperty('curve-bevel-depth', 'Depth', .02, min: 0),
-              numberProperty(
+              BlenderPropertyFactory.choice<String>(
+                'curve-bevel-mode',
+                'Mode',
+                'Round',
+                bevelModes,
+              ),
+              BlenderPropertyFactory.number(
+                'curve-bevel-depth',
+                'Depth',
+                .02,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
                 'curve-bevel-resolution',
                 'Resolution',
                 4,
@@ -4980,7 +4760,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 32,
                 decimalDigits: 0,
               ),
-              booleanProperty('curve-fill-caps', 'Fill Caps', true),
+              BlenderPropertyFactory.boolean(
+                'curve-fill-caps',
+                'Fill Caps',
+                true,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -4988,9 +4772,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Start & End Mapping',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('curve-factor-start', 'Factor Start', 0, min: 0),
-              numberProperty('curve-factor-end', 'End', 1, min: 0),
-              enumProperty(
+              BlenderPropertyFactory.number(
+                'curve-factor-start',
+                'Factor Start',
+                0,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'curve-factor-end',
+                'End',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'curve-mapping-start',
                 'Mapping Start',
                 'RESOLUTION',
@@ -5002,7 +4796,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'SEGMENTS', label: 'Segments'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'curve-mapping-end',
                 'End',
                 'RESOLUTION',
@@ -5023,11 +4817,20 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Path Animation',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('curve-use-path', 'Use Path', true),
-          numberProperty('curve-path-duration', 'Frames', 100, min: 1),
-          numberProperty('curve-eval-time', 'Evaluation Time', 0),
-          booleanProperty('curve-path-clamp', 'Clamp', false),
-          booleanProperty('curve-path-follow', 'Follow', false),
+          BlenderPropertyFactory.boolean('curve-use-path', 'Use Path', true),
+          BlenderPropertyFactory.number(
+            'curve-path-duration',
+            'Frames',
+            100,
+            min: 1,
+          ),
+          BlenderPropertyFactory.number(
+            'curve-eval-time',
+            'Evaluation Time',
+            0,
+          ),
+          BlenderPropertyFactory.boolean('curve-path-clamp', 'Clamp', false),
+          BlenderPropertyFactory.boolean('curve-path-follow', 'Follow', false),
         ],
       ),
       BlenderPropertyGroup(
@@ -5060,70 +4863,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('curve-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'curve-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
   }
 
   List<BlenderPropertyGroup> get _fontCurvePropertyGroups {
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     BlenderPropertyDescriptor<String> fontField(String id, String label) {
       return BlenderPropertyDescriptor<String>(
         id: id,
@@ -5148,9 +4898,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'font-shape',
         title: 'Shape',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('font-resolution', 'Resolution Preview U', 12, min: 1),
-          booleanProperty('font-fast-edit', 'Fast Editing', false),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'font-resolution',
+            'Resolution Preview U',
+            12,
+            min: 1,
+          ),
+          BlenderPropertyFactory.boolean(
+            'font-fast-edit',
+            'Fast Editing',
+            false,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'font-fill-mode',
             'Fill Mode',
             'Half',
@@ -5166,11 +4925,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Texture Space',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('font-auto-texspace', 'Auto Texture Space', true),
-          numberProperty('font-texspace-x', 'Location X', 0),
-          numberProperty('font-texspace-y', 'Location Y', 0),
-          numberProperty('font-texspace-z', 'Location Z', 0),
-          numberProperty('font-texspace-size', 'Size', 2),
+          BlenderPropertyFactory.boolean(
+            'font-auto-texspace',
+            'Auto Texture Space',
+            true,
+          ),
+          BlenderPropertyFactory.number('font-texspace-x', 'Location X', 0),
+          BlenderPropertyFactory.number('font-texspace-y', 'Location Y', 0),
+          BlenderPropertyFactory.number('font-texspace-z', 'Location Z', 0),
+          BlenderPropertyFactory.number('font-texspace-size', 'Size', 2),
         ],
       ),
       BlenderPropertyGroup(
@@ -5189,21 +4952,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Transform',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('font-size', 'Size', 1, min: 0),
-              numberProperty('font-shear', 'Shear', 0, min: -1, max: 1),
+              BlenderPropertyFactory.number('font-size', 'Size', 1, min: 0),
+              BlenderPropertyFactory.number(
+                'font-shear',
+                'Shear',
+                0,
+                min: -1,
+                max: 1,
+              ),
               fontField('font-family', 'Family'),
               fontField('font-follow-curve', 'Follow Curve'),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'font-underline-position',
                 'Underline Position',
                 -0.1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'font-underline-height',
                 'Underline Thickness',
                 0.05,
               ),
-              numberProperty('font-small-caps-scale', 'Small Caps Scale', 0.75),
+              BlenderPropertyFactory.number(
+                'font-small-caps-scale',
+                'Small Caps Scale',
+                0.75,
+              ),
             ],
           ),
         ],
@@ -5219,7 +4992,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Alignment',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'font-align-x',
                 'Horizontal',
                 'Left',
@@ -5229,7 +5002,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Right', label: 'Right'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'font-align-y',
                 'Vertical',
                 'Top',
@@ -5246,11 +5019,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Spacing',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('font-space-character', 'Character Spacing', 1),
-              numberProperty('font-space-word', 'Word Spacing', 1),
-              numberProperty('font-space-line', 'Line Spacing', 1),
-              numberProperty('font-offset-x', 'Offset X', 0),
-              numberProperty('font-offset-y', 'Y', 0),
+              BlenderPropertyFactory.number(
+                'font-space-character',
+                'Character Spacing',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'font-space-word',
+                'Word Spacing',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'font-space-line',
+                'Line Spacing',
+                1,
+              ),
+              BlenderPropertyFactory.number('font-offset-x', 'Offset X', 0),
+              BlenderPropertyFactory.number('font-offset-y', 'Y', 0),
             ],
           ),
         ],
@@ -5260,7 +5045,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Text Boxes',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'font-overflow',
             'Overflow',
             'Overflow',
@@ -5294,7 +5079,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('font-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'font-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -5506,40 +5295,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Linear', label: 'Linear'),
       BlenderMenuItem<String>(value: 'Exponential', label: 'Exponential'),
     ];
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value,
-    ) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: 0,
-          max: 360,
-          decimalDigits: 2,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
@@ -5565,9 +5320,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Sound changed'),
           ),
-          booleanProperty('speaker-muted', 'Muted', false),
-          numberProperty('speaker-volume', 'Volume', 1),
-          numberProperty('speaker-pitch', 'Pitch', 1),
+          BlenderPropertyFactory.boolean('speaker-muted', 'Muted', false),
+          BlenderPropertyFactory.number('speaker-volume', 'Volume', 1),
+          BlenderPropertyFactory.number('speaker-pitch', 'Pitch', 1),
         ],
       ),
       BlenderPropertyGroup(
@@ -5575,8 +5330,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Distance',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('speaker-volume-min', 'Volume Min', 0),
-          numberProperty('speaker-volume-max', 'Max', 1),
+          BlenderPropertyFactory.number('speaker-volume-min', 'Volume Min', 0),
+          BlenderPropertyFactory.number('speaker-volume-max', 'Max', 1),
           BlenderPropertyDescriptor<String>(
             id: 'speaker-attenuation',
             label: 'Attenuation',
@@ -5589,8 +5344,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Attenuation changed'),
           ),
-          numberProperty('speaker-distance-max', 'Max Distance', 100),
-          numberProperty('speaker-distance-reference', 'Distance Reference', 1),
+          BlenderPropertyFactory.number(
+            'speaker-distance-max',
+            'Max Distance',
+            100,
+          ),
+          BlenderPropertyFactory.number(
+            'speaker-distance-reference',
+            'Distance Reference',
+            1,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -5598,9 +5361,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Cone',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('speaker-cone-outer', 'Angle Outer', 360),
-          numberProperty('speaker-cone-inner', 'Inner', 360),
-          numberProperty('speaker-cone-volume', 'Volume Outer', 1),
+          BlenderPropertyFactory.number(
+            'speaker-cone-outer',
+            'Angle Outer',
+            360,
+          ),
+          BlenderPropertyFactory.number('speaker-cone-inner', 'Inner', 360),
+          BlenderPropertyFactory.number(
+            'speaker-cone-volume',
+            'Volume Outer',
+            1,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -5633,7 +5404,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('speaker-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'speaker-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -5649,59 +5424,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Linear', label: 'Linear'),
       BlenderMenuItem<String>(value: 'Cubic', label: 'Cubic'),
     ];
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value,
-    ) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: 0,
-          decimalDigits: 2,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
@@ -5727,11 +5449,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Volume file changed'),
           ),
-          booleanProperty('volume-sequence', 'Is Sequence', true),
-          numberProperty('volume-frame-duration', 'Frames', 100),
-          numberProperty('volume-frame-start', 'Start', 1),
-          numberProperty('volume-frame-offset', 'Offset', 0),
-          enumProperty(
+          BlenderPropertyFactory.boolean(
+            'volume-sequence',
+            'Is Sequence',
+            true,
+          ),
+          BlenderPropertyFactory.number('volume-frame-duration', 'Frames', 100),
+          BlenderPropertyFactory.number('volume-frame-start', 'Start', 1),
+          BlenderPropertyFactory.number('volume-frame-offset', 'Offset', 0),
+          BlenderPropertyFactory.choice<String>(
             'volume-sequence-mode',
             'Mode',
             'REPEAT',
@@ -5775,7 +5501,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Render',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'volume-render-space',
             'Space',
             'WORLD',
@@ -5784,9 +5510,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'OBJECT', label: 'Object'),
             ],
           ),
-          numberProperty('volume-step-size', 'Step Size', .1),
-          numberProperty('volume-clipping', 'Clipping', 0),
-          enumProperty(
+          BlenderPropertyFactory.number('volume-step-size', 'Step Size', .1),
+          BlenderPropertyFactory.number('volume-clipping', 'Clipping', 0),
+          BlenderPropertyFactory.choice<String>(
             'volume-precision',
             'Precision',
             'FULL',
@@ -5820,15 +5546,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'volume-wireframe-type',
             'Wireframe Type',
             'Boxes',
             wireframeTypes,
           ),
-          numberProperty('volume-wireframe-detail', 'Detail', 1),
-          numberProperty('volume-density', 'Density', 1),
-          enumProperty(
+          BlenderPropertyFactory.number('volume-wireframe-detail', 'Detail', 1),
+          BlenderPropertyFactory.number('volume-density', 'Density', 1),
+          BlenderPropertyFactory.choice<String>(
             'volume-interpolation',
             'Interpolation',
             'Linear',
@@ -5841,8 +5567,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Slicing',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('volume-use-slice', 'Use Slice', false),
-              enumProperty(
+              BlenderPropertyFactory.boolean(
+                'volume-use-slice',
+                'Use Slice',
+                false,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'volume-slice-axis',
                 'Axis',
                 'X',
@@ -5852,7 +5582,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Z', label: 'Z'),
                 ],
               ),
-              numberProperty('volume-slice-depth', 'Depth', .5),
+              BlenderPropertyFactory.number('volume-slice-depth', 'Depth', .5),
             ],
           ),
         ],
@@ -5887,7 +5617,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('volume-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'volume-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -5907,68 +5641,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Box', label: 'Box'),
       BlenderMenuItem<String>(value: 'Ellipsoid', label: 'Ellipsoid'),
     ];
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget actionRow() => Row(
       children: <Widget>[
@@ -6013,55 +5685,99 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'light-probe-probe',
         title: 'Probe',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('light-probe-type', 'Type', 'Volume', probeTypes),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
+            'light-probe-type',
+            'Type',
+            'Volume',
+            probeTypes,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'light-probe-influence-type',
             'Influence Type',
             'Box',
             influenceTypes,
           ),
-          numberProperty('light-probe-distance', 'Distance', 10, min: 0),
-          numberProperty('light-probe-falloff', 'Falloff', 1, min: 0),
-          numberProperty('light-probe-intensity', 'Intensity', 1, min: 0),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'light-probe-distance',
+            'Distance',
+            10,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'light-probe-falloff',
+            'Falloff',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'light-probe-intensity',
+            'Intensity',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
             'light-probe-resolution-x',
             'Resolution X',
             32,
             min: 1,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'light-probe-resolution-y',
             'Y',
             32,
             min: 1,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'light-probe-resolution-z',
             'Z',
             32,
             min: 1,
             decimalDigits: 0,
           ),
-          numberProperty('light-probe-clipping-start', 'Clipping Start', .1),
-          numberProperty('light-probe-clipping-end', 'End', 40),
-          numberProperty('light-probe-normal-bias', 'Normal Bias', .6),
-          numberProperty('light-probe-view-bias', 'View Bias', .8),
-          numberProperty('light-probe-facing-bias', 'Facing Bias', .5),
+          BlenderPropertyFactory.number(
+            'light-probe-clipping-start',
+            'Clipping Start',
+            .1,
+          ),
+          BlenderPropertyFactory.number('light-probe-clipping-end', 'End', 40),
+          BlenderPropertyFactory.number(
+            'light-probe-normal-bias',
+            'Normal Bias',
+            .6,
+          ),
+          BlenderPropertyFactory.number(
+            'light-probe-view-bias',
+            'View Bias',
+            .8,
+          ),
+          BlenderPropertyFactory.number(
+            'light-probe-facing-bias',
+            'Facing Bias',
+            .5,
+          ),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
             id: 'light-probe-visibility',
             title: 'Visibility',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('light-probe-visibility-bias', 'Bias', .05),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'light-probe-visibility-bias',
+                'Bias',
+                .05,
+              ),
+              BlenderPropertyFactory.number(
                 'light-probe-visibility-bleed-bias',
                 'Bleed Bias',
                 .2,
               ),
-              numberProperty('light-probe-visibility-blur', 'Blur', .1),
+              BlenderPropertyFactory.number(
+                'light-probe-visibility-blur',
+                'Blur',
+                .1,
+              ),
               BlenderPropertyDescriptor<String>(
                 id: 'light-probe-visibility-collection',
                 label: 'Collection',
@@ -6081,7 +5797,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     ),
                 onChanged: (_) => _setStatus('Visibility collection changed'),
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'light-probe-invert-visibility',
                 'Invert Visibility',
                 false,
@@ -6094,8 +5810,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'light-probe-capture',
         title: 'Capture',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('light-probe-capture-start', 'Clipping Start', .1),
-          numberProperty('light-probe-capture-end', 'End', 40),
+          BlenderPropertyFactory.number(
+            'light-probe-capture-start',
+            'Clipping Start',
+            .1,
+          ),
+          BlenderPropertyFactory.number('light-probe-capture-end', 'End', 40),
         ],
       ),
       BlenderPropertyGroup(
@@ -6108,35 +5828,35 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'light-probe-bake-resolution',
             title: 'Resolution',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-bake-resolution-x',
                 'Resolution X',
                 32,
                 min: 1,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-bake-resolution-y',
                 'Y',
                 32,
                 min: 1,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-bake-resolution-z',
                 'Z',
                 32,
                 min: 1,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-bake-samples',
                 'Bake Samples',
                 128,
                 min: 1,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-bake-surfel-density',
                 'Surfel Density',
                 8,
@@ -6148,19 +5868,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'light-probe-bake-capture',
             title: 'Capture',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-probe-capture-distance',
                 'Distance',
                 20,
                 min: 0,
               ),
-              booleanProperty('light-probe-capture-world', 'World', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'light-probe-capture-world',
+                'World',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'light-probe-capture-indirect',
                 'Indirect Light',
                 true,
               ),
-              booleanProperty('light-probe-capture-emission', 'Emission', true),
+              BlenderPropertyFactory.boolean(
+                'light-probe-capture-emission',
+                'Emission',
+                true,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               BlenderPropertyGroup(
@@ -6168,12 +5896,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 title: 'Offset',
                 initiallyExpanded: false,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'light-probe-surface-bias',
                     'Surface Bias',
                     .1,
                   ),
-                  numberProperty('light-probe-escape-bias', 'Escape Bias', .1),
+                  BlenderPropertyFactory.number(
+                    'light-probe-escape-bias',
+                    'Escape Bias',
+                    .1,
+                  ),
                 ],
               ),
               BlenderPropertyGroup(
@@ -6181,13 +5913,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 title: 'Clamping',
                 initiallyExpanded: false,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'light-probe-clamp-direct',
                     'Direct Light',
                     0,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'light-probe-clamp-indirect',
                     'Indirect Light',
                     10,
@@ -6204,18 +5936,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Parallax',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'light-probe-use-parallax',
             'Use Custom Parallax',
             true,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'light-probe-parallax-type',
             'Type',
             'Box',
             parallaxTypes,
           ),
-          numberProperty('light-probe-parallax-distance', 'Size', 10, min: 0),
+          BlenderPropertyFactory.number(
+            'light-probe-parallax-distance',
+            'Size',
+            10,
+            min: 0,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -6223,11 +5960,28 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('light-probe-show-data', 'Data', true),
-          numberProperty('light-probe-display-size', 'Size', 1, min: 0),
-          booleanProperty('light-probe-show-clip', 'Clipping', true),
-          booleanProperty('light-probe-show-influence', 'Influence', true),
-          booleanProperty('light-probe-show-parallax', 'Parallax', true),
+          BlenderPropertyFactory.boolean('light-probe-show-data', 'Data', true),
+          BlenderPropertyFactory.number(
+            'light-probe-display-size',
+            'Size',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.boolean(
+            'light-probe-show-clip',
+            'Clipping',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'light-probe-show-influence',
+            'Influence',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'light-probe-show-parallax',
+            'Parallax',
+            true,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -6242,7 +5996,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('light-probe-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'light-probe-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -6265,63 +6023,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Extreme', label: 'Extreme'),
       BlenderMenuItem<String>(value: 'Breakdown', label: 'Breakdown'),
     ];
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget actionButton(BlenderGlyph glyph, String label) => BlenderIconButton(
       glyph: glyph,
@@ -6404,14 +6105,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'grease-pencil-layers',
         title: 'Layers',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'grease-pencil-blend-mode',
             'Blend Mode',
             'Regular',
             blendModes,
           ),
-          numberProperty('grease-pencil-opacity', 'Opacity', 1, min: 0, max: 1),
-          booleanProperty('grease-pencil-lights', 'Lights', true),
+          BlenderPropertyFactory.number(
+            'grease-pencil-opacity',
+            'Opacity',
+            1,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.boolean(
+            'grease-pencil-lights',
+            'Lights',
+            true,
+          ),
         ],
         content: layerList(),
         children: <BlenderPropertyGroup>[
@@ -6420,7 +6131,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Masks',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('grease-pencil-use-masks', 'Use Masks', true),
+              BlenderPropertyFactory.boolean(
+                'grease-pencil-use-masks',
+                'Use Masks',
+                true,
+              ),
             ],
             content: const SizedBox(
               height: 66,
@@ -6440,11 +6155,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Transform',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('grease-pencil-translation-x', 'Translation X', 0),
-              numberProperty('grease-pencil-translation-y', 'Y', 0),
-              numberProperty('grease-pencil-translation-z', 'Z', 0),
-              numberProperty('grease-pencil-rotation', 'Rotation', 0),
-              numberProperty('grease-pencil-scale', 'Scale', 1),
+              BlenderPropertyFactory.number(
+                'grease-pencil-translation-x',
+                'Translation X',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'grease-pencil-translation-y',
+                'Y',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'grease-pencil-translation-z',
+                'Z',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'grease-pencil-rotation',
+                'Rotation',
+                0,
+              ),
+              BlenderPropertyFactory.number('grease-pencil-scale', 'Scale', 1),
             ],
           ),
           BlenderPropertyGroup(
@@ -6452,8 +6183,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Adjustments',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('grease-pencil-tint-factor', 'Tint Factor', 0),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'grease-pencil-tint-factor',
+                'Tint Factor',
+                0,
+              ),
+              BlenderPropertyFactory.number(
                 'grease-pencil-radius-offset',
                 'Stroke Thickness',
                 0,
@@ -6483,14 +6218,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     ),
                 onChanged: (_) => _setStatus('Parent changed'),
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'grease-pencil-pass-index',
                 'Pass Index',
                 0,
                 min: 0,
                 decimalDigits: 0,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'grease-pencil-view-layer-mask',
                 'View Layer Masks',
                 false,
@@ -6502,7 +6237,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Display',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'grease-pencil-channel-color',
                 'Channel Color',
                 true,
@@ -6516,33 +6251,33 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Onion Skinning',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'grease-pencil-onion-mode',
             'Mode',
             'Absolute',
             onionModes,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'grease-pencil-onion-opacity',
             'Opacity',
             .5,
             min: 0,
             max: 1,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'grease-pencil-onion-keyframe-type',
             'Keyframe Type',
             'Keyframe',
             keyframeTypes,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'grease-pencil-ghost-before',
             'Frames Before',
             1,
             min: 0,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'grease-pencil-ghost-after',
             'Frames After',
             1,
@@ -6556,13 +6291,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Custom Colors',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'grease-pencil-custom-colors',
                 'Use Custom Colors',
                 false,
               ),
-              booleanProperty('grease-pencil-color-before', 'Before', true),
-              booleanProperty('grease-pencil-color-after', 'After', true),
+              BlenderPropertyFactory.boolean(
+                'grease-pencil-color-before',
+                'Before',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'grease-pencil-color-after',
+                'After',
+                true,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -6570,8 +6313,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Display',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('grease-pencil-onion-fade', 'Fade', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'grease-pencil-onion-fade',
+                'Fade',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'grease-pencil-onion-loop',
                 'Show Start Frame',
                 false,
@@ -6584,7 +6331,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'grease-pencil-settings',
         title: 'Settings',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'grease-pencil-stroke-depth-order',
             'Stroke Depth Order',
             '2D Layers',
@@ -6638,7 +6385,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('grease-pencil-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'grease-pencil-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -6658,39 +6409,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Front', label: 'Front'),
       BlenderMenuItem<String>(value: 'Back', label: 'Back'),
     ];
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value,
-    ) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: 0,
-          decimalDigits: 2,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
@@ -6709,9 +6427,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Display As changed'),
           ),
-          numberProperty('empty-display-size', 'Size', 1),
-          numberProperty('empty-image-offset-x', 'Offset X', 0),
-          numberProperty('empty-image-offset-y', 'Y', 0),
+          BlenderPropertyFactory.number('empty-display-size', 'Size', 1),
+          BlenderPropertyFactory.number('empty-image-offset-x', 'Offset X', 0),
+          BlenderPropertyFactory.number('empty-image-offset-y', 'Y', 0),
           BlenderPropertyDescriptor<String>(
             id: 'empty-image-depth',
             label: 'Depth',
@@ -6724,11 +6442,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Image Depth changed'),
           ),
-          booleanProperty('empty-show-orthographic', 'Orthographic', true),
-          booleanProperty('empty-show-perspective', 'Perspective', true),
-          booleanProperty('empty-axis-aligned', 'Only Axis Aligned', false),
-          booleanProperty('empty-alpha', 'Use Alpha', true),
-          numberProperty('empty-opacity', 'Opacity', .8),
+          BlenderPropertyFactory.boolean(
+            'empty-show-orthographic',
+            'Orthographic',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'empty-show-perspective',
+            'Perspective',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'empty-axis-aligned',
+            'Only Axis Aligned',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('empty-alpha', 'Use Alpha', true),
+          BlenderPropertyFactory.number('empty-opacity', 'Opacity', .8),
         ],
       ),
       BlenderPropertyGroup(
@@ -6795,24 +6525,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       );
     }
 
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: interpolationTypes,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
         id: 'lattice',
@@ -6821,9 +6533,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           integerProperty('lattice-points-u', 'Resolution U', 4),
           integerProperty('lattice-points-v', 'V', 4),
           integerProperty('lattice-points-w', 'W', 4),
-          enumProperty('lattice-interpolation-u', 'Interpolation U', 'Linear'),
-          enumProperty('lattice-interpolation-v', 'V', 'Linear'),
-          enumProperty('lattice-interpolation-w', 'W', 'B-Spline'),
+          BlenderPropertyFactory.choice<String>(
+            'lattice-interpolation-u',
+            'Interpolation U',
+            'Linear',
+            interpolationTypes,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'lattice-interpolation-v',
+            'V',
+            'Linear',
+            interpolationTypes,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'lattice-interpolation-w',
+            'W',
+            'B-Spline',
+            interpolationTypes,
+          ),
           BlenderPropertyDescriptor<bool>(
             id: 'lattice-use-outside',
             label: 'Outside',
@@ -6910,68 +6637,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Fast', label: 'Fast'),
     ];
 
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value,
-    ) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: 0,
-          decimalDigits: 3,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     return <BlenderPropertyGroup>[
       BlenderPropertyGroup(
         id: 'metaball',
         title: 'Metaball',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('metaball-resolution', 'Resolution Viewport', .4),
-          numberProperty('metaball-render-resolution', 'Render', .2),
-          numberProperty('metaball-threshold', 'Influence Threshold', .6),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'metaball-resolution',
+            'Resolution Viewport',
+            .4,
+          ),
+          BlenderPropertyFactory.number(
+            'metaball-render-resolution',
+            'Render',
+            .2,
+          ),
+          BlenderPropertyFactory.number(
+            'metaball-threshold',
+            'Influence Threshold',
+            .6,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'metaball-update-method',
             'Update on Edit',
             'Continuous',
@@ -6984,9 +6670,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Texture Space',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('metaball-auto-texspace', 'Auto Texture Space', true),
-          numberProperty('metaball-texspace-location', 'Location', 0),
-          numberProperty('metaball-texspace-size', 'Size', 2),
+          BlenderPropertyFactory.boolean(
+            'metaball-auto-texspace',
+            'Auto Texture Space',
+            true,
+          ),
+          BlenderPropertyFactory.number(
+            'metaball-texspace-location',
+            'Location',
+            0,
+          ),
+          BlenderPropertyFactory.number('metaball-texspace-size', 'Size', 2),
         ],
       ),
       BlenderPropertyGroup(
@@ -6994,14 +6688,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Active Element',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('metaball-element-type', 'Type', 'Ball', elementTypes),
-          numberProperty('metaball-stiffness', 'Stiffness', 2),
-          numberProperty('metaball-radius', 'Radius', 1),
-          booleanProperty('metaball-negative', 'Negative', false),
-          booleanProperty('metaball-hide', 'Hide', false),
-          numberProperty('metaball-size-x', 'Size X', 1),
-          numberProperty('metaball-size-y', 'Y', 1),
-          numberProperty('metaball-size-z', 'Z', 1),
+          BlenderPropertyFactory.choice<String>(
+            'metaball-element-type',
+            'Type',
+            'Ball',
+            elementTypes,
+          ),
+          BlenderPropertyFactory.number('metaball-stiffness', 'Stiffness', 2),
+          BlenderPropertyFactory.number('metaball-radius', 'Radius', 1),
+          BlenderPropertyFactory.boolean(
+            'metaball-negative',
+            'Negative',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('metaball-hide', 'Hide', false),
+          BlenderPropertyFactory.number('metaball-size-x', 'Size X', 1),
+          BlenderPropertyFactory.number('metaball-size-y', 'Y', 1),
+          BlenderPropertyFactory.number('metaball-size-z', 'Z', 1),
         ],
       ),
       BlenderPropertyGroup(
@@ -7034,7 +6737,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('metaball-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'metaball-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -7051,68 +6758,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Pose Position', label: 'Pose Position'),
       BlenderMenuItem<String>(value: 'Rest Position', label: 'Rest Position'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget boneCollections() => SizedBox(
       height: 132,
@@ -7245,7 +6890,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'armature-pose',
         title: 'Pose',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'armature-pose-position',
             'Position',
             'Pose Position',
@@ -7258,18 +6903,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'armature-display-type',
             'Display As',
             'Octahedral',
             displayTypes,
           ),
-          booleanProperty('armature-show-names', 'Names', true),
-          booleanProperty('armature-show-shapes', 'Shapes', true),
-          booleanProperty('armature-show-colors', 'Bone Colors', true),
-          booleanProperty('armature-in-front', 'In Front', false),
-          booleanProperty('armature-show-axes', 'Axes', false),
-          enumProperty(
+          BlenderPropertyFactory.boolean('armature-show-names', 'Names', true),
+          BlenderPropertyFactory.boolean(
+            'armature-show-shapes',
+            'Shapes',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'armature-show-colors',
+            'Bone Colors',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'armature-in-front',
+            'In Front',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('armature-show-axes', 'Axes', false),
+          BlenderPropertyFactory.choice<String>(
             'armature-axes-position',
             'Position',
             'Tail',
@@ -7278,7 +6935,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Tail', label: 'Tail'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'armature-relation-lines',
             'Relations',
             'Head to Tail',
@@ -7306,7 +6963,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Inverse Kinematics',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'armature-ik-solver',
             'Solver',
             'Standard',
@@ -7315,21 +6972,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'iTaSC', label: 'iTaSC'),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'armature-ik-precision',
             'Precision',
             .001,
             min: 0,
             decimalDigits: 4,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'armature-ik-iterations',
             'Iterations',
             500,
             min: 1,
             decimalDigits: 0,
           ),
-          booleanProperty('armature-ik-auto-step', 'Auto Step', true),
+          BlenderPropertyFactory.boolean(
+            'armature-ik-auto-step',
+            'Auto Step',
+            true,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -7337,15 +6998,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Motion Paths',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('armature-motion-paths-show', 'Show Paths', true),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'armature-motion-paths-show',
+            'Show Paths',
+            true,
+          ),
+          BlenderPropertyFactory.number(
             'armature-motion-paths-frame-before',
             'Before',
             1,
             min: 0,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'armature-motion-paths-frame-after',
             'After',
             20,
@@ -7359,17 +7024,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Display',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'armature-motion-paths-keyframes',
                 'Keyframes',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'armature-motion-paths-bone-heads',
                 'Bone Heads',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'armature-motion-paths-bone-tail',
                 'Bone Tails',
                 false,
@@ -7415,7 +7080,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('armature-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'armature-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -7440,68 +7109,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Relative', label: 'Relative'),
       BlenderMenuItem<String>(value: 'Tangent', label: 'Tangent'),
     ];
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget boneCollections() => SizedBox(
       height: 82,
@@ -7562,24 +7169,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'bone-transform',
         title: 'Transform',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('bone-location-x', 'Location X', 0),
-          numberProperty('bone-location-y', 'Y', 0),
-          numberProperty('bone-location-z', 'Z', 0),
-          numberProperty('bone-rotation-x', 'Rotation X', 0),
-          numberProperty('bone-rotation-y', 'Y', 0),
-          numberProperty('bone-rotation-z', 'Z', 0),
-          enumProperty(
+          BlenderPropertyFactory.number('bone-location-x', 'Location X', 0),
+          BlenderPropertyFactory.number('bone-location-y', 'Y', 0),
+          BlenderPropertyFactory.number('bone-location-z', 'Z', 0),
+          BlenderPropertyFactory.number('bone-rotation-x', 'Rotation X', 0),
+          BlenderPropertyFactory.number('bone-rotation-y', 'Y', 0),
+          BlenderPropertyFactory.number('bone-rotation-z', 'Z', 0),
+          BlenderPropertyFactory.choice<String>(
             'bone-rotation-mode',
             'Mode',
             'XYZ Euler',
             rotationModes,
           ),
-          numberProperty('bone-scale-x', 'Scale X', 1),
-          numberProperty('bone-scale-y', 'Y', 1),
-          numberProperty('bone-scale-z', 'Z', 1),
-          numberProperty('bone-head-x', 'Head X', 0),
-          numberProperty('bone-tail-x', 'Tail X', 1),
-          numberProperty('bone-length', 'Length', 1, min: 0),
+          BlenderPropertyFactory.number('bone-scale-x', 'Scale X', 1),
+          BlenderPropertyFactory.number('bone-scale-y', 'Y', 1),
+          BlenderPropertyFactory.number('bone-scale-z', 'Z', 1),
+          BlenderPropertyFactory.number('bone-head-x', 'Head X', 0),
+          BlenderPropertyFactory.number('bone-tail-x', 'Tail X', 1),
+          BlenderPropertyFactory.number('bone-length', 'Length', 1, min: 0),
         ],
       ),
       BlenderPropertyGroup(
@@ -7587,34 +7194,57 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Bendy Bones',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'bone-bbone-segments',
             'Segments',
             4,
             min: 1,
             decimalDigits: 0,
           ),
-          numberProperty('bone-bbone-size-x', 'Display Size X', .25, min: 0),
-          numberProperty('bone-bbone-size-z', 'Z', .25, min: 0),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'bone-bbone-size-x',
+            'Display Size X',
+            .25,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number('bone-bbone-size-z', 'Z', .25, min: 0),
+          BlenderPropertyFactory.choice<String>(
             'bone-bbone-mapping',
             'Vertex Mapping',
             'Automatic',
             handleTypes,
           ),
-          numberProperty('bone-bbone-curve-in-x', 'Curve In X', 0),
-          numberProperty('bone-bbone-curve-out-x', 'Curve Out X', 0),
-          numberProperty('bone-bbone-roll-in', 'Roll In', 0),
-          numberProperty('bone-bbone-roll-out', 'Out', 0),
-          numberProperty('bone-bbone-ease-in', 'Ease In', 1, min: 0),
-          numberProperty('bone-bbone-ease-out', 'Out', 1, min: 0),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'bone-bbone-curve-in-x',
+            'Curve In X',
+            0,
+          ),
+          BlenderPropertyFactory.number(
+            'bone-bbone-curve-out-x',
+            'Curve Out X',
+            0,
+          ),
+          BlenderPropertyFactory.number('bone-bbone-roll-in', 'Roll In', 0),
+          BlenderPropertyFactory.number('bone-bbone-roll-out', 'Out', 0),
+          BlenderPropertyFactory.number(
+            'bone-bbone-ease-in',
+            'Ease In',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'bone-bbone-ease-out',
+            'Out',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'bone-bbone-handle-start',
             'Start Handle',
             'Automatic',
             handleTypes,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'bone-bbone-handle-end',
             'End Handle',
             'Automatic',
@@ -7645,11 +7275,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('Bone parent changed'),
           ),
-          booleanProperty('bone-relative-parent', 'Relative Parent', false),
-          booleanProperty('bone-connected', 'Connected', true),
-          booleanProperty('bone-local-location', 'Local Location', true),
-          booleanProperty('bone-inherit-rotation', 'Inherit Rotation', true),
-          enumProperty(
+          BlenderPropertyFactory.boolean(
+            'bone-relative-parent',
+            'Relative Parent',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('bone-connected', 'Connected', true),
+          BlenderPropertyFactory.boolean(
+            'bone-local-location',
+            'Local Location',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'bone-inherit-rotation',
+            'Inherit Rotation',
+            true,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'bone-inherit-scale',
             'Inherit Scale',
             'Full',
@@ -7674,15 +7316,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('bone-hide', 'Hide', false),
-          booleanProperty('bone-hide-select', 'Selectable', true),
-          enumProperty(
+          BlenderPropertyFactory.boolean('bone-hide', 'Hide', false),
+          BlenderPropertyFactory.boolean(
+            'bone-hide-select',
+            'Selectable',
+            true,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'bone-display-type',
             'Display As',
             'Octahedral',
             displayTypes,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'bone-color-palette',
             'Bone Color',
             'Pose Bone Color Set 1',
@@ -7694,7 +7340,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Custom', label: 'Custom'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'bone-pose-color-palette',
             'Pose Bone Color',
             'Pose Bone Color Set 1',
@@ -7727,10 +7373,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     ),
                 onChanged: (_) => _setStatus('Custom shape changed'),
               ),
-              numberProperty('bone-custom-shape-translation', 'Translation', 0),
-              numberProperty('bone-custom-shape-rotation', 'Rotation', 0),
-              numberProperty('bone-custom-shape-scale', 'Scale', 1, min: 0),
-              booleanProperty('bone-custom-shape-wire', 'Wireframe', false),
+              BlenderPropertyFactory.number(
+                'bone-custom-shape-translation',
+                'Translation',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'bone-custom-shape-rotation',
+                'Rotation',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'bone-custom-shape-scale',
+                'Scale',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.boolean(
+                'bone-custom-shape-wire',
+                'Wireframe',
+                false,
+              ),
             ],
           ),
         ],
@@ -7740,22 +7403,40 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Inverse Kinematics',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('bone-ik-stretch', 'IK Stretch', 1, min: 0, max: 1),
-          booleanProperty('bone-lock-ik-x', 'Lock IK X', false),
-          booleanProperty('bone-lock-ik-y', 'Y', false),
-          booleanProperty('bone-lock-ik-z', 'Z', false),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'bone-ik-stretch',
+            'IK Stretch',
+            1,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.boolean('bone-lock-ik-x', 'Lock IK X', false),
+          BlenderPropertyFactory.boolean('bone-lock-ik-y', 'Y', false),
+          BlenderPropertyFactory.boolean('bone-lock-ik-z', 'Z', false),
+          BlenderPropertyFactory.number(
             'bone-ik-stiffness-x',
             'Stiffness X',
             0,
             min: 0,
             max: 1,
           ),
-          numberProperty('bone-ik-stiffness-y', 'Y', 0, min: 0, max: 1),
-          numberProperty('bone-ik-stiffness-z', 'Z', 0, min: 0, max: 1),
-          booleanProperty('bone-ik-limit-x', 'Limit X', false),
-          booleanProperty('bone-ik-limit-y', 'Y', false),
-          booleanProperty('bone-ik-limit-z', 'Z', false),
+          BlenderPropertyFactory.number(
+            'bone-ik-stiffness-y',
+            'Y',
+            0,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.number(
+            'bone-ik-stiffness-z',
+            'Z',
+            0,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.boolean('bone-ik-limit-x', 'Limit X', false),
+          BlenderPropertyFactory.boolean('bone-ik-limit-y', 'Y', false),
+          BlenderPropertyFactory.boolean('bone-ik-limit-z', 'Z', false),
         ],
       ),
       BlenderPropertyGroup(
@@ -7763,17 +7444,31 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Deform',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('bone-use-deform', 'Use Deform', true),
-          numberProperty(
+          BlenderPropertyFactory.boolean('bone-use-deform', 'Use Deform', true),
+          BlenderPropertyFactory.number(
             'bone-envelope-distance',
             'Envelope Distance',
             .25,
             min: 0,
           ),
-          numberProperty('bone-envelope-weight', 'Envelope Weight', 1, min: 0),
-          booleanProperty('bone-envelope-multiply', 'Envelope Multiply', false),
-          numberProperty('bone-head-radius', 'Radius Head', .1, min: 0),
-          numberProperty('bone-tail-radius', 'Tail', .1, min: 0),
+          BlenderPropertyFactory.number(
+            'bone-envelope-weight',
+            'Envelope Weight',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.boolean(
+            'bone-envelope-multiply',
+            'Envelope Multiply',
+            false,
+          ),
+          BlenderPropertyFactory.number(
+            'bone-head-radius',
+            'Radius Head',
+            .1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number('bone-tail-radius', 'Tail', .1, min: 0),
         ],
       ),
       BlenderPropertyGroup(
@@ -7781,7 +7476,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('bone-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'bone-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -7801,68 +7500,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Ellipse', label: 'Ellipse'),
     ];
 
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
     return <BlenderPropertyGroup>[
       const BlenderPropertyGroup(
         id: 'light-preview',
@@ -7881,9 +7518,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'light-settings',
         title: 'Light',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('light-type', 'Type', 'Point', lightTypes),
-          booleanProperty('light-temperature', 'Use Temperature', false),
-          numberProperty(
+          BlenderPropertyFactory.choice<String>(
+            'light-type',
+            'Type',
+            'Point',
+            lightTypes,
+          ),
+          BlenderPropertyFactory.boolean(
+            'light-temperature',
+            'Use Temperature',
+            false,
+          ),
+          BlenderPropertyFactory.number(
             'light-temperature-value',
             'Temperature',
             6500,
@@ -7891,16 +7537,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 20000,
             decimalDigits: 0,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'light-energy',
             'Power',
             1000,
             min: 0,
             decimalDigits: 0,
           ),
-          numberProperty('light-exposure', 'Exposure', 0, decimalDigits: 2),
-          booleanProperty('light-normalize', 'Normalize', true),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'light-exposure',
+            'Exposure',
+            0,
+            decimalDigits: 2,
+          ),
+          BlenderPropertyFactory.boolean('light-normalize', 'Normalize', true),
+          BlenderPropertyFactory.number(
             'light-radius',
             'Radius',
             .25,
@@ -7914,16 +7565,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Shadow',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('light-use-shadow', 'Use Shadow', true),
-              booleanProperty('light-shadow-jitter', 'Jitter', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'light-use-shadow',
+                'Use Shadow',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'light-shadow-jitter',
+                'Jitter',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'light-shadow-filter',
                 'Filter',
                 1,
                 min: 0,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-shadow-resolution',
                 'Resolution Limit',
                 2048,
@@ -7937,7 +7596,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Influence',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-diffuse',
                 'Diffuse',
                 1,
@@ -7945,7 +7604,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 1,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-glossy',
                 'Glossy',
                 1,
@@ -7953,7 +7612,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 1,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-transmission',
                 'Transmission',
                 1,
@@ -7961,7 +7620,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 1,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-volume',
                 'Volume Scatter',
                 1,
@@ -7976,12 +7635,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Custom Distance',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'light-use-custom-distance',
                 'Use Custom Distance',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-cutoff-distance',
                 'Distance',
                 40,
@@ -7995,7 +7654,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Beam Shape',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-spot-angle',
                 'Angle',
                 .785,
@@ -8003,7 +7662,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 3.14,
                 decimalDigits: 3,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'light-spot-blend',
                 'Blend',
                 .15,
@@ -8011,8 +7670,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 1,
                 decimalDigits: 2,
               ),
-              enumProperty('light-area-shape', 'Shape', 'Square', areaShapes),
-              numberProperty(
+              BlenderPropertyFactory.choice<String>(
+                'light-area-shape',
+                'Shape',
+                'Square',
+                areaShapes,
+              ),
+              BlenderPropertyFactory.number(
                 'light-area-size',
                 'Size',
                 1,
@@ -8053,7 +7717,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('light-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'light-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -8078,63 +7746,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Screen', label: 'Screen'),
       BlenderMenuItem<String>(value: 'Add', label: 'Add'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     return <BlenderPropertyGroup>[
       const BlenderPropertyGroup(
@@ -8188,8 +7799,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ],
         ),
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('texture-type', 'Type', 'Clouds', textureTypes),
-          booleanProperty('texture-use-nodes', 'Use Nodes', false),
+          BlenderPropertyFactory.choice<String>(
+            'texture-type',
+            'Type',
+            'Clouds',
+            textureTypes,
+          ),
+          BlenderPropertyFactory.boolean(
+            'texture-use-nodes',
+            'Use Nodes',
+            false,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -8197,7 +7817,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Node',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('texture-node-active', 'Use Texture Node', true),
+          BlenderPropertyFactory.boolean(
+            'texture-node-active',
+            'Use Texture Node',
+            true,
+          ),
         ],
         content: const SizedBox(
           height: 42,
@@ -8208,7 +7832,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'texture-clouds',
         title: 'Clouds',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'texture-noise-basis',
             'Noise Basis',
             'Improved Perlin',
@@ -8224,8 +7848,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Voronoi', label: 'Voronoi'),
             ],
           ),
-          numberProperty('texture-noise-scale', 'Scale', .25, min: 0),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'texture-noise-scale',
+            'Scale',
+            .25,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
             'texture-noise-depth',
             'Depth',
             2,
@@ -8233,20 +7862,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             max: 30,
             decimalDigits: 0,
           ),
-          numberProperty('texture-noise-nabla', 'Nabla', .03, min: 0),
+          BlenderPropertyFactory.number(
+            'texture-noise-nabla',
+            'Nabla',
+            .03,
+            min: 0,
+          ),
         ],
       ),
       BlenderPropertyGroup(
         id: 'texture-mapping',
         title: 'Mapping',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'texture-coordinates',
             'Coordinates',
             'Generated',
             textureCoordinates,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'texture-projection',
             'Projection',
             'Flat',
@@ -8256,12 +7890,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Sphere', label: 'Sphere'),
             ],
           ),
-          numberProperty('texture-offset-x', 'Offset X', 0),
-          numberProperty('texture-offset-y', 'Y', 0),
-          numberProperty('texture-offset-z', 'Z', 0),
-          numberProperty('texture-scale-x', 'Scale X', 1),
-          numberProperty('texture-scale-y', 'Y', 1),
-          numberProperty('texture-scale-z', 'Z', 1),
+          BlenderPropertyFactory.number('texture-offset-x', 'Offset X', 0),
+          BlenderPropertyFactory.number('texture-offset-y', 'Y', 0),
+          BlenderPropertyFactory.number('texture-offset-z', 'Z', 0),
+          BlenderPropertyFactory.number('texture-scale-x', 'Scale X', 1),
+          BlenderPropertyFactory.number('texture-scale-y', 'Y', 1),
+          BlenderPropertyFactory.number('texture-scale-z', 'Z', 1),
         ],
       ),
       BlenderPropertyGroup(
@@ -8269,13 +7903,48 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Influence',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('texture-blend-type', 'Blend', 'Mix', blendTypes),
-          numberProperty('texture-color-factor', 'Color', 1, min: 0, max: 1),
-          numberProperty('texture-alpha-factor', 'Alpha', 1, min: 0, max: 1),
-          numberProperty('texture-normal-factor', 'Normal', 1, min: 0, max: 1),
-          booleanProperty('texture-use-map-time', 'General Time', false),
-          booleanProperty('texture-use-map-life', 'Lifetime', false),
-          booleanProperty('texture-use-map-density', 'Density', false),
+          BlenderPropertyFactory.choice<String>(
+            'texture-blend-type',
+            'Blend',
+            'Mix',
+            blendTypes,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-color-factor',
+            'Color',
+            1,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-alpha-factor',
+            'Alpha',
+            1,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-normal-factor',
+            'Normal',
+            1,
+            min: 0,
+            max: 1,
+          ),
+          BlenderPropertyFactory.boolean(
+            'texture-use-map-time',
+            'General Time',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'texture-use-map-life',
+            'Lifetime',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'texture-use-map-density',
+            'Density',
+            false,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -8283,13 +7952,43 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Colors',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('texture-clamp', 'Clamp', false),
-          numberProperty('texture-multiply-red', 'Multiply R', 1, min: 0),
-          numberProperty('texture-multiply-green', 'G', 1, min: 0),
-          numberProperty('texture-multiply-blue', 'B', 1, min: 0),
-          numberProperty('texture-intensity', 'Intensity', 1, min: 0),
-          numberProperty('texture-contrast', 'Contrast', 1, min: 0),
-          numberProperty('texture-saturation', 'Saturation', 1, min: 0),
+          BlenderPropertyFactory.boolean('texture-clamp', 'Clamp', false),
+          BlenderPropertyFactory.number(
+            'texture-multiply-red',
+            'Multiply R',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-multiply-green',
+            'G',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-multiply-blue',
+            'B',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-intensity',
+            'Intensity',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-contrast',
+            'Contrast',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.number(
+            'texture-saturation',
+            'Saturation',
+            1,
+            min: 0,
+          ),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
@@ -8297,7 +7996,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Color Ramp',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('texture-use-color-ramp', 'Use Color Ramp', true),
+              BlenderPropertyFactory.boolean(
+                'texture-use-color-ramp',
+                'Use Color Ramp',
+                true,
+              ),
             ],
             content: const SizedBox(
               height: 36,
@@ -8342,7 +8045,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('texture-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'texture-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -8354,63 +8061,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Exclusive', label: 'Exclusive'),
       BlenderMenuItem<String>(value: 'None', label: 'None'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget exporterContent() => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -8463,17 +8113,29 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'collection-visibility',
         title: 'Visibility',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('collection-selectable', 'Selectable', true),
-          booleanProperty('collection-renders', 'Renders', true),
+          BlenderPropertyFactory.boolean(
+            'collection-selectable',
+            'Selectable',
+            true,
+          ),
+          BlenderPropertyFactory.boolean('collection-renders', 'Renders', true),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
             id: 'collection-view-layer',
             title: 'View Layer',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('collection-include', 'Include', true),
-              booleanProperty('collection-holdout', 'Holdout', false),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'collection-include',
+                'Include',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'collection-holdout',
+                'Holdout',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
                 'collection-indirect-only',
                 'Indirect Only',
                 false,
@@ -8486,7 +8148,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'collection-importer',
         title: 'Importer',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'collection-keep-collections',
             'Keep Collections',
             true,
@@ -8520,13 +8182,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Instancing',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'collection-instance-offset-x',
             'Instance Offset X',
             0,
           ),
-          numberProperty('collection-instance-offset-y', 'Y', 0),
-          numberProperty('collection-instance-offset-z', 'Z', 0),
+          BlenderPropertyFactory.number('collection-instance-offset-y', 'Y', 0),
+          BlenderPropertyFactory.number('collection-instance-offset-z', 'Z', 0),
         ],
       ),
       BlenderPropertyGroup(
@@ -8534,29 +8196,49 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Line Art',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'collection-lineart-usage',
             'Usage',
             'Inclusive',
             lineArtUsages,
           ),
-          booleanProperty('collection-lineart-mask', 'Collection Mask', false),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
+            'collection-lineart-mask',
+            'Collection Mask',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
             'collection-lineart-priority-enabled',
             'Intersection Priority',
             false,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'collection-lineart-priority',
             'Priority',
             0,
             min: 0,
             decimalDigits: 0,
           ),
-          booleanProperty('collection-lineart-mask-1', 'Mask 1', true),
-          booleanProperty('collection-lineart-mask-2', 'Mask 2', false),
-          booleanProperty('collection-lineart-mask-3', 'Mask 3', false),
-          booleanProperty('collection-lineart-mask-4', 'Mask 4', false),
+          BlenderPropertyFactory.boolean(
+            'collection-lineart-mask-1',
+            'Mask 1',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'collection-lineart-mask-2',
+            'Mask 2',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'collection-lineart-mask-3',
+            'Mask 3',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'collection-lineart-mask-4',
+            'Mask 4',
+            false,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -8564,7 +8246,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('collection-custom-property', 'example_value', 1),
+          BlenderPropertyFactory.number(
+            'collection-custom-property',
+            'example_value',
+            1,
+          ),
         ],
       ),
     ];
@@ -8576,63 +8262,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: '128', label: '128'),
       BlenderMenuItem<String>(value: '256', label: '256'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 0,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget listContent({required List<BlenderListItem<String>> items}) =>
         SizedBox(
@@ -8673,8 +8302,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'view-layer-settings',
         title: 'View Layer',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('view-layer-use', 'Use for Rendering', true),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
+            'view-layer-use',
+            'Use for Rendering',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
             'view-layer-single-layer',
             'Render Single Layer',
             false,
@@ -8690,18 +8323,38 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'view-layer-passes-data',
             title: 'Data',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('view-layer-pass-combined', 'Combined', true),
-              booleanProperty('view-layer-pass-z', 'Z', false),
-              booleanProperty('view-layer-pass-mist', 'Mist', false),
-              booleanProperty('view-layer-pass-normal', 'Normal', false),
-              booleanProperty('view-layer-pass-position', 'Position', false),
-              booleanProperty('view-layer-pass-vector', 'Vector', false),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'view-layer-pass-combined',
+                'Combined',
+                true,
+              ),
+              BlenderPropertyFactory.boolean('view-layer-pass-z', 'Z', false),
+              BlenderPropertyFactory.boolean(
+                'view-layer-pass-mist',
+                'Mist',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-pass-normal',
+                'Normal',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-pass-position',
+                'Position',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-pass-vector',
+                'Vector',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
                 'view-layer-pass-grease-pencil',
                 'Grease Pencil',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-pass-denoising',
                 'Denoising Data',
                 false,
@@ -8712,37 +8365,57 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'view-layer-passes-light',
             title: 'Light',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-diffuse-direct',
                 'Diffuse Light',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-diffuse-color',
                 'Diffuse Color',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-glossy-direct',
                 'Specular Light',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-glossy-color',
                 'Specular Color',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'view-layer-volume-direct',
                 'Volume Light',
                 false,
               ),
-              booleanProperty('view-layer-emission', 'Emission', false),
-              booleanProperty('view-layer-environment', 'Environment', false),
-              booleanProperty('view-layer-shadow', 'Shadow', false),
-              booleanProperty('view-layer-ao', 'Ambient Occlusion', false),
-              booleanProperty('view-layer-transparent', 'Transparent', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'view-layer-emission',
+                'Emission',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-environment',
+                'Environment',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-shadow',
+                'Shadow',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-ao',
+                'Ambient Occlusion',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-transparent',
+                'Transparent',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'view-layer-ao-distance',
                 'Occlusion Distance',
                 10,
@@ -8779,10 +8452,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'view-layer-passes-cryptomatte',
             title: 'Cryptomatte',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('view-layer-crypto-object', 'Object', true),
-              booleanProperty('view-layer-crypto-material', 'Material', false),
-              booleanProperty('view-layer-crypto-asset', 'Asset', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'view-layer-crypto-object',
+                'Object',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-crypto-material',
+                'Material',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'view-layer-crypto-asset',
+                'Asset',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'view-layer-crypto-depth',
                 'Levels',
                 6,
@@ -8815,16 +8500,36 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Filter',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('view-layer-filter-environment', 'Environment', true),
-          booleanProperty('view-layer-filter-surfaces', 'Surfaces', true),
-          booleanProperty('view-layer-filter-curves', 'Curves', true),
-          booleanProperty('view-layer-filter-volumes', 'Volumes', true),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
+            'view-layer-filter-environment',
+            'Environment',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'view-layer-filter-surfaces',
+            'Surfaces',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'view-layer-filter-curves',
+            'Curves',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'view-layer-filter-volumes',
+            'Volumes',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
             'view-layer-filter-grease-pencil',
             'Grease Pencil',
             true,
           ),
-          booleanProperty('view-layer-filter-motion-blur', 'Motion Blur', true),
+          BlenderPropertyFactory.boolean(
+            'view-layer-filter-motion-blur',
+            'Motion Blur',
+            true,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -8868,7 +8573,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 ),
             onChanged: (_) => _setStatus('World override changed'),
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'view-layer-samples',
             'Samples',
             'Scene',
@@ -8881,7 +8586,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-control-mode',
             'Control Mode',
             'Editor',
@@ -8890,8 +8595,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Python', label: 'Python'),
             ],
           ),
-          booleanProperty('freestyle-view-map-cache', 'View Map Cache', true),
-          booleanProperty('freestyle-render-pass', 'As Render Pass', false),
+          BlenderPropertyFactory.boolean(
+            'freestyle-view-map-cache',
+            'View Map Cache',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'freestyle-render-pass',
+            'As Render Pass',
+            false,
+          ),
         ],
         children: <BlenderPropertyGroup>[
           BlenderPropertyGroup(
@@ -8899,7 +8612,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Edge Detection',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-crease-angle',
                 'Crease Angle',
                 0.785,
@@ -8907,35 +8620,39 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 max: 3.14,
                 decimalDigits: 3,
               ),
-              booleanProperty('freestyle-culling', 'Culling', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'freestyle-culling',
+                'Culling',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'freestyle-face-smoothness',
                 'Face Smoothness',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-material-boundaries',
                 'Material Boundaries',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-ridges-valleys',
                 'Ridges and Valleys',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-suggestive-contours',
                 'Suggestive Contours',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-sphere-radius',
                 'Sphere Radius',
                 0.1,
                 min: 0,
                 decimalDigits: 3,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-kr-derivative-epsilon',
                 'Kr Derivative Epsilon',
                 0.01,
@@ -8949,7 +8666,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Style Modules',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('freestyle-use-python', 'Use Python', false),
+              BlenderPropertyFactory.boolean(
+                'freestyle-use-python',
+                'Use Python',
+                false,
+              ),
             ],
             content: listContent(
               items: const <BlenderListItem<String>>[
@@ -8973,12 +8694,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Line Set',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'freestyle-lineset-image-border',
             'Select by Image Border',
             false,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-lineset-style',
             'Line Style',
             'Freestyle LineStyle',
@@ -8997,14 +8718,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Visibility',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('freestyle-visible-ridges', 'Ridges', true),
-              booleanProperty('freestyle-visible-valleys', 'Valleys', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'freestyle-visible-ridges',
+                'Ridges',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'freestyle-visible-valleys',
+                'Valleys',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'freestyle-visible-silhouette',
                 'Silhouette',
                 true,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-visibility-type',
                 'Type',
                 'Visible',
@@ -9013,14 +8742,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Range', label: 'Range'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-qi-start',
                 'QI Start',
                 0,
                 min: 0,
                 decimalDigits: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-qi-end',
                 'QI End',
                 1,
@@ -9034,32 +8763,52 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Edge Type',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('freestyle-edge-silhouette', 'Silhouette', true),
-              booleanProperty('freestyle-edge-border', 'Border', true),
-              booleanProperty('freestyle-edge-crease', 'Crease', false),
-              booleanProperty('freestyle-edge-mark', 'Edge Mark', false),
-              booleanProperty('freestyle-edge-contour', 'Contour', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'freestyle-edge-silhouette',
+                'Silhouette',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'freestyle-edge-border',
+                'Border',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'freestyle-edge-crease',
+                'Crease',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'freestyle-edge-mark',
+                'Edge Mark',
+                false,
+              ),
+              BlenderPropertyFactory.boolean(
+                'freestyle-edge-contour',
+                'Contour',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'freestyle-edge-external-contour',
                 'External Contour',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-edge-material-boundary',
                 'Material Boundary',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-edge-suggestive-contour',
                 'Suggestive Contour',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-edge-ridge-valley',
                 'Ridge Valley',
                 false,
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-edge-negation',
                 'Negation',
                 'AND',
@@ -9068,7 +8817,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'OR', label: 'OR'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-edge-combination',
                 'Combination',
                 'AND',
@@ -9084,7 +8833,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Face Marks',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-face-mark-negation',
                 'Negation',
                 'AND',
@@ -9093,7 +8842,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'OR', label: 'OR'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-face-mark-condition',
                 'Condition',
                 'Equal',
@@ -9112,7 +8861,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Collection',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-collection-name',
                 'Line Set Collection',
                 'All Collections',
@@ -9127,7 +8876,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-collection-negation',
                 'Negation',
                 false,
@@ -9141,7 +8890,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Strokes',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-strokes-caps',
             'Caps',
             'Butt',
@@ -9158,8 +8907,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Chaining',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('freestyle-use-chaining', 'Use Chaining', true),
-              enumProperty(
+              BlenderPropertyFactory.boolean(
+                'freestyle-use-chaining',
+                'Use Chaining',
+                true,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-chaining-method',
                 'Method',
                 'Plain',
@@ -9168,14 +8921,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Sketchy', label: 'Sketchy'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-chaining-rounds',
                 'Rounds',
                 3,
                 min: 1,
                 decimalDigits: 0,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-chaining-same-object',
                 'Same Object',
                 true,
@@ -9187,45 +8940,45 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Splitting',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-min-2d-angle',
                 'Min 2D Angle',
                 0.1,
                 min: 0,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-max-2d-angle',
                 'Max 2D Angle',
                 1.5,
                 min: 0,
                 decimalDigits: 2,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-2d-length',
                 '2D Length',
                 10,
                 min: 0,
                 decimalDigits: 1,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-material-boundary-split',
                 'Material Boundary',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-split-pattern',
                 'Split Pattern',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-split-dash-1',
                 'Dash 1',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-split-gap-1',
                 'Gap 1',
                 1,
@@ -9239,8 +8992,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Sorting',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('freestyle-use-sorting', 'Use Sorting', false),
-              enumProperty(
+              BlenderPropertyFactory.boolean(
+                'freestyle-use-sorting',
+                'Use Sorting',
+                false,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-sort-key',
                 'Sort Key',
                 'Distance from Camera',
@@ -9259,7 +9016,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-integration-type',
                 'Integration Type',
                 'Mean',
@@ -9269,7 +9026,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Max', label: 'Max'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'freestyle-sort-order',
                 'Sort Order',
                 'Ascending',
@@ -9291,21 +9048,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Selection',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-min-2d-length',
                 'Min 2D Length',
                 0,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-max-2d-length',
                 'Max 2D Length',
                 100,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-chain-count',
                 'Chain Count',
                 1,
@@ -9319,47 +9076,47 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Dashed Line',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'freestyle-use-dashed-line',
                 'Use Dashed Line',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-dash-1',
                 'Dash 1',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-dash-2',
                 'Dash 2',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-dash-3',
                 'Dash 3',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-gap-1',
                 'Gap 1',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-gap-2',
                 'Gap 2',
                 1,
                 min: 0,
                 decimalDigits: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'freestyle-gap-3',
                 'Gap 3',
                 1,
@@ -9375,7 +9132,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Color',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-color-target',
             'Target',
             'Material',
@@ -9385,24 +9142,36 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Random', label: 'Random'),
             ],
           ),
-          booleanProperty('freestyle-color-material', 'Material', true),
-          booleanProperty('freestyle-color-random', 'Random', false),
-          booleanProperty('freestyle-color-ramp', 'Use Color Ramp', false),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'freestyle-color-material',
+            'Material',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'freestyle-color-random',
+            'Random',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'freestyle-color-ramp',
+            'Use Color Ramp',
+            false,
+          ),
+          BlenderPropertyFactory.number(
             'freestyle-color-amplitude',
             'Amplitude',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-color-period',
             'Period',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-color-seed',
             'Seed',
             0,
@@ -9416,7 +9185,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Alpha',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-alpha-base',
             'Base Transparency',
             1,
@@ -9440,9 +9209,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Thickness',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('freestyle-thickness-value', 'Thickness', 1, min: 0),
-          booleanProperty('freestyle-thickness-material', 'Material', false),
-          enumProperty(
+          BlenderPropertyFactory.number(
+            'freestyle-thickness-value',
+            'Thickness',
+            1,
+            min: 0,
+          ),
+          BlenderPropertyFactory.boolean(
+            'freestyle-thickness-material',
+            'Material',
+            false,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'freestyle-thickness-position',
             'Position',
             'Center',
@@ -9452,7 +9230,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Outside', label: 'Outside'),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-thickness-ratio',
             'Ratio',
             0.5,
@@ -9467,7 +9245,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Geometry',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-geometry-target',
             'Target',
             'Sampling',
@@ -9483,63 +9261,63 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-sampling',
             'Sampling',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-error',
             'Error',
             0.1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-wavelength',
             'Wavelength',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-amplitude',
             'Amplitude',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-frequency',
             'Frequency',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-angle',
             'Angle',
             0,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-backbone-length',
             'Backbone Length',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'freestyle-geometry-tip-length',
             'Tip Length',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-geometry-shape',
             'Shape',
             'Circle',
@@ -9548,7 +9326,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Square', label: 'Square'),
             ],
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'freestyle-geometry-pure-random',
             'Pure Random',
             false,
@@ -9560,15 +9338,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Texture',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('freestyle-texture-use-nodes', 'Use Nodes', false),
-          numberProperty(
+          BlenderPropertyFactory.boolean(
+            'freestyle-texture-use-nodes',
+            'Use Nodes',
+            false,
+          ),
+          BlenderPropertyFactory.number(
             'freestyle-texture-spacing',
             'Spacing Along Stroke',
             1,
             min: 0,
             decimalDigits: 2,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-texture-slot',
             'Texture',
             'None',
@@ -9587,7 +9369,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Freestyle Animation',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-animation-action',
             'Action',
             'FreestyleAction',
@@ -9599,7 +9381,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'None', label: 'None'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'freestyle-animation-slot',
             'Slot',
             'Slot 1',
@@ -9615,7 +9397,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Custom Properties',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty(
+          BlenderPropertyFactory.number(
             'view-layer-custom-property',
             'example_value',
             1,
@@ -9631,63 +9413,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       BlenderMenuItem<String>(value: 'Angular', label: 'Angular'),
       BlenderMenuItem<String>(value: 'Bending', label: 'Bending'),
     ];
-
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value,
-    ) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) =>
-            BlenderCheckbox(value: value, onChanged: onChanged),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      double? min,
-      double? max,
-      int decimalDigits = 2,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          min: min,
-          max: max,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items,
-    ) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     Widget physicsButtons() {
       Widget button(String label) {
@@ -9754,8 +9479,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         id: 'physics-cloth',
         title: 'Cloth',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('cloth-quality', 'Quality Steps', 5, min: 1, max: 80),
-          numberProperty(
+          BlenderPropertyFactory.number(
+            'cloth-quality',
+            'Quality Steps',
+            5,
+            min: 1,
+            max: 80,
+          ),
+          BlenderPropertyFactory.number(
             'cloth-speed',
             'Speed Multiplier',
             1,
@@ -9768,9 +9499,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             id: 'cloth-physical-properties',
             title: 'Physical Properties',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('cloth-mass', 'Vertex Mass', .3, min: 0),
-              numberProperty('cloth-air-damping', 'Air Viscosity', 1, min: 0),
-              enumProperty(
+              BlenderPropertyFactory.number(
+                'cloth-mass',
+                'Vertex Mass',
+                .3,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'cloth-air-damping',
+                'Air Viscosity',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'cloth-bending-model',
                 'Bending Model',
                 'Angular',
@@ -9782,30 +9523,55 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 id: 'cloth-stiffness',
                 title: 'Stiffness',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('cloth-tension', 'Tension', 15, min: 0),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
+                    'cloth-tension',
+                    'Tension',
+                    15,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
                     'cloth-compression',
                     'Compression',
                     15,
                     min: 0,
                   ),
-                  numberProperty('cloth-shear', 'Shear', 5, min: 0),
-                  numberProperty('cloth-bending', 'Bending', .5, min: 0),
+                  BlenderPropertyFactory.number(
+                    'cloth-shear',
+                    'Shear',
+                    5,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'cloth-bending',
+                    'Bending',
+                    .5,
+                    min: 0,
+                  ),
                 ],
               ),
               BlenderPropertyGroup(
                 id: 'cloth-damping',
                 title: 'Damping',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('cloth-tension-damping', 'Tension', 5, min: 0),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
+                    'cloth-tension-damping',
+                    'Tension',
+                    5,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
                     'cloth-compression-damping',
                     'Compression',
                     5,
                     min: 0,
                   ),
-                  numberProperty('cloth-shear-damping', 'Shear', 5, min: 0),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
+                    'cloth-shear-damping',
+                    'Shear',
+                    5,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
                     'cloth-bending-damping',
                     'Bending',
                     .5,
@@ -9817,24 +9583,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'cloth-internal-springs',
                 'Internal Springs',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'cloth-use-internal-springs',
                     'Enabled',
                     false,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'cloth-internal-max-length',
                     'Max Spring Creation Length',
                     0.2,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'cloth-internal-tension',
                     'Tension',
                     15,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'cloth-internal-compression',
                     'Compression',
                     15,
@@ -9846,19 +9612,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'cloth-pressure',
                 'Pressure',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('cloth-use-pressure', 'Enabled', false),
-                  numberProperty(
+                  BlenderPropertyFactory.boolean(
+                    'cloth-use-pressure',
+                    'Enabled',
+                    false,
+                  ),
+                  BlenderPropertyFactory.number(
                     'cloth-pressure-force',
                     'Uniform Pressure Force',
                     1,
                     min: 0,
                   ),
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'cloth-custom-volume',
                     'Custom Volume',
                     false,
                   ),
-                  numberProperty('cloth-pressure-factor', 'Pressure Factor', 1),
+                  BlenderPropertyFactory.number(
+                    'cloth-pressure-factor',
+                    'Pressure Factor',
+                    1,
+                  ),
                 ],
               ),
             ],
@@ -9867,20 +9641,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'cloth-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'cloth-cache-start',
                 'Simulation Start',
                 1,
                 min: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'cloth-cache-end',
                 'End',
                 250,
                 min: 1,
                 decimalDigits: 0,
               ),
-              booleanProperty('cloth-cache-disk', 'Disk Cache', false),
+              BlenderPropertyFactory.boolean(
+                'cloth-cache-disk',
+                'Disk Cache',
+                false,
+              ),
             ],
           ),
           closedPanel(
@@ -9902,22 +9680,26 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     ),
                 onChanged: (_) => _setStatus('Pin Group changed'),
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'cloth-pin-stiffness',
                 'Stiffness',
                 1,
                 min: 0,
                 max: 1,
               ),
-              booleanProperty('cloth-sewing', 'Sewing', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean('cloth-sewing', 'Sewing', false),
+              BlenderPropertyFactory.number(
                 'cloth-shrinking',
                 'Shrinking Factor',
                 0,
                 min: -1,
                 max: 1,
               ),
-              booleanProperty('cloth-dynamic-mesh', 'Dynamic Mesh', false),
+              BlenderPropertyFactory.boolean(
+                'cloth-dynamic-mesh',
+                'Dynamic Mesh',
+                false,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -9925,7 +9707,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Collisions',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'cloth-collision-quality',
                 'Quality',
                 2,
@@ -9938,18 +9720,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'cloth-object-collisions',
                 'Object Collisions',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'cloth-object-collision-enabled',
                     'Enabled',
                     true,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'cloth-object-distance',
                     'Distance',
                     .015,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'cloth-object-impulse',
                     'Impulse Clamp',
                     0,
@@ -9961,13 +9743,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'cloth-self-collisions',
                 'Self Collisions',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'cloth-self-collision-enabled',
                     'Enabled',
                     false,
                   ),
-                  numberProperty('cloth-self-friction', 'Friction', 0, min: 0),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
+                    'cloth-self-friction',
+                    'Friction',
+                    0,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
                     'cloth-self-distance',
                     'Distance',
                     .02,
@@ -9981,24 +9768,54 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'cloth-property-weights',
             'Property Weights',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'cloth-weight-structural',
                 'Structural Max',
                 1,
                 min: 0,
               ),
-              numberProperty('cloth-weight-shear', 'Shear Max', 1, min: 0),
-              numberProperty('cloth-weight-bending', 'Bending Max', 1, min: 0),
-              numberProperty('cloth-weight-shrink', 'Shrinking Max', 1, min: 0),
+              BlenderPropertyFactory.number(
+                'cloth-weight-shear',
+                'Shear Max',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'cloth-weight-bending',
+                'Bending Max',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'cloth-weight-shrink',
+                'Shrinking Max',
+                1,
+                min: 0,
+              ),
             ],
           ),
           closedPanel(
             'cloth-field-weights',
             'Field Weights',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('cloth-field-gravity', 'Gravity', 1, min: 0),
-              numberProperty('cloth-field-wind', 'Wind', 1, min: 0),
-              numberProperty('cloth-field-turbulence', 'Turbulence', 1, min: 0),
+              BlenderPropertyFactory.number(
+                'cloth-field-gravity',
+                'Gravity',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'cloth-field-wind',
+                'Wind',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'cloth-field-turbulence',
+                'Turbulence',
+                1,
+                min: 0,
+              ),
             ],
           ),
         ],
@@ -10007,17 +9824,27 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-soft-body',
         'Soft Body',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('soft-body-mass', 'Mass', 1, min: 0),
-          numberProperty('soft-body-speed', 'Speed', 1, min: 0),
+          BlenderPropertyFactory.number('soft-body-mass', 'Mass', 1, min: 0),
+          BlenderPropertyFactory.number('soft-body-speed', 'Speed', 1, min: 0),
         ],
         children: <BlenderPropertyGroup>[
           closedPanel(
             'soft-body-object',
             'Object',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('soft-body-friction', 'Friction', .5, min: 0),
-              numberProperty('soft-body-object-mass', 'Mass', 1, min: 0),
-              enumProperty(
+              BlenderPropertyFactory.number(
+                'soft-body-friction',
+                'Friction',
+                .5,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'soft-body-object-mass',
+                'Mass',
+                1,
+                min: 0,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'soft-body-control-point',
                 'Control Point',
                 'None',
@@ -10032,16 +9859,29 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'soft-body-simulation',
             'Simulation',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('soft-body-simulation-speed', 'Speed', 1, min: 0),
+              BlenderPropertyFactory.number(
+                'soft-body-simulation-speed',
+                'Speed',
+                1,
+                min: 0,
+              ),
             ],
           ),
           closedPanel(
             'soft-body-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('soft-body-cache-start', 'Simulation Start', 1),
-              numberProperty('soft-body-cache-end', 'End', 250),
-              booleanProperty('soft-body-cache-disk', 'Disk Cache', false),
+              BlenderPropertyFactory.number(
+                'soft-body-cache-start',
+                'Simulation Start',
+                1,
+              ),
+              BlenderPropertyFactory.number('soft-body-cache-end', 'End', 250),
+              BlenderPropertyFactory.boolean(
+                'soft-body-cache-disk',
+                'Disk Cache',
+                false,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10049,24 +9889,40 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Goal',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('soft-body-use-goal', 'Enabled', false),
+              BlenderPropertyFactory.boolean(
+                'soft-body-use-goal',
+                'Enabled',
+                false,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel(
                 'soft-body-goal-strengths',
                 'Strengths',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('soft-body-goal-default', 'Default', .5),
-                  numberProperty('soft-body-goal-min', 'Min', 0),
-                  numberProperty('soft-body-goal-max', 'Max', 1),
+                  BlenderPropertyFactory.number(
+                    'soft-body-goal-default',
+                    'Default',
+                    .5,
+                  ),
+                  BlenderPropertyFactory.number('soft-body-goal-min', 'Min', 0),
+                  BlenderPropertyFactory.number('soft-body-goal-max', 'Max', 1),
                 ],
               ),
               closedPanel(
                 'soft-body-goal-settings',
                 'Settings',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('soft-body-goal-spring', 'Stiffness', .5),
-                  numberProperty('soft-body-goal-friction', 'Damping', .5),
+                  BlenderPropertyFactory.number(
+                    'soft-body-goal-spring',
+                    'Stiffness',
+                    .5,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'soft-body-goal-friction',
+                    'Damping',
+                    .5,
+                  ),
                 ],
               ),
             ],
@@ -10076,27 +9932,51 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Edges',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('soft-body-use-edges', 'Enabled', true),
-              numberProperty('soft-body-pull', 'Pull', .5),
-              numberProperty('soft-body-push', 'Push', .5),
-              numberProperty('soft-body-edge-damping', 'Damping', .5),
-              numberProperty('soft-body-bend', 'Bend', .5),
+              BlenderPropertyFactory.boolean(
+                'soft-body-use-edges',
+                'Enabled',
+                true,
+              ),
+              BlenderPropertyFactory.number('soft-body-pull', 'Pull', .5),
+              BlenderPropertyFactory.number('soft-body-push', 'Push', .5),
+              BlenderPropertyFactory.number(
+                'soft-body-edge-damping',
+                'Damping',
+                .5,
+              ),
+              BlenderPropertyFactory.number('soft-body-bend', 'Bend', .5),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel(
                 'soft-body-aerodynamics',
                 'Aerodynamics',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('soft-body-aero-factor', 'Factor', 1),
+                  BlenderPropertyFactory.number(
+                    'soft-body-aero-factor',
+                    'Factor',
+                    1,
+                  ),
                 ],
               ),
               closedPanel(
                 'soft-body-edge-stiffness',
                 'Stiffness',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('soft-body-spring-length', 'Length', 1),
-                  booleanProperty('soft-body-edge-collision', 'Edge', false),
-                  booleanProperty('soft-body-face-collision', 'Face', false),
+                  BlenderPropertyFactory.number(
+                    'soft-body-spring-length',
+                    'Length',
+                    1,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'soft-body-edge-collision',
+                    'Edge',
+                    false,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'soft-body-face-collision',
+                    'Face',
+                    false,
+                  ),
                 ],
               ),
             ],
@@ -10105,9 +9985,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'soft-body-self-collision',
             'Self Collision',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('soft-body-use-self-collision', 'Enabled', false),
-              numberProperty('soft-body-self-friction', 'Friction', .5),
-              numberProperty('soft-body-self-distance', 'Ball Size', .1),
+              BlenderPropertyFactory.boolean(
+                'soft-body-use-self-collision',
+                'Enabled',
+                false,
+              ),
+              BlenderPropertyFactory.number(
+                'soft-body-self-friction',
+                'Friction',
+                .5,
+              ),
+              BlenderPropertyFactory.number(
+                'soft-body-self-distance',
+                'Ball Size',
+                .1,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10115,9 +10007,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Solver',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('soft-body-min-step', 'Min Step', .01),
-              numberProperty('soft-body-max-step', 'Max Step', .1),
-              numberProperty('soft-body-choke', 'Choke', .5),
+              BlenderPropertyFactory.number(
+                'soft-body-min-step',
+                'Min Step',
+                .01,
+              ),
+              BlenderPropertyFactory.number(
+                'soft-body-max-step',
+                'Max Step',
+                .1,
+              ),
+              BlenderPropertyFactory.number('soft-body-choke', 'Choke', .5),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('soft-body-diagnostics', 'Diagnostics'),
@@ -10128,9 +10028,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'soft-body-field-weights',
             'Field Weights',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('soft-body-field-gravity', 'Gravity', 1),
-              numberProperty('soft-body-field-wind', 'Wind', 1),
-              numberProperty('soft-body-field-turbulence', 'Turbulence', 1),
+              BlenderPropertyFactory.number(
+                'soft-body-field-gravity',
+                'Gravity',
+                1,
+              ),
+              BlenderPropertyFactory.number('soft-body-field-wind', 'Wind', 1),
+              BlenderPropertyFactory.number(
+                'soft-body-field-turbulence',
+                'Turbulence',
+                1,
+              ),
             ],
           ),
         ],
@@ -10139,7 +10047,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-fluid',
         'Fluid',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'fluid-type',
             'Fluid Type',
             'Domain',
@@ -10156,7 +10064,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Settings',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'fluid-resolution',
                 'Resolution Divisions',
                 '128',
@@ -10166,17 +10074,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: '256', label: '256'),
                 ],
               ),
-              numberProperty('fluid-time-scale', 'Time Scale', 1),
-              booleanProperty('fluid-is-resumable', 'Is Resumable', false),
+              BlenderPropertyFactory.number(
+                'fluid-time-scale',
+                'Time Scale',
+                1,
+              ),
+              BlenderPropertyFactory.boolean(
+                'fluid-is-resumable',
+                'Is Resumable',
+                false,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel(
                 'fluid-border-collisions',
                 'Border Collisions',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('fluid-border-x', 'X', true),
-                  booleanProperty('fluid-border-y', 'Y', true),
-                  booleanProperty('fluid-border-z', 'Z', true),
+                  BlenderPropertyFactory.boolean('fluid-border-x', 'X', true),
+                  BlenderPropertyFactory.boolean('fluid-border-y', 'Y', true),
+                  BlenderPropertyFactory.boolean('fluid-border-z', 'Z', true),
                 ],
               ),
             ],
@@ -10186,8 +10102,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Gas',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('fluid-vorticity', 'Vorticity', 2),
-              booleanProperty('fluid-dissolve', 'Dissolve', false),
+              BlenderPropertyFactory.number('fluid-vorticity', 'Vorticity', 2),
+              BlenderPropertyFactory.boolean(
+                'fluid-dissolve',
+                'Dissolve',
+                false,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('fluid-dissolve', 'Dissolve'),
@@ -10197,15 +10117,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'fluid-liquid',
             'Liquid',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('fluid-liquid-spray', 'Spray', true),
-              booleanProperty('fluid-liquid-flip', 'FLIP', true),
+              BlenderPropertyFactory.boolean(
+                'fluid-liquid-spray',
+                'Spray',
+                true,
+              ),
+              BlenderPropertyFactory.boolean('fluid-liquid-flip', 'FLIP', true),
             ],
           ),
           closedPanel(
             'fluid-flow-source',
             'Flow Source',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'fluid-flow-behavior',
                 'Flow Behavior',
                 'Inflow',
@@ -10215,22 +10139,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Geometry', label: 'Geometry'),
                 ],
               ),
-              numberProperty('fluid-flow-surface', 'Surface', 1),
+              BlenderPropertyFactory.number('fluid-flow-surface', 'Surface', 1),
             ],
           ),
           closedPanel(
             'fluid-adaptive-domain',
             'Adaptive Domain',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('fluid-adaptive-domain-enabled', 'Enabled', true),
-              numberProperty('fluid-adaptive-margin', 'Margin', 4),
+              BlenderPropertyFactory.boolean(
+                'fluid-adaptive-domain-enabled',
+                'Enabled',
+                true,
+              ),
+              BlenderPropertyFactory.number(
+                'fluid-adaptive-margin',
+                'Margin',
+                4,
+              ),
             ],
           ),
           closedPanel(
             'fluid-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'fluid-cache-type',
                 'Type',
                 'Modular',
@@ -10240,15 +10172,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Final', label: 'Final'),
                 ],
               ),
-              numberProperty('fluid-cache-start', 'Simulation Start', 1),
-              numberProperty('fluid-cache-end', 'End', 250),
+              BlenderPropertyFactory.number(
+                'fluid-cache-start',
+                'Simulation Start',
+                1,
+              ),
+              BlenderPropertyFactory.number('fluid-cache-end', 'End', 250),
             ],
           ),
           closedPanel(
             'fluid-viewport-display',
             'Viewport Display',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'fluid-display-thickness',
                 'Display Thickness',
                 'Both',
@@ -10258,15 +10194,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Full', label: 'Full'),
                 ],
               ),
-              numberProperty('fluid-display-slice', 'Slice', .5),
+              BlenderPropertyFactory.number('fluid-display-slice', 'Slice', .5),
             ],
           ),
           closedPanel(
             'fluid-render',
             'Render',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('fluid-render-bake', 'Bake', false),
-              numberProperty('fluid-render-resolution', 'Resolution', 64),
+              BlenderPropertyFactory.boolean(
+                'fluid-render-bake',
+                'Bake',
+                false,
+              ),
+              BlenderPropertyFactory.number(
+                'fluid-render-resolution',
+                'Resolution',
+                64,
+              ),
             ],
           ),
         ],
@@ -10275,7 +10219,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-dynamic-paint',
         'Dynamic Paint',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'dynamic-paint-ui-type',
             'Type',
             'Canvas',
@@ -10291,9 +10235,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Settings',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('dynamic-paint-enabled', 'Enabled', true),
-              numberProperty('dynamic-paint-frame-start', 'Frame Start', 1),
-              numberProperty('dynamic-paint-frame-end', 'End', 250),
+              BlenderPropertyFactory.boolean(
+                'dynamic-paint-enabled',
+                'Enabled',
+                true,
+              ),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-frame-start',
+                'Frame Start',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-frame-end',
+                'End',
+                250,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10301,7 +10257,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Surface',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'dynamic-paint-surface-type',
                 'Surface Type',
                 'Paint',
@@ -10311,7 +10267,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Wave', label: 'Wave'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'dynamic-paint-surface-format',
                 'Format',
                 'Vertex',
@@ -10326,24 +10282,32 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'dynamic-paint-dry',
                 'Dry',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'dynamic-paint-dry-enabled',
                     'Enabled',
                     false,
                   ),
-                  numberProperty('dynamic-paint-dry-speed', 'Speed', .5),
+                  BlenderPropertyFactory.number(
+                    'dynamic-paint-dry-speed',
+                    'Speed',
+                    .5,
+                  ),
                 ],
               ),
               closedPanel(
                 'dynamic-paint-dissolve',
                 'Dissolve',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty(
+                  BlenderPropertyFactory.boolean(
                     'dynamic-paint-dissolve-enabled',
                     'Enabled',
                     false,
                   ),
-                  numberProperty('dynamic-paint-dissolve-time', 'Time', 1),
+                  BlenderPropertyFactory.number(
+                    'dynamic-paint-dissolve-time',
+                    'Time',
+                    1,
+                  ),
                 ],
               ),
             ],
@@ -10353,12 +10317,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Output',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'dynamic-paint-output-paintmaps',
                 'Paintmaps',
                 true,
               ),
-              booleanProperty('dynamic-paint-output-wetmaps', 'Wetmaps', false),
+              BlenderPropertyFactory.boolean(
+                'dynamic-paint-output-wetmaps',
+                'Wetmaps',
+                false,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('dynamic-paint-paintmaps', 'Paintmaps'),
@@ -10370,7 +10338,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Effects',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('dynamic-paint-effects-enabled', 'Enabled', true),
+              BlenderPropertyFactory.boolean(
+                'dynamic-paint-effects-enabled',
+                'Enabled',
+                true,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('dynamic-paint-spread', 'Spread'),
@@ -10390,20 +10362,28 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'dynamic-paint-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'dynamic-paint-cache-start',
                 'Simulation Start',
                 1,
               ),
-              numberProperty('dynamic-paint-cache-end', 'End', 250),
-              booleanProperty('dynamic-paint-cache-baked', 'Baked', false),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-cache-end',
+                'End',
+                250,
+              ),
+              BlenderPropertyFactory.boolean(
+                'dynamic-paint-cache-baked',
+                'Baked',
+                false,
+              ),
             ],
           ),
           closedPanel(
             'dynamic-paint-source',
             'Source',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'dynamic-paint-source-type',
                 'Paint Source',
                 'Mesh Volume',
@@ -10418,7 +10398,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              numberProperty('dynamic-paint-source-radius', 'Radius', 1),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-source-radius',
+                'Radius',
+                1,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('dynamic-paint-falloff-ramp', 'Falloff Ramp'),
@@ -10429,12 +10413,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Velocity',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'dynamic-paint-velocity-enabled',
                 'Enabled',
                 true,
               ),
-              numberProperty('dynamic-paint-velocity-factor', 'Factor', 1),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-velocity-factor',
+                'Factor',
+                1,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('dynamic-paint-velocity-ramp', 'Ramp'),
@@ -10445,9 +10433,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'dynamic-paint-waves',
             'Waves',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('dynamic-paint-waves-enabled', 'Enabled', false),
-              numberProperty('dynamic-paint-wave-timescale', 'Timescale', 1),
-              numberProperty('dynamic-paint-wave-speed', 'Speed', 1),
+              BlenderPropertyFactory.boolean(
+                'dynamic-paint-waves-enabled',
+                'Enabled',
+                false,
+              ),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-wave-timescale',
+                'Timescale',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'dynamic-paint-wave-speed',
+                'Speed',
+                1,
+              ),
             ],
           ),
         ],
@@ -10456,7 +10456,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-force-field',
         'Force Fields',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'force-field-type',
             'Type',
             'Force',
@@ -10466,7 +10466,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Vortex', label: 'Vortex'),
             ],
           ),
-          numberProperty('force-field-strength', 'Strength', 1),
+          BlenderPropertyFactory.number('force-field-strength', 'Strength', 1),
         ],
         children: <BlenderPropertyGroup>[
           closedPanel('force-field-settings', 'Settings'),
@@ -10478,7 +10478,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-rigid-body',
         'Rigid Body',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'rigid-body-type',
             'Type',
             'Active',
@@ -10487,15 +10487,23 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Passive', label: 'Passive'),
             ],
           ),
-          numberProperty('rigid-body-mass', 'Mass', 1, min: 0),
+          BlenderPropertyFactory.number('rigid-body-mass', 'Mass', 1, min: 0),
         ],
         children: <BlenderPropertyGroup>[
           closedPanel(
             'rigid-body-settings',
             'Settings',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('rigid-body-enabled', 'Dynamic', true),
-              booleanProperty('rigid-body-kinematic', 'Animated', false),
+              BlenderPropertyFactory.boolean(
+                'rigid-body-enabled',
+                'Dynamic',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
+                'rigid-body-kinematic',
+                'Animated',
+                false,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10503,7 +10511,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Collisions',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'rigid-body-collision-shape',
                 'Shape',
                 'Convex Hull',
@@ -10522,16 +10530,32 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'rigid-body-surface-response',
                 'Surface Response',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('rigid-body-friction', 'Friction', .5),
-                  numberProperty('rigid-body-restitution', 'Bounciness', .5),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-friction',
+                    'Friction',
+                    .5,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-restitution',
+                    'Bounciness',
+                    .5,
+                  ),
                 ],
               ),
               closedPanel(
                 'rigid-body-sensitivity',
                 'Sensitivity',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('rigid-body-use-margin', 'Use Margin', false),
-                  numberProperty('rigid-body-margin', 'Margin', .04),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-use-margin',
+                    'Use Margin',
+                    false,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-margin',
+                    'Margin',
+                    .04,
+                  ),
                 ],
               ),
               closedPanel('rigid-body-collections', 'Collections'),
@@ -10542,17 +10566,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Dynamics',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'rigid-body-deactivate',
                 'Enable Deactivation',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'rigid-body-linear-velocity',
                 'Linear Velocity',
                 .4,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'rigid-body-angular-velocity',
                 'Angular Velocity',
                 .5,
@@ -10566,8 +10590,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'rigid-body-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('rigid-body-cache-start', 'Simulation Start', 1),
-              numberProperty('rigid-body-cache-end', 'End', 250),
+              BlenderPropertyFactory.number(
+                'rigid-body-cache-start',
+                'Simulation Start',
+                1,
+              ),
+              BlenderPropertyFactory.number('rigid-body-cache-end', 'End', 250),
             ],
           ),
         ],
@@ -10576,7 +10604,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-rigid-body-constraint',
         'Rigid Body Constraint',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'rigid-body-constraint-type',
             'Type',
             'Fixed',
@@ -10593,18 +10621,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'rigid-body-constraint-settings',
             'Settings',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('rigid-body-constraint-enabled', 'Enabled', true),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
+                'rigid-body-constraint-enabled',
+                'Enabled',
+                true,
+              ),
+              BlenderPropertyFactory.boolean(
                 'rigid-body-constraint-disable-collisions',
                 'Disable Collisions',
                 false,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'rigid-body-constraint-breaking',
                 'Breakable',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'rigid-body-constraint-threshold',
                 'Threshold',
                 10,
@@ -10615,7 +10647,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'rigid-body-constraint-objects',
             'Objects',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'rigid-body-constraint-first',
                 'First',
                 'Cube',
@@ -10624,7 +10656,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'None', label: 'None'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'rigid-body-constraint-second',
                 'Second',
                 'Sphere',
@@ -10645,22 +10677,62 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'rigid-body-constraint-linear',
                 'Linear',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('rigid-body-limit-x', 'X', false),
-                  numberProperty('rigid-body-limit-x-lower', 'X Lower', -1),
-                  numberProperty('rigid-body-limit-x-upper', 'Upper', 1),
-                  booleanProperty('rigid-body-limit-y', 'Y', false),
-                  booleanProperty('rigid-body-limit-z', 'Z', false),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-x',
+                    'X',
+                    false,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-limit-x-lower',
+                    'X Lower',
+                    -1,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-limit-x-upper',
+                    'Upper',
+                    1,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-y',
+                    'Y',
+                    false,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-z',
+                    'Z',
+                    false,
+                  ),
                 ],
               ),
               closedPanel(
                 'rigid-body-constraint-angular',
                 'Angular',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  booleanProperty('rigid-body-limit-ang-x', 'X', false),
-                  numberProperty('rigid-body-limit-ang-x-lower', 'X Lower', -1),
-                  numberProperty('rigid-body-limit-ang-x-upper', 'Upper', 1),
-                  booleanProperty('rigid-body-limit-ang-y', 'Y', false),
-                  booleanProperty('rigid-body-limit-ang-z', 'Z', false),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-ang-x',
+                    'X',
+                    false,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-limit-ang-x-lower',
+                    'X Lower',
+                    -1,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'rigid-body-limit-ang-x-upper',
+                    'Upper',
+                    1,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-ang-y',
+                    'Y',
+                    false,
+                  ),
+                  BlenderPropertyFactory.boolean(
+                    'rigid-body-limit-ang-z',
+                    'Z',
+                    false,
+                  ),
                 ],
               ),
             ],
@@ -10670,13 +10742,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Motor',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('rigid-body-motor-enabled', 'Enabled', false),
-              numberProperty(
+              BlenderPropertyFactory.boolean(
+                'rigid-body-motor-enabled',
+                'Enabled',
+                false,
+              ),
+              BlenderPropertyFactory.number(
                 'rigid-body-motor-target-velocity',
                 'Target Velocity',
                 1,
               ),
-              numberProperty('rigid-body-motor-max-impulse', 'Max Impulse', 1),
+              BlenderPropertyFactory.number(
+                'rigid-body-motor-max-impulse',
+                'Max Impulse',
+                1,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               closedPanel('rigid-body-motor-angular', 'Angular'),
@@ -10699,7 +10779,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-particles',
         'Particle System',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'particle-type',
             'Type',
             'Emitter',
@@ -10716,11 +10796,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Emission',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('particle-number', 'Number', 1000, min: 0),
-              numberProperty('particle-frame-start', 'Frame Start', 1),
-              numberProperty('particle-frame-end', 'End', 200),
-              numberProperty('particle-lifetime', 'Lifetime', 50, min: 0),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'particle-number',
+                'Number',
+                1000,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
+                'particle-frame-start',
+                'Frame Start',
+                1,
+              ),
+              BlenderPropertyFactory.number('particle-frame-end', 'End', 200),
+              BlenderPropertyFactory.number(
+                'particle-lifetime',
+                'Lifetime',
+                50,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
                 'particle-lifetime-random',
                 'Randomize',
                 0,
@@ -10732,7 +10826,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'particle-source',
                 'Source',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'particle-source-surface',
                     'Emit From',
                     'Faces',
@@ -10745,7 +10839,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       BlenderMenuItem<String>(value: 'Volume', label: 'Volume'),
                     ],
                   ),
-                  numberProperty('particle-source-jitter', 'Jitter', 0),
+                  BlenderPropertyFactory.number(
+                    'particle-source-jitter',
+                    'Jitter',
+                    0,
+                  ),
                 ],
               ),
             ],
@@ -10755,18 +10853,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Hair Dynamics',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'particle-hair-dynamics-enabled',
                 'Enabled',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-hair-dynamics-quality',
                 'Quality Steps',
                 5,
                 min: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-hair-dynamics-pin-stiffness',
                 'Pin Goal Strength',
                 0.5,
@@ -10779,19 +10877,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'particle-hair-dynamics-collisions',
                 'Collisions',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-hair-collision-quality',
                     'Quality',
                     5,
                     min: 1,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-hair-collision-distance',
                     'Distance',
                     0.005,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-hair-collision-impulse',
                     'Impulse Clamp',
                     0,
@@ -10803,27 +10901,37 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'particle-hair-dynamics-structure',
                 'Structure',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('particle-hair-mass', 'Mass', 1, min: 0),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
+                    'particle-hair-mass',
+                    'Mass',
+                    1,
+                    min: 0,
+                  ),
+                  BlenderPropertyFactory.number(
                     'particle-hair-stiffness',
                     'Stiffness',
                     15,
                     min: 0,
                   ),
-                  numberProperty('particle-hair-damping', 'Damping', 5, min: 0),
+                  BlenderPropertyFactory.number(
+                    'particle-hair-damping',
+                    'Damping',
+                    5,
+                    min: 0,
+                  ),
                 ],
               ),
               closedPanel(
                 'particle-hair-dynamics-volume',
                 'Volume',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-hair-air-damping',
                     'Air Drag',
                     1,
                     min: 0,
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-hair-density-target',
                     'Density Target',
                     1,
@@ -10837,9 +10945,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-cache',
             'Cache',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('particle-cache-start', 'Simulation Start', 1),
-              numberProperty('particle-cache-end', 'End', 200),
-              booleanProperty('particle-cache-baked', 'Baked', false),
+              BlenderPropertyFactory.number(
+                'particle-cache-start',
+                'Simulation Start',
+                1,
+              ),
+              BlenderPropertyFactory.number('particle-cache-end', 'End', 200),
+              BlenderPropertyFactory.boolean(
+                'particle-cache-baked',
+                'Baked',
+                false,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10847,9 +10963,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Velocity',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('particle-normal-velocity', 'Normal', 1),
-              numberProperty('particle-object-velocity', 'Object Aligned', 0),
-              numberProperty('particle-tangent-velocity', 'Tangent', 0),
+              BlenderPropertyFactory.number(
+                'particle-normal-velocity',
+                'Normal',
+                1,
+              ),
+              BlenderPropertyFactory.number(
+                'particle-object-velocity',
+                'Object Aligned',
+                0,
+              ),
+              BlenderPropertyFactory.number(
+                'particle-tangent-velocity',
+                'Tangent',
+                0,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -10857,8 +10985,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Rotation',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty('particle-rotation-enabled', 'Enabled', false),
-              enumProperty(
+              BlenderPropertyFactory.boolean(
+                'particle-rotation-enabled',
+                'Enabled',
+                false,
+              ),
+              BlenderPropertyFactory.choice<String>(
                 'particle-rotation-orientation',
                 'Orientation Axis',
                 'Velocity / Hair',
@@ -10876,8 +11008,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 'particle-angular-velocity',
                 'Angular Velocity',
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  numberProperty('particle-angular-factor', 'Factor', 1),
-                  numberProperty('particle-angular-random', 'Randomize', 0),
+                  BlenderPropertyFactory.number(
+                    'particle-angular-factor',
+                    'Factor',
+                    1,
+                  ),
+                  BlenderPropertyFactory.number(
+                    'particle-angular-random',
+                    'Randomize',
+                    0,
+                  ),
                 ],
               ),
             ],
@@ -10887,7 +11027,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Physics',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-physics-type',
                 'Physics Type',
                 'Newtonian',
@@ -10901,13 +11041,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Fluid', label: 'Fluid'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-physics-size',
                 'Particle Size',
                 .05,
                 min: 0,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-physics-brownian',
                 'Brownian',
                 0,
@@ -10955,7 +11095,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Render',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-render-as',
                 'Render As',
                 'Halo',
@@ -10969,8 +11109,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Path', label: 'Path'),
                 ],
               ),
-              numberProperty('particle-render-scale', 'Scale', .05, min: 0),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'particle-render-scale',
+                'Scale',
+                .05,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
                 'particle-render-random-scale',
                 'Randomize',
                 0,
@@ -10997,7 +11142,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-viewport-display',
             'Viewport Display',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-viewport-display-as',
                 'Display As',
                 'Rendered',
@@ -11007,7 +11152,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Cross', label: 'Cross'),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-viewport-percentage',
                 'Amount',
                 100,
@@ -11021,7 +11166,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Children',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-children-type',
                 'Type',
                 'Simple',
@@ -11033,7 +11178,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   ),
                 ],
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-children-count',
                 'Display Amount',
                 10,
@@ -11059,9 +11204,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-field-weights',
             'Field Weights',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty('particle-field-gravity', 'Gravity', 1),
-              numberProperty('particle-field-wind', 'Wind', 1),
-              numberProperty('particle-field-turbulence', 'Turbulence', 1),
+              BlenderPropertyFactory.number(
+                'particle-field-gravity',
+                'Gravity',
+                1,
+              ),
+              BlenderPropertyFactory.number('particle-field-wind', 'Wind', 1),
+              BlenderPropertyFactory.number(
+                'particle-field-turbulence',
+                'Turbulence',
+                1,
+              ),
             ],
           ),
           BlenderPropertyGroup(
@@ -11069,7 +11222,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Force Field Settings',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-force-field-type',
                 'Type',
                 'Force',
@@ -11079,7 +11232,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Vortex', label: 'Vortex'),
                 ],
               ),
-              numberProperty('particle-force-field-strength', 'Strength', 1),
+              BlenderPropertyFactory.number(
+                'particle-force-field-strength',
+                'Strength',
+                1,
+              ),
             ],
             children: <BlenderPropertyGroup>[
               BlenderPropertyGroup(
@@ -11087,7 +11244,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 title: 'Type 1',
                 initiallyExpanded: false,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'particle-force-field-type-1-kind',
                     'Type 1',
                     'Force',
@@ -11097,7 +11254,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       BlenderMenuItem<String>(value: 'Vortex', label: 'Vortex'),
                     ],
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-force-field-type-1-strength',
                     'Strength',
                     1,
@@ -11108,13 +11265,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     'particle-force-field-type-1-falloff',
                     'Falloff',
                     properties: <BlenderPropertyDescriptor<dynamic>>[
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'particle-force-field-type-1-distance',
                         'Maximum Distance',
                         10,
                         min: 0,
                       ),
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'particle-force-field-type-1-power',
                         'Power',
                         1,
@@ -11129,7 +11286,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                 title: 'Type 2',
                 initiallyExpanded: false,
                 properties: <BlenderPropertyDescriptor<dynamic>>[
-                  enumProperty(
+                  BlenderPropertyFactory.choice<String>(
                     'particle-force-field-type-2-kind',
                     'Type 2',
                     'Force',
@@ -11139,7 +11296,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                       BlenderMenuItem<String>(value: 'Vortex', label: 'Vortex'),
                     ],
                   ),
-                  numberProperty(
+                  BlenderPropertyFactory.number(
                     'particle-force-field-type-2-strength',
                     'Strength',
                     1,
@@ -11150,13 +11307,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                     'particle-force-field-type-2-falloff',
                     'Falloff',
                     properties: <BlenderPropertyDescriptor<dynamic>>[
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'particle-force-field-type-2-distance',
                         'Maximum Distance',
                         10,
                         min: 0,
                       ),
-                      numberProperty(
+                      BlenderPropertyFactory.number(
                         'particle-force-field-type-2-power',
                         'Power',
                         1,
@@ -11172,7 +11329,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-vertex-groups',
             'Vertex Groups',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-vertex-density',
                 'Density',
                 'Density',
@@ -11181,7 +11338,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'None', label: 'None'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-vertex-length',
                 'Length',
                 'Length',
@@ -11190,7 +11347,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'None', label: 'None'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-vertex-clump',
                 'Clump',
                 'Clump',
@@ -11199,7 +11356,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'None', label: 'None'),
                 ],
               ),
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-vertex-kink',
                 'Kink',
                 'Kink',
@@ -11214,7 +11371,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-textures',
             'Textures',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'particle-active-texture',
                 'Texture',
                 'None',
@@ -11230,27 +11387,32 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-hair-shape',
             'Hair Shape',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-hair-shape-strand',
                 'Strand Shape',
                 0,
                 min: -1,
                 max: 1,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-hair-shape-root',
                 'Diameter Root',
                 1,
                 min: 0,
               ),
-              numberProperty('particle-hair-shape-tip', 'Tip', 0, min: 0),
-              numberProperty(
+              BlenderPropertyFactory.number(
+                'particle-hair-shape-tip',
+                'Tip',
+                0,
+                min: 0,
+              ),
+              BlenderPropertyFactory.number(
                 'particle-hair-shape-radius-scale',
                 'Radius Scale',
                 1,
                 min: 0,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'particle-hair-shape-close-tip',
                 'Close Tip',
                 false,
@@ -11261,12 +11423,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             'particle-animation',
             'Animation',
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'particle-animation-use-keyed',
                 'Use Animation',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'particle-animation-time-offset',
                 'Time Offset',
                 0,
@@ -11280,8 +11442,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'physics-geometry-nodes',
         'Simulation Nodes',
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('physics-geometry-nodes-enabled', 'Enabled', true),
-          enumProperty(
+          BlenderPropertyFactory.boolean(
+            'physics-geometry-nodes-enabled',
+            'Enabled',
+            true,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'physics-geometry-nodes-node-group',
             'Node Group',
             'Simulation Nodes',
@@ -11373,67 +11539,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
 
   List<BlenderPropertyGroup> get _objectPropertyGroups {
     const axes = <String>['X', 'Y', 'Z'];
-    BlenderPropertyDescriptor<bool> booleanProperty(
-      String id,
-      String label,
-      bool value, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<bool>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderCheckbox(
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<String> enumProperty(
-      String id,
-      String label,
-      String value,
-      List<BlenderMenuItem<String>> items, {
-      bool enabled = true,
-    }) {
-      return BlenderPropertyDescriptor<String>(
-        id: id,
-        label: label,
-        value: value,
-        enabled: enabled,
-        editorBuilder: (context, value, onChanged) => BlenderDropdown<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
-
-    BlenderPropertyDescriptor<double> numberProperty(
-      String id,
-      String label,
-      double value, {
-      int decimalDigits = 0,
-      double step = 1,
-    }) {
-      return BlenderPropertyDescriptor<double>(
-        id: id,
-        label: label,
-        value: value,
-        editorBuilder: (context, value, onChanged) => BlenderNumberField(
-          value: value,
-          step: step,
-          decimalDigits: decimalDigits,
-          onChanged: onChanged,
-        ),
-        onChanged: (_) => _setStatus('$label changed'),
-      );
-    }
 
     const parentTypes = <BlenderMenuItem<String>>[
       BlenderMenuItem<String>(value: 'Object', label: 'Object'),
@@ -11577,7 +11682,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Relations',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'object-parent',
             'Parent',
             'Scene',
@@ -11587,20 +11692,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Empty', label: 'Empty'),
             ],
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'object-parent-type',
             'Parent Type',
             'Object',
             parentTypes,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-camera-lock-parent',
             'Camera Lock Parent',
             true,
           ),
-          enumProperty('object-track-axis', 'Tracking Axis', '-Z', axisItems),
-          enumProperty('object-up-axis', 'Up Axis', 'Y', axisItems),
-          numberProperty('object-pass-index', 'Pass Index', 0),
+          BlenderPropertyFactory.choice<String>(
+            'object-track-axis',
+            'Tracking Axis',
+            '-Z',
+            axisItems,
+          ),
+          BlenderPropertyFactory.choice<String>(
+            'object-up-axis',
+            'Up Axis',
+            'Y',
+            axisItems,
+          ),
+          BlenderPropertyFactory.number('object-pass-index', 'Pass Index', 0),
         ],
       ),
       BlenderPropertyGroup(
@@ -11616,13 +11731,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty('object-collection', 'Collection', 'Collection', const <
-            BlenderMenuItem<String>
-          >[
-            BlenderMenuItem<String>(value: 'Collection', label: 'Collection'),
-            BlenderMenuItem<String>(value: 'Environment', label: 'Environment'),
-          ]),
-          numberProperty(
+          BlenderPropertyFactory.choice<String>(
+            'object-collection',
+            'Collection',
+            'Collection',
+            const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'Collection', label: 'Collection'),
+              BlenderMenuItem<String>(
+                value: 'Environment',
+                label: 'Environment',
+              ),
+            ],
+          ),
+          BlenderPropertyFactory.number(
             'object-instance-offset',
             'Instance Offset',
             0,
@@ -11641,12 +11762,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Scale by Face Size',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'object-instance-face-scale',
                 'Scale by Face Size',
                 false,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'object-instance-face-factor',
                 'Factor',
                 1,
@@ -11657,18 +11778,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'object-instance-type',
             'Instance Type',
             'None',
             instanceTypes,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-instance-vertex-rotation',
             'Align to Vertex Normal',
             false,
           ),
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'object-instance-collection',
             'Collection',
             'Collection',
@@ -11680,12 +11801,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               ),
             ],
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-show-instancer-viewport',
             'Show Instancer Viewport',
             true,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-show-instancer-render',
             'Show Instancer Render',
             true,
@@ -11702,7 +11823,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Display',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'object-motion-paths-type',
                 'Type',
                 'Around Frame',
@@ -11714,12 +11835,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
                   BlenderMenuItem<String>(value: 'Range', label: 'Range'),
                 ],
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'object-motion-paths-frame-numbers',
                 'Frame Numbers',
                 true,
               ),
-              booleanProperty(
+              BlenderPropertyFactory.boolean(
                 'object-motion-paths-keyframes',
                 'Keyframes',
                 true,
@@ -11728,8 +11849,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ],
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          numberProperty('object-motion-paths-before', 'Before', 20),
-          numberProperty('object-motion-paths-after', 'After', 20),
+          BlenderPropertyFactory.number(
+            'object-motion-paths-before',
+            'Before',
+            20,
+          ),
+          BlenderPropertyFactory.number(
+            'object-motion-paths-after',
+            'After',
+            20,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -11737,21 +11866,37 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Viewport Display',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('object-show-name', 'Name', true),
-          booleanProperty('object-show-axis', 'Axes', false),
-          booleanProperty('object-show-wire', 'Wireframe', false),
-          booleanProperty('object-show-all-edges', 'All Edges', false),
-          booleanProperty('object-show-texture-space', 'Texture Space', false),
-          booleanProperty('object-show-shadows', 'Shadow', true),
-          booleanProperty('object-show-in-front', 'In Front', false),
-          enumProperty(
+          BlenderPropertyFactory.boolean('object-show-name', 'Name', true),
+          BlenderPropertyFactory.boolean('object-show-axis', 'Axes', false),
+          BlenderPropertyFactory.boolean(
+            'object-show-wire',
+            'Wireframe',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'object-show-all-edges',
+            'All Edges',
+            false,
+          ),
+          BlenderPropertyFactory.boolean(
+            'object-show-texture-space',
+            'Texture Space',
+            false,
+          ),
+          BlenderPropertyFactory.boolean('object-show-shadows', 'Shadow', true),
+          BlenderPropertyFactory.boolean(
+            'object-show-in-front',
+            'In Front',
+            false,
+          ),
+          BlenderPropertyFactory.choice<String>(
             'object-display-type',
             'Display As',
             'Textured',
             displayTypes,
           ),
-          booleanProperty('object-show-bounds', 'Bounds', false),
-          enumProperty(
+          BlenderPropertyFactory.boolean('object-show-bounds', 'Bounds', false),
+          BlenderPropertyFactory.choice<String>(
             'object-bounds-type',
             'Bounds Type',
             'Box',
@@ -11773,7 +11918,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Light Linking',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'object-light-linking-collection',
                 'Receiver Collection',
                 'Collection',
@@ -11792,7 +11937,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Shadow Linking',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              enumProperty(
+              BlenderPropertyFactory.choice<String>(
                 'object-shadow-linking-collection',
                 'Blocker Collection',
                 'Collection',
@@ -11811,14 +11956,14 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             title: 'Shadow Terminator',
             initiallyExpanded: false,
             properties: <BlenderPropertyDescriptor<dynamic>>[
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'object-shadow-normal-offset',
                 'Normal Offset',
                 0,
                 decimalDigits: 3,
                 step: .01,
               ),
-              numberProperty(
+              BlenderPropertyFactory.number(
                 'object-shadow-geometry-offset',
                 'Geometry Offset',
                 0,
@@ -11835,41 +11980,53 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Visibility',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('object-selectable', 'Selectable', true),
-          booleanProperty('object-surface-picking', 'Surface Picking', true),
-          booleanProperty('object-hide-viewport', 'Viewports', true),
-          booleanProperty('object-hide-render', 'Renders', true),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
+            'object-selectable',
+            'Selectable',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'object-surface-picking',
+            'Surface Picking',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'object-hide-viewport',
+            'Viewports',
+            true,
+          ),
+          BlenderPropertyFactory.boolean('object-hide-render', 'Renders', true),
+          BlenderPropertyFactory.boolean(
             'object-visible-camera',
             'Ray Visibility Camera',
             true,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-visible-shadow',
             'Ray Visibility Shadow',
             true,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-visible-raycast',
             'Ray Visibility Raycast',
             true,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-hide-probe-volume',
             'Light Probes Volume',
             false,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-hide-probe-sphere',
             'Light Probes Sphere',
             false,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-hide-probe-plane',
             'Light Probes Plane',
             false,
           ),
-          booleanProperty('object-holdout', 'Holdout', false),
+          BlenderPropertyFactory.boolean('object-holdout', 'Holdout', false),
         ],
       ),
       BlenderPropertyGroup(
@@ -11877,7 +12034,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Line Art',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          enumProperty(
+          BlenderPropertyFactory.choice<String>(
             'object-line-art-usage',
             'Usage',
             'Include',
@@ -11886,24 +12043,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               BlenderMenuItem<String>(value: 'Exclude', label: 'Exclude'),
             ],
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-line-art-crease-override',
             'Override Crease',
             false,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'object-line-art-crease-threshold',
             'Crease Threshold',
             0,
             decimalDigits: 3,
             step: .01,
           ),
-          booleanProperty(
+          BlenderPropertyFactory.boolean(
             'object-line-art-intersection-override',
             'Override Intersection Priority',
             false,
           ),
-          numberProperty(
+          BlenderPropertyFactory.number(
             'object-line-art-intersection-priority',
             'Intersection Priority',
             0,
@@ -11915,8 +12072,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         title: 'Animation',
         initiallyExpanded: false,
         properties: <BlenderPropertyDescriptor<dynamic>>[
-          booleanProperty('object-animation-use-nla', 'NLA Tracks', true),
-          booleanProperty('object-animation-use-action', 'Action', true),
+          BlenderPropertyFactory.boolean(
+            'object-animation-use-nla',
+            'NLA Tracks',
+            true,
+          ),
+          BlenderPropertyFactory.boolean(
+            'object-animation-use-action',
+            'Action',
+            true,
+          ),
         ],
       ),
       BlenderPropertyGroup(
@@ -12693,7 +12858,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       );
     }
 
-    Widget choice(String label, String value, List<String> values) {
+    Widget preferenceChoice(String label, String value, List<String> values) {
       return BlenderPropertyRow(
         label: label,
         editor: BlenderDropdown<String>(
@@ -12718,7 +12883,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       );
     }
 
-    Widget panel(String title, List<Widget> children, {bool expanded = false}) {
+    Widget preferencePanel(
+      String title,
+      List<Widget> children, {
+      bool expanded = false,
+    }) {
       return BlenderPanel(
         title: title,
         collapsible: true,
@@ -12751,8 +12920,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ),
       section('Interface', 'text', 'Text Rendering', <Widget>[
         check('Anti-Aliasing'),
-        choice('Hinting', 'Auto', <String>['Auto', 'None', 'Slight', 'Full']),
-        panel('Text Editor Font', <Widget>[
+        preferenceChoice('Hinting', 'Auto', <String>[
+          'Auto',
+          'None',
+          'Slight',
+          'Full',
+        ]),
+        preferencePanel('Text Editor Font', <Widget>[
           BlenderPathField(
             controller: _searchController,
             placeholder: 'UI Font',
@@ -12764,11 +12938,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ]),
       ]),
       section('Interface', 'language', 'Language', <Widget>[
-        choice('Language', 'English', <String>['English', 'Turkish', 'German']),
+        preferenceChoice('Language', 'English', <String>[
+          'English',
+          'Turkish',
+          'German',
+        ]),
         check('Tooltips'),
         check('Interface'),
         check('Reports'),
-        choice('Date Format', 'Automatic', <String>[
+        preferenceChoice('Date Format', 'Automatic', <String>[
           'Automatic',
           'International',
           'US',
@@ -12779,11 +12957,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
       section('Interface', 'menus', 'Menus', <Widget>[
         check('Close Menus on Mouse Click'),
-        panel('Open on Mouse Over', <Widget>[
+        preferencePanel('Open on Mouse Over', <Widget>[
           number('Top Level Delay', .3),
           number('Sub Level Delay', .1),
         ]),
-        panel('Pie Menus', <Widget>[
+        preferencePanel('Pie Menus', <Widget>[
           number('Animation Timeout', .3),
           number('Tap Timeout', .2),
           number('Menu Radius', 100),
@@ -12792,18 +12970,25 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
 
       section('Editing', 'objects', 'Objects', <Widget>[
-        panel('New Objects', <Widget>[
-          choice('Align To', 'World', <String>['World', 'View', '3D Cursor']),
+        preferencePanel('New Objects', <Widget>[
+          preferenceChoice('Align To', 'World', <String>[
+            'World',
+            'View',
+            '3D Cursor',
+          ]),
           check('Enter Edit Mode'),
         ], expanded: true),
-        panel('Copy on Duplicate', <Widget>[
+        preferencePanel('Copy on Duplicate', <Widget>[
           check('Linked Data'),
           check('Object Data'),
           check('Materials'),
         ]),
       ], expanded: true),
       section('Editing', 'cursor', '3D Cursor', <Widget>[
-        choice('Rotation Mode', 'Euler', <String>['Euler', 'Quaternion']),
+        preferenceChoice('Rotation Mode', 'Euler', <String>[
+          'Euler',
+          'Quaternion',
+        ]),
         check('Surface Project'),
       ]),
       section('Editing', 'grease-pencil', 'Grease Pencil', <Widget>[
@@ -12828,7 +13013,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
       section('Editing', 'sequencer', 'Video Sequencer', <Widget>[
         check('Use Insert Offset'),
-        choice('Default Thumbnail Size', 'Medium', <String>[
+        preferenceChoice('Default Thumbnail Size', 'Medium', <String>[
           'Small',
           'Medium',
           'Large',
@@ -12842,12 +13027,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       section('Animation', 'timeline', 'Timeline', <Widget>[
         check('Allow Negative Frames', value: false),
         number('Minimum Grid Spacing', 45),
-        choice('Timecode Style', 'Minimal Info', <String>[
+        preferenceChoice('Timecode Style', 'Minimal Info', <String>[
           'Minimal Info',
           'SMPTE',
           'Milliseconds',
         ]),
-        choice('Zoom to Frame Type', 'Keep Range', <String>[
+        preferenceChoice('Zoom to Frame Type', 'Keep Range', <String>[
           'Keep Range',
           'Seconds',
           'Keyframes',
@@ -12897,16 +13082,17 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           label: 'Unselected Opacity',
           editor: BlenderSlider(value: .25, onChanged: (_) {}),
         ),
-        choice('Default Smoothing Mode', 'Continuous Acceleration', <String>[
+        preferenceChoice(
+          'Default Smoothing Mode',
           'Continuous Acceleration',
-          'None',
-        ]),
-        choice('Default Interpolation', 'Bezier', <String>[
+          <String>['Continuous Acceleration', 'None'],
+        ),
+        preferenceChoice('Default Interpolation', 'Bezier', <String>[
           'Bezier',
           'Linear',
           'Constant',
         ]),
-        choice('Default Handles', 'Auto Clamped', <String>[
+        preferenceChoice('Default Handles', 'Auto Clamped', <String>[
           'Auto Clamped',
           'Automatic',
           'Vector',
@@ -12920,17 +13106,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
 
       section('System', 'sound', 'Sound', <Widget>[
-        choice('Audio Device', 'None', <String>['None', 'System Default']),
-        choice('Speaker', 'SDL', <String>['SDL', 'OpenAL']),
+        preferenceChoice('Audio Device', 'None', <String>[
+          'None',
+          'System Default',
+        ]),
+        preferenceChoice('Speaker', 'SDL', <String>['SDL', 'OpenAL']),
         number('Sample Rate', 48),
         number('Channels', 2),
       ], expanded: true),
       section('System', 'cycles', 'Cycles Render Devices', <Widget>[
-        choice('Device', 'CPU', <String>['CPU', 'GPU Compute']),
+        preferenceChoice('Device', 'CPU', <String>['CPU', 'GPU Compute']),
         buttons(<String>['Refresh']),
       ]),
       section('System', 'graphics', 'Display Graphics', <Widget>[
-        choice('GPU Backend', 'OpenGL', <String>['OpenGL', 'Metal', 'Vulkan']),
+        preferenceChoice('GPU Backend', 'OpenGL', <String>[
+          'OpenGL',
+          'Metal',
+          'Vulkan',
+        ]),
         check('Texture Limit'),
       ]),
       section('System', 'os', 'Operating System Settings', <Widget>[
@@ -12952,7 +13145,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
 
       section('Viewport', 'display', 'Display', <Widget>[
-        choice('3D Viewport Axes', 'Positive', <String>[
+        preferenceChoice('3D Viewport Axes', 'Positive', <String>[
           'Positive',
           'Negative',
           'None',
@@ -12966,7 +13159,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         check('Use High Quality Normals'),
       ]),
       section('Viewport', 'textures', 'Textures', <Widget>[
-        choice('Image Draw Method', '2D Textures', <String>[
+        preferenceChoice('Image Draw Method', '2D Textures', <String>[
           '2D Textures',
           'GLSL',
         ]),
@@ -12981,33 +13174,42 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         buttons(<String>['Default', 'Save Theme', 'Load Theme']),
       ], expanded: true),
       section('Themes', 'themes', 'Themes', <Widget>[
-        choice('Theme', 'Blender Dark', <String>[
+        preferenceChoice('Theme', 'Blender Dark', <String>[
           'Blender Dark',
           'Blender Light',
         ]),
       ]),
       section('Themes', 'interface', 'User Interface', <Widget>[
-        panel('Panel', <Widget>[number('Header', 1), number('Panel', 1)]),
-        panel('State', <Widget>[check('Selected'), check('Active')]),
-        panel('Editor & Widgets', <Widget>[
+        preferencePanel('Panel', <Widget>[
+          number('Header', 1),
+          number('Panel', 1),
+        ]),
+        preferencePanel('State', <Widget>[check('Selected'), check('Active')]),
+        preferencePanel('Editor & Widgets', <Widget>[
           check('Widget Emboss'),
           check('Rounded Corners'),
-          panel('Transparent Checkerboard', <Widget>[
-            choice('Primary Color', 'Light', <String>['Light', 'Dark']),
-            choice('Secondary Color', 'Dark', <String>['Dark', 'Light']),
+          preferencePanel('Transparent Checkerboard', <Widget>[
+            preferenceChoice('Primary Color', 'Light', <String>[
+              'Light',
+              'Dark',
+            ]),
+            preferenceChoice('Secondary Color', 'Dark', <String>[
+              'Dark',
+              'Light',
+            ]),
             number('Size', 8),
           ]),
         ]),
-        panel('Axes & Gizmos', <Widget>[
+        preferencePanel('Axes & Gizmos', <Widget>[
           check('Show Gizmos'),
           check('Show Navigation Gizmo'),
         ]),
-        panel('Icons', <Widget>[
+        preferencePanel('Icons', <Widget>[
           number('Icon Saturation', 1),
           number('Icon Contrast', 1),
         ]),
-        panel('Text Style', <Widget>[
-          choice('Font Style', 'Regular', <String>[
+        preferencePanel('Text Style', <Widget>[
+          preferenceChoice('Font Style', 'Regular', <String>[
             'Regular',
             'Bold',
             'Italic',
@@ -13015,9 +13217,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ]),
       ]),
       section('Themes', 'color-sets', 'Color Sets', <Widget>[
-        panel('Bone Color Sets', <Widget>[check('Use Theme Colors')]),
-        panel('Collection Colors', <Widget>[check('Use Collection Colors')]),
-        panel('Sequencer Strip Color Tags', <Widget>[check('Use Strip Tags')]),
+        preferencePanel('Bone Color Sets', <Widget>[check('Use Theme Colors')]),
+        preferencePanel('Collection Colors', <Widget>[
+          check('Use Collection Colors'),
+        ]),
+        preferencePanel('Sequencer Strip Color Tags', <Widget>[
+          check('Use Strip Tags'),
+        ]),
       ]),
 
       section('File Paths', 'data', 'Data', <Widget>[
@@ -13029,7 +13235,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           controller: _galleryPathController,
           placeholder: 'Textures',
         ),
-        panel('Render', <Widget>[
+        preferencePanel('Render', <Widget>[
           BlenderPathField(
             controller: _galleryPathController,
             placeholder: 'Render Output',
@@ -13044,7 +13250,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ]),
       section('File Paths', 'applications', 'Applications', <Widget>[
-        panel('Text Editor', <Widget>[
+        preferencePanel('Text Editor', <Widget>[
           BlenderPathField(
             controller: _galleryPathController,
             placeholder: 'Text Editor',
@@ -13061,7 +13267,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         number('Auto Save Time', 2),
         check('Load UI'),
         check('Filter File Extensions'),
-        panel('Auto Run Python Scripts', <Widget>[
+        preferencePanel('Auto Run Python Scripts', <Widget>[
           check('Enable Auto Run'),
           buttons(<String>['Add Excluded Path', 'Remove Excluded Path']),
         ]),
@@ -13077,11 +13283,11 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         check('Orbit Around Selection'),
       ], expanded: true),
       section('Input', 'mouse', 'Mouse', <Widget>[
-        choice('Select With', 'Left', <String>['Left', 'Right']),
+        preferenceChoice('Select With', 'Left', <String>['Left', 'Right']),
         check('Continuous Grab'),
       ]),
       section('Input', 'tablet', 'Tablet', <Widget>[
-        choice('Tablet API', 'Automatic', <String>[
+        preferenceChoice('Tablet API', 'Automatic', <String>[
           'Automatic',
           'Wintab',
           'Windows Ink',
@@ -13099,12 +13305,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ]),
 
       section('Navigation', 'orbit', 'Orbit & Pan', <Widget>[
-        choice('Orbit Method', 'Turntable', <String>['Turntable', 'Trackball']),
+        preferenceChoice('Orbit Method', 'Turntable', <String>[
+          'Turntable',
+          'Trackball',
+        ]),
         check('Orbit Around Selection'),
         check('Auto Perspective'),
       ], expanded: true),
       section('Navigation', 'zoom', 'Zoom', <Widget>[
-        choice('Zoom Method', 'Continue', <String>[
+        preferenceChoice('Zoom Method', 'Continue', <String>[
           'Continue',
           'Dolly',
           'Scale',
@@ -13112,16 +13321,22 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         check('Zoom to Mouse Position'),
       ]),
       section('Navigation', 'fly-walk', 'Fly & Walk', <Widget>[
-        choice('View Axis', 'Forward', <String>['Forward', 'Up']),
-        panel('Walk', <Widget>[number('Speed', 2.5), check('Gravity')]),
-        panel('Gravity', <Widget>[
+        preferenceChoice('View Axis', 'Forward', <String>['Forward', 'Up']),
+        preferencePanel('Walk', <Widget>[
+          number('Speed', 2.5),
+          check('Gravity'),
+        ]),
+        preferencePanel('Gravity', <Widget>[
           number('Weight', 1),
           number('Jump Height', 1),
         ]),
       ]),
 
       section('Keymap', 'presets', 'KeyPresets', <Widget>[
-        choice('Preset', 'Blender', <String>['Blender', 'Industry Compatible']),
+        preferenceChoice('Preset', 'Blender', <String>[
+          'Blender',
+          'Industry Compatible',
+        ]),
         buttons(<String>['Restore', 'Save']),
       ], expanded: true),
       section('Keymap', 'keymap', 'Keymap', <Widget>[
@@ -13139,7 +13354,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       ], expanded: true),
       section('Get Extensions', 'repositories', 'Repositories', <Widget>[
         buttons(<String>['Add Repository', 'Remove Repository']),
-        choice('Active Repository', 'Official', <String>['Official', 'User']),
+        preferenceChoice('Active Repository', 'Official', <String>[
+          'Official',
+          'User',
+        ]),
       ]),
       section(
         'Get Extensions',
@@ -13167,7 +13385,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           controller: _searchController,
           placeholder: 'Search Add-ons',
         ),
-        choice('Category', 'All', <String>[
+        preferenceChoice('Category', 'All', <String>[
           'All',
           '3D View',
           'Add Curve',
@@ -13234,8 +13452,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         buttons(<String>['Add HDRI', 'Remove']),
       ]),
       section('Lights', 'studio-lights', 'Studio Lights', <Widget>[
-        panel('Editor', <Widget>[
-          choice('Light Type', 'Area', <String>['Area', 'Sun', 'Spot']),
+        preferencePanel('Editor', <Widget>[
+          preferenceChoice('Light Type', 'Area', <String>[
+            'Area',
+            'Sun',
+            'Spot',
+          ]),
           number('Rotation', 0),
           number('Energy', 1),
         ]),
@@ -13380,11 +13602,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _buildNestedToolHeader(
+        BlenderPanel(
           title: 'Transform',
+          disclosureKey: const ValueKey<String>(
+            'tool-settings-nested-disclosure-Transform',
+          ),
+          collapsible: true,
           expanded: _toolTransformExpanded,
-          onToggle: () =>
-              setState(() => _toolTransformExpanded = !_toolTransformExpanded),
+          onExpansionChanged: (value) =>
+              setState(() => _toolTransformExpanded = value),
+          child: const SizedBox.shrink(),
         ),
         if (_toolTransformExpanded)
           Container(
@@ -13466,7 +13693,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         );
 
-    Widget panel(String title, Widget child) {
+    Widget modePanel(String title, Widget child) {
       final expanded = _toolModePanelExpanded[title] ?? false;
       return _buildToolSettingsPanel(
         title: title,
@@ -13814,9 +14041,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     );
 
     return switch (_workspaceMode) {
-      'Edit Mode' => <Widget>[panel('Options', editOptions())],
+      'Edit Mode' => <Widget>[modePanel('Options', editOptions())],
       'Armature Edit' => <Widget>[
-        panel(
+        modePanel(
           'Options',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13825,7 +14052,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ],
       'Pose Mode' => <Widget>[
-        panel(
+        modePanel(
           'Pose Options',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13839,7 +14066,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ],
       'Sculpt Mode' => <Widget>[
-        panel(
+        modePanel(
           'Dyntopo',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13860,7 +14087,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
         const SizedBox(height: 4),
-        panel(
+        modePanel(
           'Remesh',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13874,12 +14101,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
         const SizedBox(height: 4),
-        panel('Options', sculptOptions()),
+        modePanel('Options', sculptOptions()),
         const SizedBox(height: 4),
-        panel('Symmetry', symmetry()),
+        modePanel('Symmetry', symmetry()),
       ],
       'Curves Sculpt' => <Widget>[
-        panel(
+        modePanel(
           'Symmetry',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13892,9 +14119,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ],
       'Weight Paint' => <Widget>[
-        panel('Symmetry', symmetry()),
+        modePanel('Symmetry', symmetry()),
         const SizedBox(height: 4),
-        panel(
+        modePanel(
           'Options',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13907,13 +14134,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
       ],
-      'Vertex Paint' => <Widget>[panel('Symmetry', symmetry())],
+      'Vertex Paint' => <Widget>[modePanel('Symmetry', symmetry())],
       'Grease Pencil Draw' => <Widget>[
-        panel('Color', greasePencilColor(includePalette: true)),
+        modePanel('Color', greasePencilColor(includePalette: true)),
       ],
       'Grease Pencil Sculpt' => const <Widget>[],
       'Grease Pencil Weight Paint' => <Widget>[
-        panel(
+        modePanel(
           'Options',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13925,21 +14152,21 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         ),
       ],
       'Grease Pencil Vertex Paint' => <Widget>[
-        panel('Color', greasePencilColor(includePalette: true)),
+        modePanel('Color', greasePencilColor(includePalette: true)),
         const SizedBox(height: 4),
-        panel('Falloff', greasePencilFalloff()),
+        modePanel('Falloff', greasePencilFalloff()),
       ],
       'Texture Paint' => <Widget>[
         texturePaintDataPanels(),
         const SizedBox(height: 4),
         texturePaintMasking(),
         const SizedBox(height: 4),
-        panel('Symmetry', symmetry()),
+        modePanel('Symmetry', symmetry()),
         const SizedBox(height: 4),
-        panel('Options', paintOptions()),
+        modePanel('Options', paintOptions()),
       ],
       'Particle Edit' => <Widget>[
-        panel(
+        modePanel(
           'Particle Tool',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -13956,7 +14183,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
         const SizedBox(height: 4),
-        panel('Options', particleOptions()),
+        modePanel('Options', particleOptions()),
       ],
       _ => const <Widget>[],
     };
@@ -14275,10 +14502,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             ),
           ),
           const SizedBox(height: 4),
-          _buildNestedToolHeader(
+          BlenderPanel(
             title: 'Custom Properties',
+            disclosureKey: const ValueKey<String>(
+              'tool-settings-nested-disclosure-Custom Properties',
+            ),
+            collapsible: true,
             expanded: false,
-            onToggle: () => _setStatus('Workspace custom properties'),
+            onExpansionChanged: (_) =>
+                _setStatus('Workspace custom properties'),
+            child: const SizedBox.shrink(),
           ),
         ],
       ),
@@ -14786,101 +15019,18 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     required bool expanded,
     required VoidCallback onToggle,
     required Widget child,
-  }) => Builder(
-    builder: (context) {
-      final theme = BlenderTheme.of(context);
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colors.panelBackground,
-          border: Border.all(color: theme.colors.panelOutline),
-          borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _buildNestedToolHeader(
-              title: title,
-              expanded: expanded,
-              onToggle: onToggle,
-            ),
-            if (expanded) child,
-          ],
-        ),
-      );
-    },
-  );
-
-  Widget _buildNestedToolHeader({
-    required String title,
-    required bool expanded,
-    required VoidCallback onToggle,
-  }) => Builder(
-    builder: (context) {
-      final theme = BlenderTheme.of(context);
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onToggle,
-        child: Container(
-          height: theme.density.headerHeight,
-          color: theme.colors.panelBackground,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: <Widget>[
-              BlenderIcon(
-                key: ValueKey<String>('tool-settings-nested-disclosure-$title'),
-                expanded
-                    ? BlenderGlyph.panelDisclosureDown
-                    : BlenderGlyph.panelDisclosureRight,
-                size: 9,
-                color: theme.colors.foregroundMuted,
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.body,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
+  }) => BlenderPanel(
+    title: title,
+    disclosureKey: ValueKey<String>('tool-settings-nested-disclosure-$title'),
+    collapsible: true,
+    expanded: expanded,
+    onExpansionChanged: (_) => onToggle(),
+    padding: EdgeInsets.zero,
+    child: child,
   );
 
   void _setStatus(String message) {
     _application.status.report(message);
-  }
-
-  void _setMainEditorType(BlenderEditorType value) {
-    if (_mainEditorType == value) return;
-    setState(() => _mainEditorType = value);
-    _application.editorSession.selectView(
-      workspaceId: 'showcase',
-      areaId: 'main-area',
-      viewId: value.name,
-    );
-  }
-
-  void _setRightTopEditorType(BlenderEditorType value) {
-    if (_rightTopEditorType == value) return;
-    setState(() => _rightTopEditorType = value);
-    _application.editorSession.selectView(
-      workspaceId: 'showcase',
-      areaId: 'outliner-area',
-      viewId: value.name,
-    );
-  }
-
-  void _setRightBottomEditorType(BlenderEditorType value) {
-    if (_rightBottomEditorType == value) return;
-    setState(() => _rightBottomEditorType = value);
-    _application.editorSession.selectView(
-      workspaceId: 'showcase',
-      areaId: 'properties-area',
-      viewId: value.name,
-    );
   }
 
   /// Lets showcase part files mutate this state's app-specific sample model
@@ -14906,16 +15056,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
 
   void _moveNode(BlenderGraphNode node, Offset position) {
     setState(() {
-      final index = _nodes.indexWhere((candidate) => candidate.id == node.id);
-      if (index == -1) return;
-      _nodes[index] = BlenderGraphNode(
-        id: node.id,
-        title: node.title,
-        position: position,
-        size: node.size,
-        inputs: node.inputs,
-        outputs: node.outputs,
-      );
+      final updated = _nodeGraph.moveNode(node.id, position);
+      _nodes
+        ..clear()
+        ..addAll(updated.nodes);
     });
   }
 
@@ -14936,6 +15080,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       },
       statusBar: ShowcaseStatusBar(
         status: _application.status,
+        jobs: _application.jobs,
+        reports: _application.reports,
         onStatus: _setStatus,
       ),
     );
@@ -14946,786 +15092,734 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     BlenderDockAreaNode<String> area,
   ) {
     return switch (area.value) {
-      'main' => _buildMainEditor(),
+      'main' => _buildEditorAreaHost(_mainEditorArea, _buildMainEditor),
       'bottom' => _buildBottomEditor(),
-      'right-top' => _buildRightTopArea(),
-      'right-bottom' => _buildRightBottomArea(),
-      _ => _buildMainEditor(),
+      'right-top' => _buildEditorAreaHost(
+        _rightTopEditorArea,
+        _buildRightTopArea,
+      ),
+      'right-bottom' => _buildEditorAreaHost(
+        _rightBottomEditorArea,
+        _buildRightBottomArea,
+      ),
+      _ => _buildEditorAreaHost(_mainEditorArea, _buildMainEditor),
     };
   }
+
+  Widget _buildEditorAreaHost(
+    BlenderEditorAreaController<BlenderEditorType> controller,
+    Widget Function() builder,
+  ) => BlenderEditorAreaHost<BlenderEditorType>(
+    controller: controller,
+    views: <BlenderEditorAreaView<BlenderEditorType>>[
+      for (final type in BlenderEditorType.values)
+        BlenderEditorAreaView<BlenderEditorType>(
+          value: type,
+          builder: (_) => builder(),
+        ),
+    ],
+  );
 
   Widget _buildMainToolbar() =>
       Builder(builder: (context) => _buildMainToolbarForTheme(context));
 
   Widget _buildMainToolbarForTheme(BuildContext context) {
-    Widget menu(
+    BlenderApplicationMenu<String> menu(
       String label,
       List<BlenderMenuItem<String>> items, {
       ValueChanged<String>? onSelected,
     }) {
-      return BlenderMenuButton<String>(
+      return BlenderApplicationMenu<String>(
         label: label,
         items: items,
-        variant: BlenderButtonVariant.topBar,
         onSelected: onSelected ?? _setStatus,
       );
     }
 
     final theme = BlenderTheme.of(context);
-    return Container(
-      height: 30,
-      decoration: BoxDecoration(
-        color: theme.colors.topBar,
-        border: Border(bottom: BorderSide(color: theme.colors.editorBorder)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: BlenderToolbar(
-              height: 30,
-              scrollable: true,
-              background: theme.colors.topBar,
-              children: <Widget>[
-                BlenderPopover(
-                  child: const BlenderIconButton(
-                    glyph: BlenderGlyph.cube,
-                    tooltip: 'Blender',
-                    size: 30,
-                  ),
-                  popover: (context, close) => BlenderMenu<String>(
-                    items: const <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Splash Screen',
-                        label: 'Splash Screen',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'About Blender',
-                        label: 'About Blender',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'separator',
-                        label: '',
-                        separator: true,
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Install Application Template...',
-                        label: 'Install Application Template...',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'System',
-                        label: 'System',
-                        submenu: <BlenderMenuItem<String>>[
-                          BlenderMenuItem<String>(
-                            value: 'Reload Scripts',
-                            label: 'Reload Scripts',
-                          ),
-                          BlenderMenuItem<String>(
-                            value: 'Memory Statistics',
-                            label: 'Memory Statistics',
-                          ),
-                          BlenderMenuItem<String>(
-                            value: 'Debug Menu',
-                            label: 'Debug Menu',
-                          ),
-                          BlenderMenuItem<String>(
-                            value: 'Redraw Timer',
-                            label: 'Redraw Timer',
-                            submenu: <BlenderMenuItem<String>>[
-                              BlenderMenuItem<String>(
-                                value: 'Draw',
-                                label: 'Draw',
-                              ),
-                              BlenderMenuItem<String>(
-                                value: 'Swap',
-                                label: 'Swap',
-                              ),
-                              BlenderMenuItem<String>(
-                                value: 'Frame',
-                                label: 'Frame',
-                              ),
-                              BlenderMenuItem<String>(
-                                value: 'Animation',
-                                label: 'Animation',
-                              ),
-                            ],
-                          ),
-                          BlenderMenuItem<String>(
-                            value: 'Clean Up Spacedata',
-                            label: 'Clean Up Spacedata',
-                          ),
-                          BlenderMenuItem<String>(
-                            value: 'Clean Up Operator Presets',
-                            label: 'Clean Up Operator Presets',
-                          ),
-                        ],
-                      ),
-                    ],
-                    onSelected: (item) {
-                      close();
-                      switch (item.value) {
-                        case 'Splash Screen':
-                          unawaited(
-                            _application.presentation.showSplash(context),
-                          );
-                        case 'About Blender':
-                          unawaited(
-                            _application.presentation.showAbout(context),
-                          );
-                        default:
-                          _setStatus(item.value);
-                      }
-                    },
-                  ),
-                ),
-                menu('File', const <BlenderMenuItem<String>>[
+    return BlenderApplicationTopBar<String, int>(
+      overflow: BlenderApplicationTopBarOverflow.shared,
+      leading: <Widget>[
+        BlenderPopover(
+          child: const BlenderIconButton(
+            glyph: BlenderGlyph.cube,
+            tooltip: 'Blender',
+            size: 30,
+          ),
+          popover: (context, close) => BlenderMenu<String>(
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Splash Screen',
+                label: 'Splash Screen',
+              ),
+              BlenderMenuItem<String>(
+                value: 'About Blender',
+                label: 'About Blender',
+              ),
+              BlenderMenuItem<String>(
+                value: 'separator',
+                label: '',
+                separator: true,
+              ),
+              BlenderMenuItem<String>(
+                value: 'Install Application Template...',
+                label: 'Install Application Template...',
+              ),
+              BlenderMenuItem<String>(
+                value: 'System',
+                label: 'System',
+                submenu: <BlenderMenuItem<String>>[
                   BlenderMenuItem<String>(
-                    value: 'New',
-                    label: 'New',
-                    shortcut: '⌘ N',
-                    icon: BlenderIcon(BlenderGlyph.file, size: 18),
+                    value: 'Reload Scripts',
+                    label: 'Reload Scripts',
+                  ),
+                  BlenderMenuItem<String>(
+                    value: 'Memory Statistics',
+                    label: 'Memory Statistics',
+                  ),
+                  BlenderMenuItem<String>(
+                    value: 'Debug Menu',
+                    label: 'Debug Menu',
+                  ),
+                  BlenderMenuItem<String>(
+                    value: 'Redraw Timer',
+                    label: 'Redraw Timer',
                     submenu: <BlenderMenuItem<String>>[
+                      BlenderMenuItem<String>(value: 'Draw', label: 'Draw'),
+                      BlenderMenuItem<String>(value: 'Swap', label: 'Swap'),
+                      BlenderMenuItem<String>(value: 'Frame', label: 'Frame'),
                       BlenderMenuItem<String>(
-                        value: 'General',
-                        label: 'General',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: '2D Animation',
-                        label: '2D Animation',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Sculpting',
-                        label: 'Sculpting',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Storyboarding',
-                        label: 'Storyboarding',
-                      ),
-                      BlenderMenuItem<String>(value: 'VFX', label: 'VFX'),
-                      BlenderMenuItem<String>(
-                        value: 'Video Editing',
-                        label: 'Video Editing',
+                        value: 'Animation',
+                        label: 'Animation',
                       ),
                     ],
                   ),
                   BlenderMenuItem<String>(
-                    value: 'Open',
-                    label: 'Open...',
-                    shortcut: '⌘ O',
-                    icon: BlenderIcon(BlenderGlyph.folder, size: 18),
+                    value: 'Clean Up Spacedata',
+                    label: 'Clean Up Spacedata',
                   ),
                   BlenderMenuItem<String>(
-                    value: 'Open Recent',
-                    label: 'Open Recent',
-                    shortcut: '⇧ ⌘ O',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Recent Scene',
-                        label: 'showcase.blend',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Recent Materials',
-                        label: 'materials.blend',
-                      ),
-                    ],
+                    value: 'Clean Up Operator Presets',
+                    label: 'Clean Up Operator Presets',
                   ),
-                  BlenderMenuItem<String>(
-                    value: 'Revert',
-                    label: 'Revert',
-                    enabled: false,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Recover',
-                    label: 'Recover',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Recover Last Session',
-                        label: 'Last Session',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Recover Auto Save',
-                        label: 'Auto Save...',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-open',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save',
-                    label: 'Save',
-                    shortcut: '⌘ S',
-                    icon: BlenderIcon(BlenderGlyph.save, size: 18),
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save As',
-                    label: 'Save As...',
-                    shortcut: '⇧ ⌘ S',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save Copy',
-                    label: 'Save Copy...',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save Incremental',
-                    label: 'Save Incremental',
-                    enabled: false,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-save',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Link',
-                    label: 'Link...',
-                    icon: BlenderIcon(BlenderGlyph.link, size: 18),
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Append',
-                    label: 'Append...',
-                    icon: BlenderIcon(BlenderGlyph.link, size: 18),
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Data Previews',
-                    label: 'Data Previews',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Update Data Previews',
-                        label: 'Update Data Previews',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Remove Data Previews',
-                        label: 'Remove Data Previews',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-data',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Import',
-                    label: 'Import',
-                    icon: BlenderIcon(BlenderGlyph.open, size: 18),
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Import Alembic',
-                        label: 'Alembic (.abc)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import USD',
-                        label: 'Universal Scene Description (.usd*)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import SVG',
-                        label: 'SVG as Grease Pencil',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import OBJ',
-                        label: 'Wavefront (.obj)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import PLY',
-                        label: 'Stanford PLY (.ply)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import STL',
-                        label: 'STL (.stl)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import FBX',
-                        label: 'FBX (.fbx)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import BVH',
-                        label: 'Motion Capture (.bvh)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import SVG2',
-                        label: 'Scalable Vector Graphics (.svg)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import FBX Legacy',
-                        label: 'FBX (.fbx) (Legacy)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Import glTF',
-                        label: 'glTF 2.0 (.glb/.gltf)',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Export',
-                    label: 'Export',
-                    icon: BlenderIcon(BlenderGlyph.save, size: 18),
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Export OBJ',
-                        label: 'Wavefront (.obj)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Export FBX',
-                        label: 'FBX (.fbx)',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Export glTF',
-                        label: 'glTF 2.0 (.glb/.gltf)',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Export All Collections',
-                    label: 'Export All Collections',
-                    enabled: false,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-export',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'External Data',
-                    label: 'External Data',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Pack Resources',
-                        label: 'Pack Resources',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Unpack Resources',
-                        label: 'Unpack Resources',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Make Paths Relative',
-                        label: 'Make Paths Relative',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Make Paths Absolute',
-                        label: 'Make Paths Absolute',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Report Missing Files',
-                        label: 'Report Missing Files',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Find Missing Files...',
-                        label: 'Find Missing Files...',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Clean Up',
-                    label: 'Clean Up',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Unused Data',
-                        label: 'Purge Unused Data...',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Manage Unused Data',
-                        label: 'Manage Unused Data...',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-cleanup',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Defaults',
-                    label: 'Defaults',
-                    submenu: <BlenderMenuItem<String>>[
-                      BlenderMenuItem<String>(
-                        value: 'Save Startup File',
-                        label: 'Save Startup File',
-                      ),
-                      BlenderMenuItem<String>(
-                        value: 'Load Factory Settings',
-                        label: 'Load Factory Settings',
-                      ),
-                    ],
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-quit',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Quit',
-                    label: 'Quit',
-                    shortcut: '⌘ Q',
-                    icon: BlenderIcon(BlenderGlyph.close, size: 18),
-                  ),
-                ]),
-                menu(
-                  'Edit',
-                  <BlenderMenuItem<String>>[
-                    const BlenderMenuItem<String>(
-                      value: 'Undo',
-                      label: 'Undo',
-                      shortcut: '⌘ Z',
-                      icon: const BlenderIcon(BlenderGlyph.undo, size: 18),
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Redo',
-                      label: 'Redo',
-                      shortcut: '⇧ ⌘ Z',
-                      enabled: false,
-                      icon: const BlenderIcon(BlenderGlyph.redo, size: 18),
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Undo History',
-                      label: 'Undo History',
-                      submenu: const <BlenderMenuItem<String>>[
-                        BlenderMenuItem<String>(
-                          value: 'Undo History Initial State',
-                          label: 'Initial State',
-                        ),
-                      ],
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'separator-edit-history',
-                      label: '',
-                      separator: true,
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Adjust Last Operation...',
-                      label: 'Adjust Last Operation...',
-                      shortcut: 'F9',
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Repeat Last',
-                      label: 'Repeat Last',
-                      shortcut: '⇧ R',
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Repeat History...',
-                      label: 'Repeat History...',
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'separator-edit-search',
-                      label: '',
-                      separator: true,
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Menu Search...',
-                      label: 'Menu Search...',
-                      shortcut: 'F3',
-                      icon: const BlenderIcon(BlenderGlyph.search, size: 18),
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Operator Search...',
-                      label: 'Operator Search...',
-                      shortcut: 'F3',
-                      icon: const BlenderIcon(BlenderGlyph.search, size: 18),
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'separator-edit-rename',
-                      label: '',
-                      separator: true,
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Rename Active Item...',
-                      label: 'Rename Active Item...',
-                      shortcut: 'F2',
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Batch Rename...',
-                      label: 'Batch Rename...',
-                      shortcut: '⌘ F2',
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'separator-edit-preferences',
-                      label: '',
-                      separator: true,
-                    ),
-                    BlenderMenuItem<String>(
-                      value: 'Lock Object Modes',
-                      label: 'Lock Object Modes',
-                      checked: _lockObjectModes,
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Preferences...',
-                      label: 'Preferences...',
-                      shortcut: '⌘ ,',
-                      icon: const BlenderIcon(
-                        BlenderGlyph.preferences,
-                        size: 18,
-                      ),
-                    ),
-                    const BlenderMenuItem<String>(
-                      value: 'Project Setup...',
-                      label: 'Project Setup...',
-                    ),
-                  ],
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'Lock Object Modes':
-                        setState(() => _lockObjectModes = !_lockObjectModes);
-                        _setStatus(
-                          _lockObjectModes
-                              ? 'Lock Object Modes enabled'
-                              : 'Lock Object Modes disabled',
-                        );
-                      case 'Preferences...':
-                        _showPreferencesWindow();
-                      default:
-                        _setStatus(value);
-                    }
-                  },
-                ),
-                menu('Render', const <BlenderMenuItem<String>>[
-                  BlenderMenuItem<String>(
-                    value: 'Render Image',
-                    label: 'Render Image',
-                    shortcut: 'F12',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Render Animation',
-                    label: 'Render Animation',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-render-view',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Render Audio...',
-                    label: 'Render Audio...',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-render-result',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'View Render',
-                    label: 'View Render',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'View Animation',
-                    label: 'View Animation',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Lock Interface',
-                    label: 'Lock Interface',
-                  ),
-                ]),
-                menu('Window', const <BlenderMenuItem<String>>[
-                  BlenderMenuItem<String>(
-                    value: 'New Window',
-                    label: 'New Window',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'New Main Window',
-                    label: 'New Main Window',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-window-fullscreen',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Toggle Fullscreen',
-                    label: 'Toggle Fullscreen',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-window-workspace',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Next Workspace',
-                    label: 'Next Workspace',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Previous Workspace',
-                    label: 'Previous Workspace',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Show Status Bar',
-                    label: 'Show Status Bar',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-window-screenshot',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save Screenshot...',
-                    label: 'Save Screenshot...',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Save Screenshot (Editor)...',
-                    label: 'Save Screenshot (Editor)...',
-                  ),
-                ]),
-                menu('Help', const <BlenderMenuItem<String>>[
-                  BlenderMenuItem<String>(value: 'Manual', label: 'Manual'),
-                  BlenderMenuItem<String>(value: 'Support', label: 'Support'),
-                  BlenderMenuItem<String>(
-                    value: 'User Communities',
-                    label: 'User Communities',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Get Involved',
-                    label: 'Get Involved',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Release Notes',
-                    label: 'Release Notes',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'separator-help-report',
-                    label: '',
-                    separator: true,
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'Report a Bug',
-                    label: 'Report a Bug',
-                  ),
-                  BlenderMenuItem<String>(
-                    value: 'System Information',
-                    label: 'System Information',
-                  ),
-                ]),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 1,
-                  height: 24,
-                  child: ColoredBox(color: theme.colors.editorOutline),
-                ),
-                const SizedBox(width: 6),
-                // The toolbar owns the top-bar viewport. Keep workspace tabs
-                // in its single scrolling layout so they never pan separately
-                // from the menus or Add Workspace control.
-                BlenderTabBar(
-                  scrollable: false,
-                  variant: BlenderButtonVariant.tab,
-                  tabs: const <String>[
-                    'Layout',
-                    'Modeling',
-                    'Sculpting',
-                    'UV Editing',
-                    'Texture Paint',
-                    'Shading',
-                    'Animation',
-                    'Rendering',
-                    'Compositing',
-                    'Geometry Nodes',
-                    'Components',
-                  ],
-                  selectedIndex: _workspaceIndex,
-                  onChanged: (value) {
-                    setState(() => _workspaceIndex = value);
-                    _setStatus('Workspace changed');
-                  },
-                ),
-                BlenderPopover(
-                  child: BlenderIconButton(
-                    glyph: BlenderGlyph.plus,
-                    onPressed: () {},
-                    tooltip: 'Add Workspace',
-                    size: 26,
-                  ),
-                  popover: (context, close) => SizedBox(
-                    width: 260,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colors.menuBackground,
-                        border: Border.all(color: theme.colors.borderSubtle),
-                        borderRadius: BorderRadius.circular(
-                          theme.shapes.menuRadius,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            Text('Add Workspace', style: theme.textTheme.body),
-                            const SizedBox(height: 6),
-                            for (final workspace in <String>[
-                              'General',
-                              '2D Animation',
-                              'Sculpting',
-                              'Storyboarding',
-                              'VFX',
-                              'Video Editing',
-                            ])
-                              BlenderButton(
-                                label: workspace,
-                                variant: BlenderButtonVariant.menu,
-                                onPressed: () {
-                                  _setStatus('Workspace added: $workspace');
-                                  close();
-                                },
-                              ),
-                            const BlenderSeparator(),
-                            BlenderButton(
-                              label: 'Duplicate Current',
-                              onPressed: () {
-                                _setStatus('Workspace duplicated');
-                                close();
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                ],
+              ),
+            ],
+            onSelected: (item) {
+              close();
+              switch (item.value) {
+                case 'Splash Screen':
+                  unawaited(_application.presentation.showSplash(context));
+                case 'About Blender':
+                  unawaited(_application.presentation.showAbout(context));
+                default:
+                  _setStatus(item.value);
+              }
+            },
+          ),
+        ),
+      ],
+      menus: <BlenderApplicationMenu<String>>[
+        menu('File', const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(
+            value: 'New',
+            label: 'New',
+            shortcut: '⌘ N',
+            icon: BlenderIcon(BlenderGlyph.file, size: 18),
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(value: 'General', label: 'General'),
+              BlenderMenuItem<String>(
+                value: '2D Animation',
+                label: '2D Animation',
+              ),
+              BlenderMenuItem<String>(value: 'Sculpting', label: 'Sculpting'),
+              BlenderMenuItem<String>(
+                value: 'Storyboarding',
+                label: 'Storyboarding',
+              ),
+              BlenderMenuItem<String>(value: 'VFX', label: 'VFX'),
+              BlenderMenuItem<String>(
+                value: 'Video Editing',
+                label: 'Video Editing',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'Open',
+            label: 'Open...',
+            shortcut: '⌘ O',
+            icon: BlenderIcon(BlenderGlyph.folder, size: 18),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Open Recent',
+            label: 'Open Recent',
+            shortcut: '⇧ ⌘ O',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Recent Scene',
+                label: 'showcase.blend',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Recent Materials',
+                label: 'materials.blend',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'Revert',
+            label: 'Revert',
+            enabled: false,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Recover',
+            label: 'Recover',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Recover Last Session',
+                label: 'Last Session',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Recover Auto Save',
+                label: 'Auto Save...',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-open',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Save',
+            label: 'Save',
+            shortcut: '⌘ S',
+            icon: BlenderIcon(BlenderGlyph.save, size: 18),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Save As',
+            label: 'Save As...',
+            shortcut: '⇧ ⌘ S',
+          ),
+          BlenderMenuItem<String>(value: 'Save Copy', label: 'Save Copy...'),
+          BlenderMenuItem<String>(
+            value: 'Save Incremental',
+            label: 'Save Incremental',
+            enabled: false,
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-save',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Link',
+            label: 'Link...',
+            icon: BlenderIcon(BlenderGlyph.link, size: 18),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Append',
+            label: 'Append...',
+            icon: BlenderIcon(BlenderGlyph.link, size: 18),
+          ),
+          BlenderMenuItem<String>(
+            value: 'Data Previews',
+            label: 'Data Previews',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Update Data Previews',
+                label: 'Update Data Previews',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Remove Data Previews',
+                label: 'Remove Data Previews',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-data',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Import',
+            label: 'Import',
+            icon: BlenderIcon(BlenderGlyph.open, size: 18),
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Import Alembic',
+                label: 'Alembic (.abc)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import USD',
+                label: 'Universal Scene Description (.usd*)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import SVG',
+                label: 'SVG as Grease Pencil',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import OBJ',
+                label: 'Wavefront (.obj)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import PLY',
+                label: 'Stanford PLY (.ply)',
+              ),
+              BlenderMenuItem<String>(value: 'Import STL', label: 'STL (.stl)'),
+              BlenderMenuItem<String>(value: 'Import FBX', label: 'FBX (.fbx)'),
+              BlenderMenuItem<String>(
+                value: 'Import BVH',
+                label: 'Motion Capture (.bvh)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import SVG2',
+                label: 'Scalable Vector Graphics (.svg)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import FBX Legacy',
+                label: 'FBX (.fbx) (Legacy)',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Import glTF',
+                label: 'glTF 2.0 (.glb/.gltf)',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'Export',
+            label: 'Export',
+            icon: BlenderIcon(BlenderGlyph.save, size: 18),
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Export OBJ',
+                label: 'Wavefront (.obj)',
+              ),
+              BlenderMenuItem<String>(value: 'Export FBX', label: 'FBX (.fbx)'),
+              BlenderMenuItem<String>(
+                value: 'Export glTF',
+                label: 'glTF 2.0 (.glb/.gltf)',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'Export All Collections',
+            label: 'Export All Collections',
+            enabled: false,
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-export',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'External Data',
+            label: 'External Data',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Pack Resources',
+                label: 'Pack Resources',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Unpack Resources',
+                label: 'Unpack Resources',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Make Paths Relative',
+                label: 'Make Paths Relative',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Make Paths Absolute',
+                label: 'Make Paths Absolute',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Report Missing Files',
+                label: 'Report Missing Files',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Find Missing Files...',
+                label: 'Find Missing Files...',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'Clean Up',
+            label: 'Clean Up',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Unused Data',
+                label: 'Purge Unused Data...',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Manage Unused Data',
+                label: 'Manage Unused Data...',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-cleanup',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Defaults',
+            label: 'Defaults',
+            submenu: <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Save Startup File',
+                label: 'Save Startup File',
+              ),
+              BlenderMenuItem<String>(
+                value: 'Load Factory Settings',
+                label: 'Load Factory Settings',
+              ),
+            ],
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-quit',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Quit',
+            label: 'Quit',
+            shortcut: '⌘ Q',
+            icon: BlenderIcon(BlenderGlyph.close, size: 18),
+          ),
+        ]),
+        menu(
+          'Edit',
+          <BlenderMenuItem<String>>[
+            const BlenderMenuItem<String>(
+              value: 'Undo',
+              label: 'Undo',
+              shortcut: '⌘ Z',
+              icon: const BlenderIcon(BlenderGlyph.undo, size: 18),
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Redo',
+              label: 'Redo',
+              shortcut: '⇧ ⌘ Z',
+              enabled: false,
+              icon: const BlenderIcon(BlenderGlyph.redo, size: 18),
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Undo History',
+              label: 'Undo History',
+              submenu: const <BlenderMenuItem<String>>[
+                BlenderMenuItem<String>(
+                  value: 'Undo History Initial State',
+                  label: 'Initial State',
                 ),
               ],
             ),
+            const BlenderMenuItem<String>(
+              value: 'separator-edit-history',
+              label: '',
+              separator: true,
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Adjust Last Operation...',
+              label: 'Adjust Last Operation...',
+              shortcut: 'F9',
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Repeat Last',
+              label: 'Repeat Last',
+              shortcut: '⇧ R',
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Repeat History...',
+              label: 'Repeat History...',
+            ),
+            const BlenderMenuItem<String>(
+              value: 'separator-edit-search',
+              label: '',
+              separator: true,
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Menu Search...',
+              label: 'Menu Search...',
+              shortcut: 'F3',
+              icon: const BlenderIcon(BlenderGlyph.search, size: 18),
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Operator Search...',
+              label: 'Operator Search...',
+              shortcut: 'F3',
+              icon: const BlenderIcon(BlenderGlyph.search, size: 18),
+            ),
+            const BlenderMenuItem<String>(
+              value: 'separator-edit-rename',
+              label: '',
+              separator: true,
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Rename Active Item...',
+              label: 'Rename Active Item...',
+              shortcut: 'F2',
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Batch Rename...',
+              label: 'Batch Rename...',
+              shortcut: '⌘ F2',
+            ),
+            const BlenderMenuItem<String>(
+              value: 'separator-edit-preferences',
+              label: '',
+              separator: true,
+            ),
+            BlenderMenuItem<String>(
+              value: 'Lock Object Modes',
+              label: 'Lock Object Modes',
+              checked: _lockObjectModes,
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Preferences...',
+              label: 'Preferences...',
+              shortcut: '⌘ ,',
+              icon: const BlenderIcon(BlenderGlyph.preferences, size: 18),
+            ),
+            const BlenderMenuItem<String>(
+              value: 'Project Setup...',
+              label: 'Project Setup...',
+            ),
+          ],
+          onSelected: (value) {
+            switch (value) {
+              case 'Lock Object Modes':
+                setState(() => _lockObjectModes = !_lockObjectModes);
+                _setStatus(
+                  _lockObjectModes
+                      ? 'Lock Object Modes enabled'
+                      : 'Lock Object Modes disabled',
+                );
+              case 'Preferences...':
+                _showPreferencesWindow();
+              default:
+                _setStatus(value);
+            }
+          },
+        ),
+        menu('Render', const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(
+            value: 'Render Image',
+            label: 'Render Image',
+            shortcut: 'F12',
           ),
-          BlenderDataBlockGroup<String>(
-            value: 'Scene',
-            items: const <BlenderMenuItem<String>>[
-              BlenderMenuItem<String>(
-                value: 'Scene',
-                label: 'Scene',
-                icon: BlenderIcon(BlenderGlyph.scene, size: 16),
+          BlenderMenuItem<String>(
+            value: 'Render Animation',
+            label: 'Render Animation',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-render-view',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Render Audio...',
+            label: 'Render Audio...',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-render-result',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(value: 'View Render', label: 'View Render'),
+          BlenderMenuItem<String>(
+            value: 'View Animation',
+            label: 'View Animation',
+          ),
+          BlenderMenuItem<String>(
+            value: 'Lock Interface',
+            label: 'Lock Interface',
+          ),
+        ]),
+        menu('Window', const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(value: 'New Window', label: 'New Window'),
+          BlenderMenuItem<String>(
+            value: 'New Main Window',
+            label: 'New Main Window',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-window-fullscreen',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Toggle Fullscreen',
+            label: 'Toggle Fullscreen',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-window-workspace',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Next Workspace',
+            label: 'Next Workspace',
+          ),
+          BlenderMenuItem<String>(
+            value: 'Previous Workspace',
+            label: 'Previous Workspace',
+          ),
+          BlenderMenuItem<String>(
+            value: 'Show Status Bar',
+            label: 'Show Status Bar',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-window-screenshot',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(
+            value: 'Save Screenshot...',
+            label: 'Save Screenshot...',
+          ),
+          BlenderMenuItem<String>(
+            value: 'Save Screenshot (Editor)...',
+            label: 'Save Screenshot (Editor)...',
+          ),
+        ]),
+        menu('Help', const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(value: 'Manual', label: 'Manual'),
+          BlenderMenuItem<String>(value: 'Support', label: 'Support'),
+          BlenderMenuItem<String>(
+            value: 'User Communities',
+            label: 'User Communities',
+          ),
+          BlenderMenuItem<String>(value: 'Get Involved', label: 'Get Involved'),
+          BlenderMenuItem<String>(
+            value: 'Release Notes',
+            label: 'Release Notes',
+          ),
+          BlenderMenuItem<String>(
+            value: 'separator-help-report',
+            label: '',
+            separator: true,
+          ),
+          BlenderMenuItem<String>(value: 'Report a Bug', label: 'Report a Bug'),
+          BlenderMenuItem<String>(
+            value: 'System Information',
+            label: 'System Information',
+          ),
+        ]),
+      ],
+      workspaces: const <BlenderApplicationWorkspace<int>>[
+        BlenderApplicationWorkspace<int>(value: 0, label: 'Layout'),
+        BlenderApplicationWorkspace<int>(value: 1, label: 'Modeling'),
+        BlenderApplicationWorkspace<int>(value: 2, label: 'Sculpting'),
+        BlenderApplicationWorkspace<int>(value: 3, label: 'UV Editing'),
+        BlenderApplicationWorkspace<int>(value: 4, label: 'Texture Paint'),
+        BlenderApplicationWorkspace<int>(value: 5, label: 'Shading'),
+        BlenderApplicationWorkspace<int>(value: 6, label: 'Animation'),
+        BlenderApplicationWorkspace<int>(value: 7, label: 'Rendering'),
+        BlenderApplicationWorkspace<int>(value: 8, label: 'Compositing'),
+        BlenderApplicationWorkspace<int>(value: 9, label: 'Geometry Nodes'),
+        BlenderApplicationWorkspace<int>(value: 10, label: 'Components'),
+      ],
+      activeWorkspace: _workspaceIndex,
+      onWorkspaceSelected: (value) {
+        setState(() => _workspaceIndex = value);
+        _setStatus('Workspace changed');
+      },
+      workspaceActions: <Widget>[
+        BlenderPopover(
+          child: BlenderIconButton(
+            glyph: BlenderGlyph.plus,
+            onPressed: () {},
+            tooltip: 'Add Workspace',
+            size: 26,
+          ),
+          popover: (context, close) => SizedBox(
+            width: 260,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colors.menuBackground,
+                border: Border.all(color: theme.colors.borderSubtle),
+                borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
               ),
-              BlenderMenuItem<String>(value: 'Preview', label: 'Preview'),
-            ],
-            tooltip: 'Scene',
-            onChanged: (value) => _setStatus('Scene: $value'),
-            onNamePressed: () => _setStatus('Rename scene'),
-            onPin: () => _setStatus('Pinned scene'),
-            onDuplicate: () => _setStatus('Scene copied'),
-            onClose: () => _setStatus('Scene view closed'),
-          ),
-          SizedBox(
-            width: 1,
-            height: 24,
-            child: ColoredBox(color: theme.colors.editorOutline),
-          ),
-          BlenderDataBlockGroup<String>(
-            value: 'ViewLayer',
-            items: const <BlenderMenuItem<String>>[
-              BlenderMenuItem<String>(
-                value: 'ViewLayer',
-                label: 'ViewLayer',
-                icon: BlenderIcon(BlenderGlyph.image, size: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Text('Add Workspace', style: theme.textTheme.body),
+                    const SizedBox(height: 6),
+                    for (final workspace in <String>[
+                      'General',
+                      '2D Animation',
+                      'Sculpting',
+                      'Storyboarding',
+                      'VFX',
+                      'Video Editing',
+                    ])
+                      BlenderButton(
+                        label: workspace,
+                        variant: BlenderButtonVariant.menu,
+                        onPressed: () {
+                          _setStatus('Workspace added: $workspace');
+                          close();
+                        },
+                      ),
+                    const BlenderSeparator(),
+                    BlenderButton(
+                      label: 'Duplicate Current',
+                      onPressed: () {
+                        _setStatus('Workspace duplicated');
+                        close();
+                      },
+                    ),
+                  ],
+                ),
               ),
-              BlenderMenuItem<String>(
-                value: 'Preview Layer',
-                label: 'Preview Layer',
-              ),
-            ],
-            tooltip: 'View Layer',
-            onChanged: (value) => _setStatus('View layer: $value'),
-            onNamePressed: () => _setStatus('Rename view layer'),
-            onDuplicate: () => _setStatus('View layer copied'),
-            onClose: () => _setStatus('View layer closed'),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
+      contextControls: <Widget>[
+        BlenderDataBlockGroup<String>(
+          value: 'Scene',
+          items: const <BlenderMenuItem<String>>[
+            BlenderMenuItem<String>(
+              value: 'Scene',
+              label: 'Scene',
+              icon: BlenderIcon(BlenderGlyph.scene, size: 16),
+            ),
+            BlenderMenuItem<String>(value: 'Preview', label: 'Preview'),
+          ],
+          tooltip: 'Scene',
+          onChanged: (value) => _setStatus('Scene: $value'),
+          onNamePressed: () => _setStatus('Rename scene'),
+          onPin: () => _setStatus('Pinned scene'),
+          onDuplicate: () => _setStatus('Scene copied'),
+          onClose: () => _setStatus('Scene view closed'),
+        ),
+        SizedBox(
+          width: 1,
+          height: 24,
+          child: ColoredBox(color: theme.colors.editorOutline),
+        ),
+        BlenderDataBlockGroup<String>(
+          value: 'ViewLayer',
+          items: const <BlenderMenuItem<String>>[
+            BlenderMenuItem<String>(
+              value: 'ViewLayer',
+              label: 'ViewLayer',
+              icon: BlenderIcon(BlenderGlyph.image, size: 16),
+            ),
+            BlenderMenuItem<String>(
+              value: 'Preview Layer',
+              label: 'Preview Layer',
+            ),
+          ],
+          tooltip: 'View Layer',
+          onChanged: (value) => _setStatus('View layer: $value'),
+          onNamePressed: () => _setStatus('Rename view layer'),
+          onDuplicate: () => _setStatus('View layer copied'),
+          onClose: () => _setStatus('View layer closed'),
+        ),
+      ],
     );
   }
 
@@ -15835,7 +15929,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: _mainEditorType,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       actionsScrollable: true,
       leading: <Widget>[
         SizedBox(
@@ -15857,50 +15951,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
       ],
-      menus: <Widget>[
-        BlenderMenuButton<String>(
-          label: 'View',
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(
-              value: 'Frame',
-              label: 'Frame Selected',
-              shortcut: 'Numpad .',
-            ),
-            BlenderMenuItem<String>(value: 'Zoom', label: 'Zoom Selected'),
-          ],
-          variant: BlenderButtonVariant.topBar,
-          onSelected: _setStatus,
-        ),
-        BlenderMenuButton<String>(
-          label: 'Select',
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(
-              value: 'All',
-              label: 'Select All',
-              shortcut: 'A',
-            ),
-            BlenderMenuItem<String>(
-              value: 'None',
-              label: 'Select None',
-              shortcut: 'Alt+A',
-            ),
-          ],
-          variant: BlenderButtonVariant.topBar,
-          onSelected: _setStatus,
-        ),
-        BlenderMenuButton<String>(
-          label: 'Add',
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(
-              value: 'Collection',
-              label: 'Add Collection',
-            ),
-            BlenderMenuItem<String>(value: 'Node', label: 'Add Node'),
-          ],
-          variant: BlenderButtonVariant.topBar,
-          onSelected: _setStatus,
-        ),
-      ],
+      menuDescriptors: _editorHeaderPresets[BlenderEditorType.view3d]!
+          .menuDescriptors(_application.commands),
       actions: <Widget>[
         SizedBox(
           width: 88,
@@ -16095,206 +16147,19 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   }
 
   Widget _buildViewportPopoverPanel(String title, List<Widget> children) {
-    return SizedBox(
+    return BlenderPopoverPanel(
+      title: title,
       width: 240,
-      child: BlenderPanel(
-        title: title,
-        initiallyExpanded: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }
 
-  Map<String, List<BlenderMenuItem<String>>> _imageEditorMenuDescriptors(
-    bool uvEditor,
-  ) {
-    BlenderMenuItem<String> item(
-      String label, {
-      List<BlenderMenuItem<String>>? submenu,
-    }) {
-      return BlenderMenuItem<String>(
-        value: label,
-        label: label,
-        submenu: submenu,
-      );
-    }
-
-    BlenderMenuItem<String> separator(String id) {
-      return BlenderMenuItem<String>(value: id, label: '', separator: true);
-    }
-
-    List<BlenderMenuItem<String>> items(Iterable<String> labels) =>
-        <BlenderMenuItem<String>>[for (final label in labels) item(label)];
-
-    return <String, List<BlenderMenuItem<String>>>{
-      'View': <BlenderMenuItem<String>>[
-        ...items(<String>[
-          'Toolbar',
-          'Sidebar',
-          'Tool Header',
-          'Asset Shelf',
-          'HUD',
-          'Use Realtime Update',
-          'Show Metadata',
-        ]),
-        separator('view-separator-1'),
-        ...items(<String>[
-          'Frame Selected',
-          'View All',
-          'Center View to Cursor',
-        ]),
-        item(
-          'Zoom',
-          submenu: items(<String>[
-            '12.5% (1:8)',
-            '25% (1:4)',
-            '50% (1:2)',
-            '100% (1:1)',
-            '200% (2:1)',
-            '400% (4:1)',
-            '800% (8:1)',
-            'Zoom In',
-            'Zoom Out',
-            'Zoom to Fit',
-            'Zoom Region...',
-          ]),
-        ),
-        separator('view-separator-2'),
-        ...items(<String>[
-          'Render Border',
-          'Clear Render Border',
-          'Render Slot Cycle Next',
-          'Render Slot Cycle Previous',
-          'Show Same Material',
-          'Area',
-        ]),
-      ],
-      'Select': <BlenderMenuItem<String>>[
-        ...items(<String>['All', 'None', 'Invert']),
-        separator('select-separator-1'),
-        ...items(<String>[
-          'Box Select',
-          'Box Select Pinned',
-          'Circle Select',
-          'Lasso Select',
-          'More',
-          'Less',
-          'Select Similar',
-        ]),
-        item(
-          'Select Linked',
-          submenu: items(<String>['Linked', 'Shortest Path', 'Pinned']),
-        ),
-        separator('select-separator-2'),
-        item(
-          'Select All by Trait',
-          submenu: items(<String>['Tile', 'Pinned', 'Overlap', 'Winding']),
-        ),
-        item('Select Split'),
-      ],
-      'Image': <BlenderMenuItem<String>>[
-        ...items(<String>['New...', 'Open...', 'Read View Layers']),
-        separator('image-separator-1'),
-        ...items(<String>[
-          'Replace...',
-          'Reload',
-          'Edit Externally',
-          'Copy',
-          'Paste',
-        ]),
-        separator('image-separator-2'),
-        ...items(<String>[
-          'Save',
-          'Save As...',
-          'Save a Copy...',
-          'Save All Images',
-          'Save Sequence',
-        ]),
-        separator('image-separator-3'),
-        item(
-          'Invert',
-          submenu: items(<String>[
-            'Invert Image Colors',
-            'Invert Red Channel',
-            'Invert Green Channel',
-            'Invert Blue Channel',
-            'Invert Alpha Channel',
-          ]),
-        ),
-        ...items(<String>['Resize', 'Transform', 'Pack', 'Unpack']),
-        item('Extract Palette'),
-      ],
-      'UVs': <BlenderMenuItem<String>>[
-        item(
-          'Transform',
-          submenu: items(<String>[
-            'Grab',
-            'Rotate',
-            'Scale',
-            'Shear',
-            'Warp',
-            'Slide',
-          ]),
-        ),
-        item('Mirror', submenu: items(<String>['Mirror X', 'Mirror Y'])),
-        item(
-          'Snap',
-          submenu: items(<String>[
-            'Selected to Pixels',
-            'Selected to Pixels (Center)',
-            'Selected to Cursor',
-            'Cursor to Selected',
-          ]),
-        ),
-        item(
-          'Pixel Round Mode',
-          submenu: items(<String>['Disabled', 'Corner', 'Center']),
-        ),
-        item('Lock Bounds'),
-        separator('uv-separator-1'),
-        ...items(<String>[
-          'Merge',
-          'Split',
-          'Rip',
-          'Live Unwrap',
-          'Unwrap',
-          'Pin',
-          'Unpin',
-          'Invert Pins',
-          'Mark Seam',
-          'Clear Seam',
-          'Seams from Islands',
-        ]),
-        separator('uv-separator-2'),
-        ...items(<String>[
-          'Pack Islands',
-          'Average Islands Scale',
-          'Arrange Islands',
-          'Minimize Stretch',
-          'Stitch',
-          'Align',
-          'Align Rotation',
-          'Move on Axis',
-          'Copy',
-          'Paste',
-          'Show/Hide Faces',
-          'Reset',
-        ]),
-      ],
-    };
-  }
-
   BlenderAreaHeader _buildImageEditorHeader(BlenderEditorType type) {
     final uvEditor = type == BlenderEditorType.uvEditor;
-    final menus = <String>[
-      'View',
-      if (uvEditor) 'Select',
-      'Image',
-      if (uvEditor) 'UVs',
-    ];
+    final menus = <String>['View', 'Select', 'Image', if (uvEditor) 'UVs'];
     final menuItems = <String, List<String>>{
       'View': <String>[
         'Toolbar',
@@ -16302,10 +16167,16 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'Tool Header',
         'Asset Shelf',
         'HUD',
+        'Use Realtime Update',
+        'Show Metadata',
         'Frame Selected',
         'View All',
         'Center View to Cursor',
         'Zoom',
+        'Render Border',
+        'Clear Render Border',
+        'Render Slot Cycle Next',
+        'Render Slot Cycle Previous',
         'Area',
       ],
       'Select': <String>[
@@ -16313,45 +16184,61 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
         'None',
         'Invert',
         'Box Select',
-        'Box Select Pinned',
         'Circle Select',
         'Lasso Select',
-        'More',
-        'Less',
-        'Select Similar',
         'Select Linked',
       ],
       'Image': <String>[
         'New...',
         'Open...',
-        'Read View Layers',
         'Replace...',
         'Reload',
         'Save',
         'Save As...',
-        'Save All Images',
-        'Resize',
-        'Transform',
+        'Pack',
+        'Unpack',
       ],
       'UVs': <String>[
-        'Unwrap',
-        'Smart UV Project',
-        'Project from View',
-        'Pack Islands',
-        'Average Islands Scale',
-        'Minimize Stretch',
         'Transform',
-        'Snap',
         'Mirror',
+        'Snap',
         'Merge',
         'Split',
+        'Unwrap',
+        'Pack Islands',
+        'Average Islands Scale',
+        'Show/Hide Faces',
+      ],
+    };
+    final detailedMenus = <String, List<BlenderMenuItem<String>>>{
+      'View': <BlenderMenuItem<String>>[
+        for (final label in menuItems['View']!)
+          if (label == 'Zoom')
+            const BlenderMenuItem<String>(
+              value: 'Zoom',
+              label: 'Zoom',
+              submenu: <BlenderMenuItem<String>>[
+                BlenderMenuItem<String>(value: '12.5%', label: '12.5% (1:8)'),
+                BlenderMenuItem<String>(value: '25%', label: '25% (1:4)'),
+                BlenderMenuItem<String>(value: '50%', label: '50% (1:2)'),
+                BlenderMenuItem<String>(value: '100%', label: '100% (1:1)'),
+                BlenderMenuItem<String>(value: '200%', label: '200% (2:1)'),
+                BlenderMenuItem<String>(value: 'Fit', label: 'Zoom to Fit'),
+                BlenderMenuItem<String>(
+                  value: 'Region',
+                  label: 'Zoom Region...',
+                ),
+              ],
+            )
+          else
+            BlenderMenuItem<String>(value: label, label: label),
       ],
     };
     return BlenderAreaHeader(
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       leading: <Widget>[
         SizedBox(
           width: 86,
@@ -16366,10 +16253,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
       ],
-      menus: _editorMenus(
+      menuDescriptors: _editorMenuDescriptors(
         menus,
         menuItems: menuItems,
-        menuDescriptors: _imageEditorMenuDescriptors(uvEditor),
+        menuDescriptors: detailedMenus,
       ),
       actions: <Widget>[
         if (uvEditor)
@@ -16521,8 +16408,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.spreadsheet,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
-      menus: _editorMenus(
+      onEditorTypeChanged: _mainEditorArea.select,
+      menuDescriptors: _editorMenuDescriptors(
         const <String>['View'],
         menuItems: const <String, List<String>>{
           'View': <String>['Toolbar', 'Sidebar', 'Internal Attributes', 'Area'],
@@ -16677,7 +16564,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.clipEditor,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       leading: <Widget>[
         SizedBox(
           width: 82,
@@ -16709,7 +16596,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             ),
           ),
       ],
-      menus: _editorMenus(menus, menuItems: menuItems),
+      menuDescriptors: _editorMenuDescriptors(menus, menuItems: menuItems),
       actions: <Widget>[
         if (masking)
           BlenderIconButton(
@@ -17013,9 +16900,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: BlenderEditorType.nlaEditor,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       actionsScrollable: true,
-      menus: _editorMenus(const <String>[
+      menuDescriptors: _editorMenuDescriptors(const <String>[
         'View',
         'Select',
         'Marker',
@@ -17111,7 +16998,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       actionsScrollable: true,
       leading: <Widget>[
         if (!timeline)
@@ -17137,7 +17024,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             ),
           ),
       ],
-      menus: _editorMenus(menuLabels, menuItems: menuItems),
+      menuDescriptors: _editorMenuDescriptors(menuLabels, menuItems: menuItems),
       actions: <Widget>[
         if (timeline) ...<Widget>[
           BlenderPopover(
@@ -17583,7 +17470,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       actionsScrollable: true,
       leading: <Widget>[
         SizedBox(
@@ -17604,7 +17491,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
       ],
-      menus: _editorMenus(menus, menuItems: menuItems),
+      menuDescriptors: _editorMenuDescriptors(menus, menuItems: menuItems),
       actions: <Widget>[
         if (sequencerView)
           SizedBox(
@@ -17744,7 +17631,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       leading: <Widget>[
         SizedBox(
           width: 92,
@@ -17756,7 +17643,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           ),
         ),
       ],
-      menus: _editorMenus(
+      menuDescriptors: _editorMenuDescriptors(
         const <String>['View', 'Select', 'Add', 'Node'],
         menuItems: <String, List<String>>{
           'View': _nodeViewMenuItems(
@@ -18145,22 +18032,24 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
-      menus: _editorMenus(menus, menuItems: menuItems),
+      onEditorTypeChanged: _mainEditorArea.select,
+      menuDescriptors: type == BlenderEditorType.preferences
+          ? _editorHeaderPresets[type]!.menuDescriptors(_application.commands)
+          : _editorMenuDescriptors(menus, menuItems: menuItems),
       actions: const <Widget>[
         BlenderIconButton(glyph: BlenderGlyph.more, tooltip: 'Editor options'),
       ],
     );
   }
 
-  List<Widget> _editorMenus(
+  List<BlenderMenuDescriptor<String>> _editorMenuDescriptors(
     List<String> labels, {
     Map<String, List<String>> menuItems = const <String, List<String>>{},
     Map<String, List<BlenderMenuItem<String>>> menuDescriptors =
         const <String, List<BlenderMenuItem<String>>>{},
-  }) => <Widget>[
+  }) => <BlenderMenuDescriptor<String>>[
     for (final label in labels)
-      BlenderMenuButton<String>(
+      BlenderMenuDescriptor<String>(
         label: label,
         items:
             menuDescriptors[label] ??
@@ -18168,7 +18057,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
               for (final item in menuItems[label] ?? <String>['$label Options'])
                 BlenderMenuItem<String>(value: item, label: item),
             ],
-        variant: BlenderButtonVariant.topBar,
         onSelected: _setStatus,
       ),
   ];
@@ -18486,7 +18374,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     if (_rightTopEditorType != BlenderEditorType.outliner) {
       return _buildSwappableSidebarArea(
         editorType: _rightTopEditorType,
-        onChanged: _setRightTopEditorType,
+        onChanged: _rightTopEditorArea.select,
       );
     }
     return BlenderOutliner<String>(
@@ -18494,7 +18382,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       roots: _outlinerRoots,
       selectedId: _selectedObject.toLowerCase(),
       editorType: _rightTopEditorType,
-      onEditorTypeChanged: _setRightTopEditorType,
+      onEditorTypeChanged: _rightTopEditorArea.select,
       displayMode: _outlinerDisplayMode,
       onDisplayModeChanged: (mode) =>
           setState(() => _outlinerDisplayMode = mode),
@@ -18543,7 +18431,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     }
     return _buildSwappableSidebarArea(
       editorType: _rightBottomEditorType,
-      onChanged: _setRightBottomEditorType,
+      onChanged: _rightBottomEditorArea.select,
     );
   }
 
@@ -18559,7 +18447,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
             editorType: editorType,
             showEditorLabel: false,
             onEditorTypeChanged: onChanged,
-            menus: _editorMenus(<String>['View']),
+            menuDescriptors: _editorMenuDescriptors(<String>['View']),
             actions: const <Widget>[
               BlenderIconButton(
                 glyph: BlenderGlyph.more,
@@ -19209,7 +19097,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       background: BlenderTheme.of(context).colors.propertiesBackground,
       editorType: _rightBottomEditorType,
       showEditorLabel: false,
-      onEditorTypeChanged: _setRightBottomEditorType,
+      onEditorTypeChanged: _rightBottomEditorArea.select,
       leading: const <Widget>[],
       menus: const <Widget>[],
       center: SizedBox(
@@ -19299,15 +19187,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
   );
 
   Widget _buildAnimationPopoverPanel(String title, List<Widget> children) {
-    return SizedBox(
+    return BlenderPopoverPanel(
+      title: title,
       width: 280,
-      child: BlenderPanel(
-        title: title,
-        initiallyExpanded: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }
@@ -20487,9 +20372,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
       height: 30,
       editorType: type,
       showEditorLabel: false,
-      onEditorTypeChanged: _setMainEditorType,
+      onEditorTypeChanged: _mainEditorArea.select,
       actionsScrollable: true,
-      menus: _editorMenus(menus, menuItems: menuItems),
+      menuDescriptors: _editorMenuDescriptors(menus, menuItems: menuItems),
       actions: <Widget>[
         BlenderIconButton(
           key: const ValueKey<String>('graph-normalize-button'),

@@ -1,5 +1,20 @@
 library blender_ui;
 
+export 'src/category_browser.dart'
+    show
+        BlenderCategoryBrowser,
+        BlenderCategoryDetailBuilder,
+        BlenderCategoryGroup,
+        BlenderCategoryItem,
+        BlenderCategoryNavigation;
+
+export 'src/command_widgets.dart'
+    show
+        BlenderCommandButton,
+        BlenderCommandMenuDescriptor,
+        BlenderCommandMenuButton,
+        BlenderCommandMenuEntry;
+
 export 'src/advanced_controls.dart'
     show
         BlenderColorField,
@@ -27,6 +42,7 @@ export 'src/application.dart'
         BlenderApplicationMenuBar,
         BlenderApplicationStatusBar,
         BlenderApplicationTopBar,
+        BlenderApplicationTopBarOverflow,
         BlenderApplicationWorkspace,
         BlenderPreferencesConfiguration,
         BlenderPreferencesService,
@@ -67,6 +83,8 @@ export 'src/controls.dart'
         BlenderIconButton,
         BlenderMenu,
         BlenderMenuButton,
+        BlenderMenuDescriptor,
+        BlenderMenuDescriptorWidget,
         BlenderMenuItem,
         BlenderNumberField,
         BlenderPopover,
@@ -143,6 +161,25 @@ export 'src/editor_templates.dart'
         BlenderNodeInputDescriptor,
         BlenderNodeInputGroup,
         BlenderNodeInputs;
+export 'src/editor_area.dart'
+    show
+        BlenderEditorAreaController,
+        BlenderEditorAreaFrameBuilder,
+        BlenderEditorAreaHost,
+        BlenderEditorAreaView,
+        BlenderEditorViewCodec,
+        blenderEditorTypeViewCodec;
+export 'src/editor_chrome.dart'
+    show
+        BlenderEditorChromeCommand,
+        BlenderEditorChromeState,
+        BlenderEditorFilterSettings,
+        BlenderEditorGizmoSettings,
+        BlenderEditorHeaderMenu,
+        BlenderEditorHeaderPreset,
+        BlenderEditorOverlaySettings,
+        BlenderEditorPlaybackSettings,
+        BlenderEditorSnappingSettings;
 export 'src/icons.dart' show BlenderGlyph, BlenderIcon;
 export 'src/layout.dart'
     show
@@ -236,6 +273,13 @@ export 'src/property_forms.dart'
         BlenderPropertyValues,
         blenderFormColumn;
 export 'src/overlay_host.dart' show BlenderEnsureOverlay;
+export 'src/platform_appearance.dart'
+    show
+        BlenderNoopWindowAppearanceAdapter,
+        BlenderWindowAppearance,
+        BlenderWindowAppearanceAdapter,
+        BlenderWindowAppearanceController;
+export 'src/popover_panel.dart' show BlenderPopoverPanel, blenderPanelPopover;
 export 'src/services.dart'
     show
         BlenderCommandBinding,
@@ -249,6 +293,9 @@ export 'src/services.dart'
         BlenderEditorSessionService,
         BlenderEditorSessionScope,
         BlenderHistoryStore,
+        BlenderJob,
+        BlenderJobService,
+        BlenderJobState,
         BlenderColorPickerType,
         BlenderFactorDisplayType,
         BlenderInterfaceLineWidth,
@@ -267,6 +314,8 @@ export 'src/services.dart'
         BlenderStatusLevel,
         BlenderStatusMessage,
         BlenderStatusService,
+        BlenderReport,
+        BlenderReportService,
         BlenderThemePreset;
 export 'src/specialized_templates.dart'
     show
@@ -310,6 +359,7 @@ export 'src/specialized_templates.dart'
         BlenderOperatorPropertiesDialog,
         BlenderOperatorRedoPopup,
         BlenderPreviewPanel,
+        BlenderLatestReportBanner,
         BlenderReportBanner,
         BlenderStatusInfo,
         BlenderStatusContextBar,
@@ -341,6 +391,12 @@ export 'src/theme.dart'
         BlenderThemeData,
         BlenderThemeScope;
 export 'src/tree_state.dart' show BlenderTreeEntry, BlenderTreeState;
+export 'src/viewport.dart'
+    show
+        BlenderViewportController,
+        BlenderViewportSceneBuilder,
+        BlenderViewportShell,
+        BlenderViewportState;
 export 'src/templates.dart'
     show
         BlenderColorRamp,

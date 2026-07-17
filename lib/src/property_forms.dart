@@ -197,6 +197,7 @@ abstract final class BlenderPropertyFactory {
     double step = 1,
     int decimalDigits = 2,
     String? suffix,
+    bool? showSteppers,
     bool enabled = true,
     ValueChanged<double>? onChanged,
     String? tooltip,
@@ -214,6 +215,7 @@ abstract final class BlenderPropertyFactory {
         step: step,
         decimalDigits: decimalDigits,
         suffix: suffix,
+        showSteppers: showSteppers,
         enabled: enabled,
         onChanged: update,
       ),
@@ -230,15 +232,42 @@ abstract final class BlenderPropertyFactory {
     ValueChanged<String>? onChanged,
     String? tooltip,
   }) {
-    return BlenderPropertyDescriptor<String>(
+    return choice<String>(
+      id,
+      label,
+      value,
+      items,
+      enabled: enabled,
+      onChanged: onChanged,
+      tooltip: tooltip,
+    );
+  }
+
+  static BlenderPropertyDescriptor<T> choice<T>(
+    String id,
+    String label,
+    T value,
+    List<Object> items, {
+    bool enabled = true,
+    ValueChanged<T>? onChanged,
+    String? tooltip,
+  }) {
+    final normalizedItems = <BlenderMenuItem<T>>[
+      for (final item in items)
+        if (item is BlenderMenuItem<T>)
+          item
+        else
+          BlenderMenuItem<T>(value: item as T, label: item.toString()),
+    ];
+    return BlenderPropertyDescriptor<T>(
       id: id,
       label: label,
       value: value,
       enabled: enabled,
       tooltip: tooltip,
-      editorBuilder: (context, current, update) => BlenderDropdown<String>(
+      editorBuilder: (context, current, update) => BlenderDropdown<T>(
         value: current,
-        items: items,
+        items: normalizedItems,
         enabled: enabled,
         onChanged: update,
       ),
@@ -250,6 +279,9 @@ abstract final class BlenderPropertyFactory {
     String id,
     String title, {
     bool initiallyExpanded = false,
+    bool? expanded,
+    bool toggle = false,
+    bool enabled = true,
     Widget? headerLeading,
     List<Widget>? headerActions,
     List<BlenderPropertyDescriptor<dynamic>> properties =
@@ -260,8 +292,11 @@ abstract final class BlenderPropertyFactory {
     return BlenderPropertyGroup(
       id: id,
       title: title,
-      initiallyExpanded: initiallyExpanded,
-      headerLeading: headerLeading,
+      initiallyExpanded: expanded ?? initiallyExpanded,
+      enabled: enabled,
+      headerLeading:
+          headerLeading ??
+          (toggle ? const BlenderCheckbox(value: true, onChanged: null) : null),
       headerActions: headerActions,
       properties: properties,
       children: children,

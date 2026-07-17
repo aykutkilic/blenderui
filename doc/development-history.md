@@ -4,6 +4,18 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-17 — Audited example and library ownership boundaries
+
+- Audited the example app's reusable editor chrome, service glue, property
+  factories, viewport behavior, status composition, platform integration, and
+  documentation utilities against the current public BlenderUI APIs.
+- Added [`backlog.md`](backlog.md) as a decision-ready extraction queue with
+  priorities, dependencies, acceptance criteria, and explicit boundaries for
+  content that must remain example-owned.
+- Kept every extraction candidate proposed rather than treating the audit as
+  implementation approval. Existing public APIs must be extended or
+  consolidated before introducing parallel abstractions.
+
 ## 2026-07-17 — Matched Blender factor sliders and number handles
 
 - Compared the Properties render controls with local blenderapp sources. The
@@ -26,6 +38,15 @@ live in [the decision records](decisions/).
 - Moved number-field content padding inside the text/stepper row so the range
   fill starts at the complete decorated slider surface, matching Blender's
   `widget_numslider` rectangle geometry.
+- Removed the fill layer's independently rounded leading cap. Its separate
+  anti-aliasing exposed the gray backdrop at the left edge even though its
+  layout began at x=0. The complete number-field surface now owns clipping,
+  while a square fill extends to that shared boundary in display and edit
+  modes.
+- Added a 2x render-level regression that samples the selected pixels at the
+  leading edge, supplementing layout assertions with the painted result. The
+  example catalog suite must be invoked from `example/`; running it from the
+  package root cannot resolve the example package import.
 
 ## 2026-07-17 — Added universal interface preferences and Blender Light
 
@@ -79,6 +100,28 @@ live in [the decision records](decisions/).
   so unstyled labels no longer retain dark-theme white after selecting Light.
 
 ## 2026-07-17 — Consolidated app services and interactive documentation
+
+- Completed the reusable-framework backlog discovered during the example
+  audit. Session-bound editor hosts, command/menu descriptors, typed header
+  presets, a complete property factory, unified top-bar composition, job and
+  report services, immutable graph updates, native appearance adapters,
+  viewport/popover shells, developer code blocks, and shared category browsing
+  now live in the package.
+- Migrated the example away from duplicate editor-selection synchronization,
+  direct method-channel theme listeners, hand-built app chrome, local property
+  descriptor factories, viewport navigation state, status job/report models,
+  and catalog navigation/highlighting.
+- Removed screenshot golden comparisons and PNG baselines in favor of live,
+  interactive examples plus behavioral widget tests and code snippets.
+- Recorded architecture, compatibility boundaries, source-reference policy,
+  SDK cache permissions, the Material-localization failure, and migration
+  corrections in
+  [`2026-07-17-framework-extraction-from-example.md`](decisions/2026-07-17-framework-extraction-from-example.md).
+- Attempted a rendered web verification against the local example server. The
+  in-app browser could not initialize because required sandbox-policy metadata
+  was absent, so verification stayed with the successful web build and full
+  behavioral widget suites rather than introducing an unapproved automation
+  path.
 
 - Added the reusable application/editor service layer so high-density editor
   apps can compose a dockable frame, workspaces, commands and bindings,

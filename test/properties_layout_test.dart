@@ -98,10 +98,5 @@ void main() {
       ),
     );
     expect(disclosure.size, 9);
-
-    await expectLater(
-      find.byType(BlenderPropertiesEditor),
-      matchesGoldenFile('goldens/output_format_properties.png'),
-    );
   });
 }

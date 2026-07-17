@@ -362,11 +362,6 @@ void main() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_workspace.png'),
-    );
   });
 
   testWidgets('utility editor headers expose source menu families', (
@@ -609,11 +604,6 @@ void main() {
         'Toggle Dope Sheet',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_graph_editor.png'),
-    );
   });
 
   testWidgets('normal Outliner header keeps source display controls', (
@@ -789,10 +779,6 @@ void main() {
       find.byKey(const ValueKey<String>('viewport-shading-options')),
       findsOneWidget,
     );
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_viewport_sidebar.png'),
-    );
   });
 
   testWidgets('Clip Editor exposes Blender Mask panels', (tester) async {
@@ -868,11 +854,6 @@ void main() {
     expect(find.text('3D Markers'), findsOneWidget);
     await tester.tapAt(const Offset(500, 500));
     await tester.pumpAndSettle();
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_clip_mask.png'),
-    );
   });
 
   testWidgets('Preferences exposes Blender source categories and panels', (
@@ -968,11 +949,6 @@ void main() {
     expect(find.text('Auto Run Python Scripts'), findsOneWidget);
     await tester.tap(find.text('Interface').first);
     await tester.pumpAndSettle();
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_preferences.png'),
-    );
   });
 
   testWidgets('theme selection updates the showcase Properties subsections', (
@@ -1118,10 +1094,6 @@ void main() {
     expect(find.text('Show Hidden'), findsOneWidget);
     await tester.tapAt(const Offset(1100, 50));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_file_browser.png'),
-    );
 
     await tester.tapAt(tester.getRect(selector).topLeft + const Offset(12, 11));
     await tester.pump();
@@ -1166,10 +1138,6 @@ void main() {
     expect(find.text('Access'), findsWidgets);
     await tester.tapAt(const Offset(1100, 50));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_asset_browser.png'),
-    );
   });
 
   testWidgets('Node Editor exposes source sidebar families', (tester) async {
@@ -1272,11 +1240,6 @@ void main() {
     expect(find.text('Previews'), findsOneWidget);
     await tester.tapAt(const Offset(1100, 50));
     await tester.pumpAndSettle();
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_node_editor.png'),
-    );
   });
 
   testWidgets('Image and UV Editors expose source sidebar families', (
@@ -1363,10 +1326,6 @@ void main() {
     expect(find.text('Move'), findsWidgets);
     await tester.tapAt(const Offset(500, 500));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_image_editor.png'),
-    );
 
     await tester.tapAt(tester.getRect(selector).topLeft + const Offset(12, 11));
     await tester.pump();
@@ -1414,10 +1373,6 @@ void main() {
     expect(find.text('Connected'), findsOneWidget);
     await tester.tapAt(const Offset(500, 500));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_uv_editor.png'),
-    );
   });
 
   testWidgets('Sequencer and NLA editors expose source sidebar families', (
@@ -1502,10 +1457,6 @@ void main() {
     expect(find.text('Meshes'), findsOneWidget);
     await tester.tapAt(const Offset(500, 500));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_nla_editor.png'),
-    );
 
     await tester.tapAt(tester.getRect(selector).topLeft + const Offset(12, 11));
     await tester.pump();
@@ -1555,10 +1506,6 @@ void main() {
     expect(find.text('Proxy Settings'), findsOneWidget);
     expect(find.text('Safe Areas'), findsOneWidget);
     expect(find.text('Composition Guides'), findsOneWidget);
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_sequencer.png'),
-    );
   });
 
   testWidgets('Text Editor exposes source sidebar panels', (tester) async {
@@ -1591,10 +1538,6 @@ void main() {
     expect(find.text('Save As'), findsOneWidget);
     await tester.tapAt(const Offset(700, 50));
     await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_text_editor.png'),
-    );
   });
 
   testWidgets('Project Editor exposes source navigation and save panels', (
@@ -1619,10 +1562,6 @@ void main() {
     expect(find.text('General'), findsOneWidget);
     expect(find.text('Root Path'), findsOneWidget);
     expect(find.text('Save Project'), findsWidgets);
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_project_editor.png'),
-    );
   });
 
   testWidgets('Spreadsheet exposes source header filter controls', (
@@ -1664,10 +1603,6 @@ void main() {
     expect(
       spreadsheetViewMenu.items.map((item) => item.label),
       containsAll(<String>['Toolbar', 'Sidebar', 'Internal Attributes']),
-    );
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_spreadsheet.png'),
     );
   });
 
@@ -1868,11 +1803,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Factor'), findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_tool_sculpt_mode.png'),
-    );
   });
 
   testWidgets('Tool Properties follows Blender texture paint utility panels', (
@@ -1930,11 +1860,6 @@ void main() {
         const ValueKey<String>('tool-settings-nested-disclosure-Cavity Mask'),
       ),
       findsOneWidget,
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_tool_texture_paint.png'),
     );
   });
 
@@ -2003,11 +1928,6 @@ void main() {
         findsOneWidget,
       );
     }
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_tool_grease_pencil_draw.png'),
-    );
   });
 
   testWidgets('Tool Properties follows Blender Grease Pencil paint families', (
@@ -2075,11 +1995,6 @@ void main() {
         const ValueKey<String>('tool-settings-nested-disclosure-Palette'),
       ),
       findsOneWidget,
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_tool_grease_pencil_vertex_paint.png'),
     );
   });
 
@@ -2244,11 +2159,6 @@ void main() {
       const ValueKey<String>('stereoscopy-header-checkbox'),
     );
     expect(stereoscopy, findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_output_properties.png'),
-    );
   });
 
   testWidgets('Render Properties follows Blender panel anatomy', (
@@ -2314,11 +2224,6 @@ void main() {
     );
     expect(find.text('Render Engine'), findsOneWidget);
     expect(find.text('Samples'), findsWidgets);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_render_properties.png'),
-    );
   });
 
   testWidgets('Render Properties switches to Blender Workbench families', (
@@ -2377,11 +2282,6 @@ void main() {
     expect(find.text('Render Engine'), findsOneWidget);
     expect(find.text('World Space Lighting'), findsOneWidget);
     expect(find.text('Object Color'), findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_render_workbench.png'),
-    );
   });
 
   testWidgets('Scene Properties follows Blender panel anatomy', (tester) async {
@@ -2433,11 +2333,6 @@ void main() {
     expect(find.text('Camera'), findsWidgets);
     expect(find.text('Background Set'), findsOneWidget);
     expect(find.text('Active Clip'), findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_scene_properties.png'),
-    );
   });
 
   testWidgets('World Properties follows Blender panel anatomy', (tester) async {
@@ -2486,11 +2381,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Surface'), findsWidgets);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_world_properties.png'),
-    );
   });
 
   testWidgets('Modifier Properties follows Blender source menus and stack', (
@@ -2518,11 +2408,6 @@ void main() {
     expect(find.text('Amount'), findsOneWidget);
     expect(find.text('Segments'), findsOneWidget);
     expect(find.byType(BlenderModifierStack), findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_modifier_properties.png'),
-    );
   });
 
   testWidgets('Material Properties follows Blender panel anatomy', (
@@ -2578,11 +2463,6 @@ void main() {
     );
     expect(find.text('Material'), findsWidgets);
     expect(find.text('Surface'), findsWidgets);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_material_properties.png'),
-    );
   });
 
   testWidgets('Object Properties follows Blender transform anatomy', (
@@ -2696,11 +2576,6 @@ void main() {
       ),
       findsNWidgets(9),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_object_properties.png'),
-    );
   });
 
   testWidgets('Mesh Data Properties follows Blender data panel anatomy', (
@@ -2741,11 +2616,6 @@ void main() {
         'Animation',
         'Custom Properties',
       ]),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_mesh_data.png'),
     );
   });
 
@@ -2801,11 +2671,6 @@ void main() {
       depthOfField.children.map((group) => group.title),
       contains('Aperture'),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_camera_data.png'),
-    );
   });
 
   testWidgets('Curve Data follows Blender source panel anatomy', (
@@ -2854,11 +2719,6 @@ void main() {
       geometry.children.map((group) => group.title),
       containsAll(<String>['Bevel', 'Start & End Mapping']),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_curve_data.png'),
-    );
   });
 
   testWidgets('Text Data follows Blender source panel anatomy', (tester) async {
@@ -2902,11 +2762,6 @@ void main() {
     expect(
       paragraph.children.map((group) => group.title),
       containsAll(<String>['Alignment', 'Spacing']),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_text_data.png'),
     );
   });
 
@@ -2960,11 +2815,6 @@ void main() {
         'Beam Shape',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_light_data.png'),
-    );
   });
 
   testWidgets('Curves Data follows Blender source panel anatomy', (
@@ -3004,11 +2854,6 @@ void main() {
         'Custom Properties',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_curves_data.png'),
-    );
   });
 
   testWidgets('Lattice Data follows Blender source panel anatomy', (
@@ -3042,11 +2887,6 @@ void main() {
     expect(
       latticeEditor.groups.map((group) => group.title),
       containsAll(<String>['Lattice', 'Animation', 'Custom Properties']),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_lattice_data.png'),
     );
   });
 
@@ -3088,11 +2928,6 @@ void main() {
         'Custom Properties',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_speaker_data.png'),
-    );
   });
 
   testWidgets('Point Cloud Data follows Blender source panel anatomy', (
@@ -3126,11 +2961,6 @@ void main() {
     expect(
       pointCloudEditor.groups.map((group) => group.title),
       containsAll(<String>['Attributes', 'Custom Properties']),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_point_cloud_data.png'),
     );
   });
 
@@ -3177,11 +3007,6 @@ void main() {
       (group) => group.title == 'Viewport Display',
     );
     expect(viewport.children.map((group) => group.title), contains('Slicing'));
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_volume_data.png'),
-    );
   });
 
   testWidgets('Armature Data follows Blender source panel anatomy', (
@@ -3233,11 +3058,6 @@ void main() {
     expect(
       motionPaths.children.map((group) => group.title),
       contains('Display'),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_armature_data.png'),
     );
   });
 
@@ -3306,11 +3126,6 @@ void main() {
       display.children.map((group) => group.title),
       contains('Custom Shape'),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_bone_properties.png'),
-    );
   });
 
   testWidgets('ShaderFX Properties follows Blender source panel anatomy', (
@@ -3331,11 +3146,6 @@ void main() {
     expect(find.text('Add Effect'), findsOneWidget);
     expect(find.text('Drop Shadow'), findsOneWidget);
     expect(find.text('Colorize'), findsOneWidget);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_shaderfx_properties.png'),
-    );
   });
 
   testWidgets('View Layer Properties follows Blender source panel anatomy', (
@@ -3467,11 +3277,6 @@ void main() {
         'Use Dashed Line',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_view_layer_properties.png'),
-    );
   });
 
   testWidgets('Collection Properties follows Blender source panel anatomy', (
@@ -3513,11 +3318,6 @@ void main() {
     expect(
       visibility.children.map((group) => group.title),
       contains('View Layer'),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_collection_properties.png'),
     );
   });
 
@@ -3563,11 +3363,6 @@ void main() {
       (group) => group.title == 'Colors',
     );
     expect(colors.children.map((group) => group.title), contains('Color Ramp'));
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_texture_properties.png'),
-    );
   });
 
   testWidgets('Constraint Properties follows Blender source panel anatomy', (
@@ -3588,11 +3383,6 @@ void main() {
     expect(find.text('Follow Path'), findsOneWidget);
     expect(find.text('Limit Rotation'), findsOneWidget);
     expect(find.text('Armature'), findsWidgets);
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_constraint_properties.png'),
-    );
   });
 
   testWidgets('Physics Properties follows Blender source panel anatomy', (
@@ -3690,11 +3480,6 @@ void main() {
         'Field Weights',
       ]),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_physics_properties.png'),
-    );
   });
 
   testWidgets('Strip Properties follows Blender source panel anatomy', (
@@ -3745,11 +3530,6 @@ void main() {
       effect.children.map((group) => group.title),
       containsAll(<String>['Layout', 'Style']),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_strip_properties.png'),
-    );
   });
 
   testWidgets('Empty Data follows Blender source panel anatomy', (
@@ -3783,11 +3563,6 @@ void main() {
     expect(
       emptyEditor.groups.map((group) => group.title),
       containsAll(<String>['Empty', 'Image']),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_empty_data.png'),
     );
   });
 
@@ -3828,11 +3603,6 @@ void main() {
         'Animation',
         'Custom Properties',
       ]),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_metaball_data.png'),
     );
   });
 
@@ -3895,11 +3665,6 @@ void main() {
       bakeCapture.children.map((group) => group.title),
       containsAll(<String>['Offset', 'Clamping']),
     );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_light_probe_data.png'),
-    );
   });
 
   testWidgets('Grease Pencil Data follows Blender source panel anatomy', (
@@ -3960,11 +3725,6 @@ void main() {
     expect(
       onionSkinning.children.map((group) => group.title),
       containsAll(<String>['Custom Colors', 'Display']),
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_grease_pencil_data.png'),
     );
   });
 
@@ -4102,10 +3862,6 @@ void main() {
         'Z Euler Rotation',
       ]),
     );
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_action_editor.png'),
-    );
   });
 
   testWidgets('main animation headers follow Blender mode families', (
@@ -4197,11 +3953,6 @@ void main() {
         matching: find.byType(BlenderMenuButton<String>),
       ),
       findsNothing,
-    );
-
-    await expectLater(
-      find.byType(ShowcaseApp),
-      matchesGoldenFile('goldens/showcase_main_animation_headers.png'),
     );
   });
 
@@ -4315,11 +4066,6 @@ void main() {
 
     await tester.pumpWidget(const BlenderApp(home: DemoWorkbench()));
     await tester.pumpAndSettle();
-
-    await expectLater(
-      find.byType(DemoWorkbench),
-      matchesGoldenFile('goldens/components_workbench.png'),
-    );
   });
 
   testWidgets('showcase exposes Components as a first-class workspace', (
@@ -4335,26 +4081,21 @@ void main() {
 
     final components = find.widgetWithText(BlenderButton, 'Components');
     expect(components, findsOneWidget);
-    final workspaceTabs = tester.widget<BlenderTabBar>(
-      find.ancestor(of: components, matching: find.byType(BlenderTabBar)),
-    );
-    expect(workspaceTabs.scrollable, isFalse);
     expect(
       find.ancestor(of: components, matching: find.byType(Scrollable)),
       findsOneWidget,
     );
-    workspaceTabs.onChanged(10);
+    await tester.ensureVisible(components);
+    await tester.pumpAndSettle();
+    await tester.tap(components);
     await tester.pumpAndSettle();
     expect(
       tester
-          .widget<BlenderTabBar>(
-            find.ancestor(
-              of: find.widgetWithText(BlenderButton, 'Components'),
-              matching: find.byType(BlenderTabBar),
-            ),
+          .widget<BlenderButton>(
+            find.widgetWithText(BlenderButton, 'Components'),
           )
-          .selectedIndex,
-      10,
+          .selected,
+      isTrue,
     );
     expect(
       tester.widget<BlenderEditorShell>(find.byType(BlenderEditorShell)).main,

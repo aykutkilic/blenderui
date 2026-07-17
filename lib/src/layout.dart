@@ -19,6 +19,7 @@ class BlenderPanel extends StatelessWidget {
     this.headerTitleStyle,
     this.headerHandle,
     this.showHandle = false,
+    this.disclosureKey,
     this.collapsible = false,
     this.initiallyExpanded = true,
     this.expanded,
@@ -34,6 +35,7 @@ class BlenderPanel extends StatelessWidget {
   final TextStyle? headerTitleStyle;
   final Widget? headerHandle;
   final bool showHandle;
+  final Key? disclosureKey;
   final bool collapsible;
   final bool initiallyExpanded;
   final bool? expanded;
@@ -73,6 +75,7 @@ class BlenderPanel extends StatelessWidget {
                     titleStyle: headerTitleStyle,
                     handle: headerHandle,
                     showHandle: showHandle,
+                    disclosureKey: disclosureKey,
                   ),
                   body,
                 ],
@@ -93,6 +96,7 @@ class BlenderPanel extends StatelessWidget {
       titleStyle: headerTitleStyle,
       handle: headerHandle,
       showHandle: showHandle,
+      disclosureKey: disclosureKey,
       onExpansionChanged: onExpansionChanged,
     );
   }
@@ -109,6 +113,7 @@ class BlenderPanelHeader extends StatelessWidget {
     this.titleStyle,
     this.handle,
     this.showHandle = false,
+    this.disclosureKey,
   });
 
   final String title;
@@ -119,6 +124,7 @@ class BlenderPanelHeader extends StatelessWidget {
   final TextStyle? titleStyle;
   final Widget? handle;
   final bool showHandle;
+  final Key? disclosureKey;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +139,7 @@ class BlenderPanelHeader extends StatelessWidget {
           children: <Widget>[
             if (onTap != null)
               BlenderIcon(
+                key: disclosureKey,
                 expanded
                     ? BlenderGlyph.panelDisclosureDown
                     : BlenderGlyph.panelDisclosureRight,
@@ -188,6 +195,7 @@ class _CollapsiblePanel extends StatefulWidget {
     this.handle,
     this.backgroundColor,
     this.showHandle = false,
+    this.disclosureKey,
     this.onExpansionChanged,
   });
 
@@ -201,6 +209,7 @@ class _CollapsiblePanel extends StatefulWidget {
   final Widget? handle;
   final Color? backgroundColor;
   final bool showHandle;
+  final Key? disclosureKey;
   final ValueChanged<bool>? onExpansionChanged;
 
   @override
@@ -243,6 +252,7 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel> {
               titleStyle: widget.titleStyle,
               handle: widget.handle,
               showHandle: widget.showHandle,
+              disclosureKey: widget.disclosureKey,
               onTap: _toggleExpanded,
             ),
             if (_effectiveExpanded) widget.content,
@@ -1093,6 +1103,7 @@ class BlenderAreaHeader extends StatelessWidget {
     required this.editorType,
     this.onEditorTypeChanged,
     this.menus = const <Widget>[],
+    this.menuDescriptors = const [],
     this.leading = const <Widget>[],
     this.actions = const <Widget>[],
     this.center,
@@ -1107,6 +1118,7 @@ class BlenderAreaHeader extends StatelessWidget {
   final BlenderEditorType editorType;
   final ValueChanged<BlenderEditorType>? onEditorTypeChanged;
   final List<Widget> menus;
+  final List<BlenderMenuDescriptorWidget> menuDescriptors;
   final List<Widget> leading;
   final List<Widget> actions;
   final Widget? center;
@@ -1154,7 +1166,11 @@ class BlenderAreaHeader extends StatelessWidget {
                                 scrollDirection: Axis.horizontal,
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: menus,
+                                  children: <Widget>[
+                                    for (final menu in menuDescriptors)
+                                      menu.build(),
+                                    ...menus,
+                                  ],
                                 ),
                               ),
                             ),
@@ -1179,7 +1195,10 @@ class BlenderAreaHeader extends StatelessWidget {
                           scrollDirection: Axis.horizontal,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: menus,
+                            children: <Widget>[
+                              for (final menu in menuDescriptors) menu.build(),
+                              ...menus,
+                            ],
                           ),
                         ),
                       ),

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import 'advanced_controls.dart';
+import 'category_browser.dart';
 import 'collections.dart';
 import 'controls.dart';
 import 'icons.dart';
@@ -1113,31 +1114,23 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
     widget.onSectionOrderChanged?.call(List<String>.unmodifiable(reordered));
   }
 
-  Widget _buildCategoryNavigation(String? category, BlenderThemeData theme) {
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-        children: <Widget>[
-          for (final group in _categoryGroups)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Column(
-                children: <Widget>[
-                  for (final item in group.categories)
-                    if (widget.categories.contains(item))
-                      _PreferencesCategoryButton(
-                        label: item,
-                        selected: item == category,
-                        onPressed: widget.onCategoryChanged == null
-                            ? () {}
-                            : () => widget.onCategoryChanged!(item),
-                      ),
-                ],
-              ),
-            ),
-        ],
-      ),
+  Widget _buildCategoryNavigation(String? category) {
+    return BlenderCategoryNavigation<String>(
+      groups: <BlenderCategoryGroup<String>>[
+        for (final group in _categoryGroups)
+          BlenderCategoryGroup<String>(
+            id: group.id,
+            label: group.label,
+            items: <BlenderCategoryItem<String>>[
+              for (final item in group.categories)
+                if (widget.categories.contains(item))
+                  BlenderCategoryItem<String>(value: item, label: item),
+            ],
+          ),
+      ],
+      selected: category,
+      onSelected: widget.onCategoryChanged ?? (_) {},
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
     );
   }
 
@@ -1224,7 +1217,7 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
                   right: BorderSide(color: theme.colors.editorBorder),
                 ),
               ),
-              child: _buildCategoryNavigation(category, theme),
+              child: _buildCategoryNavigation(category),
             ),
           ),
           Expanded(child: _buildSections(context, visibleSections)),

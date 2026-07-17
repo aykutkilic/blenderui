@@ -2569,6 +2569,24 @@ class BlenderGraphNode {
   final Size size;
   final List<BlenderNodeSocketDefinition> inputs;
   final List<BlenderNodeSocketDefinition> outputs;
+
+  BlenderGraphNode copyWith({
+    String? id,
+    String? title,
+    Offset? position,
+    Size? size,
+    List<BlenderNodeSocketDefinition>? inputs,
+    List<BlenderNodeSocketDefinition>? outputs,
+  }) {
+    return BlenderGraphNode(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      position: position ?? this.position,
+      size: size ?? this.size,
+      inputs: inputs ?? this.inputs,
+      outputs: outputs ?? this.outputs,
+    );
+  }
 }
 
 class BlenderGraphLink {
@@ -2576,6 +2594,9 @@ class BlenderGraphLink {
 
   final String from;
   final String to;
+
+  BlenderGraphLink copyWith({String? from, String? to}) =>
+      BlenderGraphLink(from: from ?? this.from, to: to ?? this.to);
 }
 
 class BlenderNodeGraphModel {
@@ -2586,6 +2607,66 @@ class BlenderNodeGraphModel {
 
   final List<BlenderGraphNode> nodes;
   final List<BlenderGraphLink> links;
+
+  BlenderNodeGraphModel copyWith({
+    List<BlenderGraphNode>? nodes,
+    List<BlenderGraphLink>? links,
+  }) => BlenderNodeGraphModel(
+    nodes: nodes ?? this.nodes,
+    links: links ?? this.links,
+  );
+
+  BlenderNodeGraphModel replaceNode(BlenderGraphNode replacement) {
+    final index = nodes.indexWhere((node) => node.id == replacement.id);
+    if (index == -1) return this;
+    final next = List<BlenderGraphNode>.of(nodes);
+    next[index] = replacement;
+    return copyWith(nodes: List<BlenderGraphNode>.unmodifiable(next));
+  }
+
+  BlenderNodeGraphModel moveNode(String id, Offset position) {
+    final node = nodes.where((node) => node.id == id);
+    if (node.isEmpty || node.first.position == position) return this;
+    return replaceNode(node.first.copyWith(position: position));
+  }
+
+  BlenderNodeGraphModel removeNode(String id) {
+    if (!nodes.any((node) => node.id == id)) return this;
+    bool belongsToNode(String socket) =>
+        socket == id || socket.startsWith('$id.');
+    return BlenderNodeGraphModel(
+      nodes: List<BlenderGraphNode>.unmodifiable(
+        nodes.where((node) => node.id != id),
+      ),
+      links: List<BlenderGraphLink>.unmodifiable(
+        links.where(
+          (link) => !belongsToNode(link.from) && !belongsToNode(link.to),
+        ),
+      ),
+    );
+  }
+
+  BlenderNodeGraphModel addLink(BlenderGraphLink link) {
+    if (links.any(
+      (candidate) => candidate.from == link.from && candidate.to == link.to,
+    )) {
+      return this;
+    }
+    return copyWith(
+      links: List<BlenderGraphLink>.unmodifiable(<BlenderGraphLink>[
+        ...links,
+        link,
+      ]),
+    );
+  }
+
+  BlenderNodeGraphModel removeLink({required String from, required String to}) {
+    final next = links
+        .where((link) => link.from != from || link.to != to)
+        .toList(growable: false);
+    if (next.length == links.length) return this;
+    return copyWith(links: List<BlenderGraphLink>.unmodifiable(next));
+  }
 }
 
 /// Source-shaped 3D Viewport sidebar panels from `space_view3d.py`,

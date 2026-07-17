@@ -1050,18 +1050,15 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
       },
     );
     final editingField = !showSteppers && range > 0
-        ? Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              _BlenderNumberRangeFill(
-                fraction: fraction,
-                radius: radius,
-                color: widget.enabled
-                    ? theme.colors.buttonSelected
-                    : theme.colors.borderSubtle,
-              ),
-              field,
-            ],
+        ? _BlenderNumberRangeSurface(
+            height: theme.density.controlHeight,
+            radius: radius,
+            backgroundColor: widget.backgroundColor ?? theme.colors.button,
+            fraction: fraction,
+            fillColor: widget.enabled
+                ? theme.colors.buttonSelected
+                : theme.colors.borderSubtle,
+            child: field,
           )
         : field;
     final display = MouseRegion(
@@ -1082,62 +1079,45 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
         onHorizontalDragCancel: widget.enabled
             ? () => setState(() => _dragging = false)
             : null,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Container(
-              key: const ValueKey<String>('blender-number-field-surface'),
-              height: theme.density.controlHeight,
-              decoration: BoxDecoration(
-                color: _dragging
-                    ? theme.colors.textField
-                    : widget.backgroundColor ?? theme.colors.button,
-                borderRadius: radius,
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  if (range > 0)
-                    _BlenderNumberRangeFill(
-                      fraction: fraction,
-                      radius: radius,
+        child: _BlenderNumberRangeSurface(
+          surfaceKey: const ValueKey<String>('blender-number-field-surface'),
+          height: theme.density.controlHeight,
+          radius: radius,
+          backgroundColor: _dragging
+              ? theme.colors.textField
+              : widget.backgroundColor ?? theme.colors.button,
+          fraction: range > 0 ? fraction : null,
+          fillColor: widget.enabled
+              ? theme.colors.buttonSelected
+              : theme.colors.borderSubtle,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
+            child: Row(
+              children: <Widget>[
+                if (_hovered && showSteppers)
+                  _BlenderNumberStepper(
+                    previous: true,
+                    onPressed: () => _setValue(widget.value - widget.step),
+                  ),
+                Expanded(
+                  child: Text(
+                    '${_format(widget.value)}${widget.suffix ?? ''}',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.body.copyWith(
                       color: widget.enabled
-                          ? theme.colors.buttonSelected
-                          : theme.colors.borderSubtle,
-                    ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: _hovered ? 1 : 6),
-                    child: Row(
-                      children: <Widget>[
-                        if (_hovered && showSteppers)
-                          _BlenderNumberStepper(
-                            previous: true,
-                            onPressed: () =>
-                                _setValue(widget.value - widget.step),
-                          ),
-                        Expanded(
-                          child: Text(
-                            '${_format(widget.value)}${widget.suffix ?? ''}',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.body.copyWith(
-                              color: widget.enabled
-                                  ? theme.colors.foreground
-                                  : theme.colors.foregroundDisabled,
-                            ),
-                          ),
-                        ),
-                        if (_hovered && showSteppers)
-                          _BlenderNumberStepper(
-                            previous: false,
-                            onPressed: () =>
-                                _setValue(widget.value + widget.step),
-                          ),
-                      ],
+                          ? theme.colors.foreground
+                          : theme.colors.foregroundDisabled,
                     ),
                   ),
-                ],
-              ),
-            );
-          },
+                ),
+                if (_hovered && showSteppers)
+                  _BlenderNumberStepper(
+                    previous: false,
+                    onPressed: () => _setValue(widget.value + widget.step),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1161,15 +1141,52 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
   }
 }
 
-class _BlenderNumberRangeFill extends StatelessWidget {
-  const _BlenderNumberRangeFill({
-    required this.fraction,
+class _BlenderNumberRangeSurface extends StatelessWidget {
+  const _BlenderNumberRangeSurface({
+    this.surfaceKey,
+    required this.height,
     required this.radius,
-    required this.color,
+    required this.backgroundColor,
+    required this.fraction,
+    required this.fillColor,
+    required this.child,
   });
 
-  final double fraction;
+  final Key? surfaceKey;
+  final double height;
   final BorderRadius radius;
+  final Color backgroundColor;
+  final double? fraction;
+  final Color fillColor;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: surfaceKey,
+      height: height,
+      decoration: BoxDecoration(color: backgroundColor, borderRadius: radius),
+      // The outer surface owns the rounded shape. Clipping one square range
+      // layer to that shape keeps the selected color flush with the leading
+      // edge instead of exposing the backdrop through a separately
+      // anti-aliased leading cap. Display and text-edit modes share this path.
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          if (fraction != null)
+            _BlenderNumberRangeFill(fraction: fraction!, color: fillColor),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _BlenderNumberRangeFill extends StatelessWidget {
+  const _BlenderNumberRangeFill({required this.fraction, required this.color});
+
+  final double fraction;
   final Color color;
 
   @override
@@ -1179,15 +1196,7 @@ class _BlenderNumberRangeFill extends StatelessWidget {
       child: FractionallySizedBox(
         widthFactor: fraction,
         heightFactor: 1,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.only(
-              topLeft: radius.topLeft,
-              bottomLeft: radius.bottomLeft,
-            ),
-          ),
-        ),
+        child: DecoratedBox(decoration: BoxDecoration(color: color)),
       ),
     );
   }
@@ -1934,6 +1943,39 @@ class BlenderMenuItem<T> {
       submenu: submenu ?? this.submenu,
     );
   }
+}
+
+/// Shared descriptor for application and editor-header pulldown menus.
+///
+/// The descriptor owns menu presentation and choice routing. Use the
+/// command-backed controls when entries represent registered application
+/// commands rather than ordinary enum or mode choices.
+abstract interface class BlenderMenuDescriptorWidget {
+  Widget build();
+}
+
+class BlenderMenuDescriptor<T> implements BlenderMenuDescriptorWidget {
+  const BlenderMenuDescriptor({
+    required this.label,
+    required this.items,
+    this.onSelected,
+    this.enabled = true,
+    this.variant = BlenderButtonVariant.topBar,
+  });
+
+  final String label;
+  final List<BlenderMenuItem<T>> items;
+  final ValueChanged<T>? onSelected;
+  final bool enabled;
+  final BlenderButtonVariant variant;
+
+  Widget build() => BlenderMenuButton<T>(
+    label: label,
+    items: items,
+    onSelected: onSelected,
+    enabled: enabled,
+    variant: variant,
+  );
 }
 
 class BlenderDropdown<T> extends StatefulWidget {

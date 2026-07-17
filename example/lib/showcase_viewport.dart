@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:blender_ui/blender_ui.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 /// A deliberately small, orbitable scene used to make the showcase tangible.
@@ -26,88 +25,64 @@ class ShowcaseViewport extends StatefulWidget {
 }
 
 class _ShowcaseViewportState extends State<ShowcaseViewport> {
-  double _yaw = -.65;
-  double _pitch = .58;
-  double _distance = 12;
+  late final BlenderViewportController _controller;
 
-  void _orbit(DragUpdateDetails details) {
-    setState(() {
-      _yaw += details.delta.dx * .012;
-      _pitch = (_pitch + details.delta.dy * .012).clamp(-1.3, 1.3);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _controller = BlenderViewportController(
+      initialState: const BlenderViewportState(
+        yaw: -.65,
+        pitch: .58,
+        distance: 12,
+      ),
+      minDistance: 6,
+      maxDistance: 24,
+    );
   }
 
-  void _zoom(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    setState(() {
-      _distance = (_distance + event.scrollDelta.dy * .012).clamp(6, 24);
-    });
-  }
-
-  void _resetView() {
-    setState(() {
-      _yaw = -.65;
-      _pitch = .58;
-      _distance = 12;
-    });
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = BlenderTheme.of(context).colors;
-    final camera = _OrbitCamera(yaw: _yaw, pitch: _pitch, distance: _distance);
-    final canvas = Listener(
-      onPointerSignal: _zoom,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanUpdate: _orbit,
-        onDoubleTap: _resetView,
-        child: ColoredBox(
-          color: colors.panelBackground,
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _ViewportScenePainter(
-                      camera: camera,
-                      showGrid: widget.showGrid,
-                      wireframe: widget.wireframe,
-                      colors: colors,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 12,
-                top: 10,
-                child: _ViewportCaption(objectName: widget.selectedObject),
-              ),
-              Positioned(
-                right: 12,
-                top: 10,
-                child: _OrientationGizmo(camera: camera, colors: colors),
-              ),
-              const Positioned(
-                left: 12,
-                bottom: 10,
-                child: Text(
-                  'Drag to orbit  •  Scroll to zoom  •  Double-click to reset',
-                  style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return BlenderViewportShell(
+      controller: _controller,
+      background: colors.panelBackground,
+      sidebar: widget.sidebar,
+      sidebarWidth: widget.sidebarWidth,
+      caption: _ViewportCaption(objectName: widget.selectedObject),
+      footer: const Text(
+        'Drag to orbit  •  Scroll to zoom  •  Double-click to reset',
+        style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 11),
       ),
-    );
-    if (widget.sidebar == null) return canvas;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Expanded(child: canvas),
-        SizedBox(width: widget.sidebarWidth, child: widget.sidebar),
-      ],
+      sceneBuilder: (context, state) {
+        final camera = _OrbitCamera(
+          yaw: state.yaw,
+          pitch: state.pitch,
+          distance: state.distance,
+        );
+        return CustomPaint(
+          painter: _ViewportScenePainter(
+            camera: camera,
+            showGrid: widget.showGrid,
+            wireframe: widget.wireframe,
+            colors: colors,
+          ),
+        );
+      },
+      gizmoBuilder: (context, state) => _OrientationGizmo(
+        camera: _OrbitCamera(
+          yaw: state.yaw,
+          pitch: state.pitch,
+          distance: state.distance,
+        ),
+        colors: colors,
+      ),
     );
   }
 }

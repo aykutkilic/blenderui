@@ -9,7 +9,10 @@ import 'docking_model.dart';
 import 'interface_preferences.dart';
 import 'layout.dart';
 import 'non3d_editors.dart';
+import 'platform_appearance.dart';
 import 'services.dart';
+import 'specialized_templates.dart';
+import 'templates.dart';
 import 'theme.dart';
 import 'theme_service.dart';
 import 'workspaces.dart';
@@ -18,18 +21,13 @@ import 'workspaces.dart';
 ///
 /// The menu's values and command routing remain application-owned; the
 /// framework only provides the desktop menu-bar presentation.
-class BlenderApplicationMenu<T> {
+class BlenderApplicationMenu<T> extends BlenderMenuDescriptor<T> {
   const BlenderApplicationMenu({
-    required this.label,
-    required this.items,
-    this.onSelected,
-    this.enabled = true,
+    required super.label,
+    required super.items,
+    super.onSelected,
+    super.enabled,
   });
-
-  final String label;
-  final List<BlenderMenuItem<T>> items;
-  final ValueChanged<T>? onSelected;
-  final bool enabled;
 }
 
 /// A reusable Blender-style top application menu bar.
@@ -56,12 +54,8 @@ class BlenderApplicationMenuBar<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return Container(
+    return _BlenderApplicationTopBarSurface(
       height: height,
-      decoration: BoxDecoration(
-        color: theme.colors.topBar,
-        border: Border(bottom: BorderSide(color: theme.colors.editorBorder)),
-      ),
       child: BlenderToolbar(
         height: height,
         scrollable: scrollable,
@@ -79,6 +73,31 @@ class BlenderApplicationMenuBar<T> extends StatelessWidget {
           ...trailing,
         ],
       ),
+    );
+  }
+}
+
+enum BlenderApplicationTopBarOverflow { workspaceOnly, shared }
+
+class _BlenderApplicationTopBarSurface extends StatelessWidget {
+  const _BlenderApplicationTopBarSurface({
+    required this.child,
+    this.height = 30,
+  });
+
+  final Widget child;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.colors.topBar,
+        border: Border(bottom: BorderSide(color: theme.colors.editorBorder)),
+      ),
+      child: child,
     );
   }
 }
@@ -108,9 +127,9 @@ class BlenderApplicationWorkspace<T> {
 /// Blender's application-level chrome: menus, workspace perspectives, and
 /// fixed right-aligned action groups.
 ///
-/// The menu row is deliberately not scrollable. Only workspace tabs scroll
-/// beneath edge fades, so File/Edit/Window/Help and global action groups stay
-/// in their expected positions as the available width changes.
+/// [overflow] selects whether only workspaces scroll or whether leading,
+/// menus, workspaces, and workspace actions share one scroll surface. Fixed
+/// context controls and trailing groups remain reachable in either mode.
 class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
     extends StatelessWidget {
   const BlenderApplicationTopBar({
@@ -119,53 +138,65 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
     required this.workspaces,
     required this.activeWorkspace,
     required this.onWorkspaceSelected,
+    this.leading = const <Widget>[],
     this.workspaceActions = const <Widget>[],
+    this.contextControls = const <Widget>[],
     this.trailing = const <Widget>[],
+    this.overflow = BlenderApplicationTopBarOverflow.workspaceOnly,
+    this.height = 30,
   });
 
   final List<BlenderApplicationMenu<MenuValue>> menus;
   final List<BlenderApplicationWorkspace<WorkspaceValue>> workspaces;
   final WorkspaceValue activeWorkspace;
   final ValueChanged<WorkspaceValue> onWorkspaceSelected;
+  final List<Widget> leading;
 
   /// Extra controls that follow the workspace tabs, such as Add Workspace.
   /// They remain in the scrolling/fading workspace region.
   final List<Widget> workspaceActions;
 
+  /// Fixed document/scene controls placed before [trailing].
+  final List<Widget> contextControls;
+
   /// Global controls fixed at the far right, such as AI actions or status.
   final List<Widget> trailing;
+  final BlenderApplicationTopBarOverflow overflow;
+  final double height;
+
+  List<Widget> _menuWidgets(BlenderThemeData theme) => <Widget>[
+    ...leading,
+    for (final menu in menus) menu.build(),
+    if ((leading.isNotEmpty || menus.isNotEmpty) &&
+        workspaces.isNotEmpty) ...<Widget>[
+      SizedBox(width: theme.density.spacing * 2),
+      SizedBox(height: 22, child: ColoredBox(color: theme.colors.editorBorder)),
+      SizedBox(width: theme.density.spacing * 2),
+    ],
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return ColoredBox(
-      color: theme.colors.topBar,
+    final prefix = _menuWidgets(theme);
+    return _BlenderApplicationTopBarSurface(
+      height: height,
       child: Row(
         children: <Widget>[
-          for (final menu in menus)
-            BlenderMenuButton<MenuValue>(
-              label: menu.label,
-              items: menu.items,
-              enabled: menu.enabled,
-              variant: BlenderButtonVariant.topBar,
-              onSelected: menu.onSelected,
-            ),
-          if (menus.isNotEmpty && workspaces.isNotEmpty) ...<Widget>[
-            SizedBox(width: theme.density.spacing * 2),
-            SizedBox(
-              height: 22,
-              child: ColoredBox(color: theme.colors.editorBorder),
-            ),
-            SizedBox(width: theme.density.spacing * 2),
-          ],
+          if (overflow == BlenderApplicationTopBarOverflow.workspaceOnly)
+            ...prefix,
           Expanded(
             child: _BlenderApplicationWorkspaceStrip<WorkspaceValue>(
+              prefix: overflow == BlenderApplicationTopBarOverflow.shared
+                  ? prefix
+                  : const <Widget>[],
               workspaces: workspaces,
               activeWorkspace: activeWorkspace,
               onWorkspaceSelected: onWorkspaceSelected,
               actions: workspaceActions,
             ),
           ),
+          ...contextControls,
           ...trailing,
         ],
       ),
@@ -175,12 +206,14 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
 
 class _BlenderApplicationWorkspaceStrip<T> extends StatefulWidget {
   const _BlenderApplicationWorkspaceStrip({
+    this.prefix = const <Widget>[],
     required this.workspaces,
     required this.activeWorkspace,
     required this.onWorkspaceSelected,
     required this.actions,
   });
 
+  final List<Widget> prefix;
   final List<BlenderApplicationWorkspace<T>> workspaces;
   final T activeWorkspace;
   final ValueChanged<T> onWorkspaceSelected;
@@ -237,6 +270,7 @@ class _BlenderApplicationWorkspaceStripState<T>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            ...widget.prefix,
             for (final workspace in widget.workspaces)
               _workspaceButton(workspace),
             ...widget.actions,
@@ -510,11 +544,17 @@ class BlenderApplicationStatusBar extends StatelessWidget {
   const BlenderApplicationStatusBar({
     super.key,
     required this.status,
+    this.jobs,
+    this.reports,
+    this.onReportPressed,
     this.center = const <Widget>[],
     this.right = const <Widget>[],
   });
 
   final BlenderStatusService status;
+  final BlenderJobService? jobs;
+  final BlenderReportService? reports;
+  final ValueChanged<BlenderReport>? onReportPressed;
   final List<Widget> center;
   final List<Widget> right;
 
@@ -540,7 +580,21 @@ class BlenderApplicationStatusBar extends StatelessWidget {
                     style: theme.textTheme.caption.copyWith(color: color),
                   ),
                 ],
-          center: center,
+          center: <Widget>[
+            if (reports != null)
+              BlenderLatestReportBanner(
+                reports: reports!,
+                onPressed: onReportPressed,
+              ),
+            if (jobs != null) ...<Widget>[
+              if (reports != null) const SizedBox(width: 8),
+              SizedBox(
+                width: 268,
+                child: BlenderRunningJobsPanel(service: jobs!),
+              ),
+            ],
+            ...center,
+          ],
           right: right,
         );
       },
@@ -607,10 +661,13 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     BlenderWorkspaceService<String>? workspaceService,
     BlenderStateEquality<T>? stateEquals,
     BlenderStatusService? status,
+    BlenderJobService? jobs,
+    BlenderReportService? reports,
     BlenderCommandBindings? commandBindings,
     BlenderEditorSessionService? editorSession,
     BlenderInterfacePreferencesService? interfacePreferences,
     BlenderThemeService? themeService,
+    BlenderWindowAppearanceAdapter? windowAppearanceAdapter,
     this.preferences,
     BlenderApplicationPresentationService? presentation,
     this.historyLimit = 50,
@@ -624,6 +681,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
          historyLimit: historyLimit,
        ),
        status = status ?? BlenderStatusService(),
+       jobs = jobs ?? BlenderJobService(),
+       reports = reports ?? BlenderReportService(),
        commandBindings = commandBindings ?? BlenderCommandBindings(),
        editorSession = editorSession ?? BlenderEditorSessionService(),
        interfacePreferences = interfacePreferences,
@@ -668,6 +727,13 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     } else {
       themeController = null;
     }
+    windowAppearance =
+        windowAppearanceAdapter == null || themeController == null
+        ? null
+        : BlenderWindowAppearanceController(
+            theme: themeController!,
+            adapter: windowAppearanceAdapter,
+          );
     commands
       ..register(
         BlenderCommand(
@@ -721,6 +787,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
       ..registerSingleton<BlenderCommandRegistry>(commands)
       ..registerSingleton<BlenderCommandBindings>(this.commandBindings)
       ..registerSingleton<BlenderStatusService>(this.status)
+      ..registerSingleton<BlenderJobService>(this.jobs)
+      ..registerSingleton<BlenderReportService>(this.reports)
       ..registerSingleton<BlenderEditorSessionService>(this.editorSession)
       ..registerSingleton<BlenderApplicationPresentationService>(
         this.presentation,
@@ -750,10 +818,13 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
   final BlenderCommandRegistry commands;
   final BlenderCommandBindings commandBindings;
   final BlenderStatusService status;
+  final BlenderJobService jobs;
+  final BlenderReportService reports;
   final BlenderEditorSessionService editorSession;
   final BlenderInterfacePreferencesService? interfacePreferences;
   final BlenderThemeService? themeService;
   late final BlenderThemeController? themeController;
+  late final BlenderWindowAppearanceController? windowAppearance;
   final BlenderPreferencesService? preferences;
   final BlenderApplicationPresentationService presentation;
   final BlenderServiceContainer services;
@@ -766,6 +837,7 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     if (_disposed) return;
     _disposed = true;
     state.removeListener(commands.refresh);
+    windowAppearance?.dispose();
     themeController?.dispose();
     services.dispose();
   }

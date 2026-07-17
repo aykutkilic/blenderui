@@ -1,4 +1,5 @@
 import 'package:blender_ui/blender_ui.dart';
+import 'package:blender_ui/blender_ui_devtools.dart';
 import 'package:flutter/widgets.dart';
 
 /// A searchable catalog of the public BlenderUI building blocks. The catalog
@@ -32,60 +33,53 @@ class _ComponentCatalogPageState extends State<ComponentCatalogPage> {
     super.dispose();
   }
 
-  List<_CatalogComponent> _filteredCatalog(String query) {
-    final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return _catalog;
-    return _catalog
-        .where(
-          (item) =>
-              item.label.toLowerCase().contains(normalized) ||
-              item.category.toLowerCase().contains(normalized) ||
-              item.description.toLowerCase().contains(normalized) ||
-              item.keywords.contains(normalized),
-        )
-        .toList();
-  }
+  List<BlenderCategoryGroup<String>> get _groups =>
+      <BlenderCategoryGroup<String>>[
+        for (final category in _catalogCategories)
+          BlenderCategoryGroup<String>(
+            id: category,
+            label: category,
+            items: <BlenderCategoryItem<String>>[
+              for (final item in _catalog.where(
+                (item) => item.category == category,
+              ))
+                BlenderCategoryItem<String>(
+                  value: item.id,
+                  label: item.label,
+                  keywords:
+                      '${item.category} ${item.description} ${item.keywords}',
+                  glyph: item.glyph,
+                ),
+            ],
+          ),
+      ];
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: _search,
-      builder: (context, value, child) {
-        final visible = _filteredCatalog(value.text);
-        final selected = visible.where((item) => item.id == _selectedId);
-        final component = selected.isEmpty
-            ? (visible.isEmpty ? null : visible.first)
-            : selected.first;
-        return ColoredBox(
-          color: theme.colors.propertiesBackground,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _CatalogTopBar(componentCount: _catalog.length),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _CatalogSidebar(
-                      search: _search,
-                      components: visible,
-                      selectedId: component?.id,
-                      onSelected: (item) =>
-                          setState(() => _selectedId = item.id),
-                    ),
-                    Expanded(
-                      child: component == null
-                          ? const _CatalogEmptyState()
-                          : _CatalogDetail(component: component),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return ColoredBox(
+      color: theme.colors.propertiesBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _CatalogTopBar(componentCount: _catalog.length),
+          Expanded(
+            child: BlenderCategoryBrowser<String>(
+              groups: _groups,
+              selected: _selectedId,
+              searchController: _search,
+              navigationWidth: 250,
+              onSelected: (id) => setState(() => _selectedId = id),
+              detailBuilder: (context, id) {
+                final component = _catalog.where((item) => item.id == id);
+                return component.isEmpty
+                    ? const _CatalogEmptyState()
+                    : _CatalogDetail(component: component.first);
+              },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -119,89 +113,6 @@ class _CatalogTopBar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: theme.textTheme.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CatalogSidebar extends StatelessWidget {
-  const _CatalogSidebar({
-    required this.search,
-    required this.components,
-    required this.selectedId,
-    required this.onSelected,
-  });
-
-  final TextEditingController search;
-  final List<_CatalogComponent> components;
-  final String? selectedId;
-  final ValueChanged<_CatalogComponent> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = BlenderTheme.of(context);
-    final grouped = <String, List<_CatalogComponent>>{};
-    for (final item in components) {
-      grouped.putIfAbsent(item.category, () => <_CatalogComponent>[]).add(item);
-    }
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: theme.colors.textField,
-        border: Border(right: BorderSide(color: theme.colors.editorBorder)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: BlenderSearchField(
-              controller: search,
-              placeholder: 'Find a component',
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 8),
-              children: <Widget>[
-                for (final category in _catalogCategories)
-                  if (grouped[category]?.isNotEmpty ?? false) ...<Widget>[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
-                      child: Text(
-                        category,
-                        style: theme.textTheme.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    for (final item in grouped[category]!)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: BlenderButton(
-                          label: item.label,
-                          leading: BlenderIcon(item.glyph, size: 15),
-                          selected: item.id == selectedId,
-                          variant: BlenderButtonVariant.topBar,
-                          padding: const EdgeInsets.symmetric(horizontal: 7),
-                          onPressed: () => onSelected(item),
-                        ),
-                      ),
-                  ],
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-            child: Text(
-              '${components.length} matching components',
               style: theme.textTheme.caption.copyWith(
                 color: theme.colors.foregroundMuted,
               ),
@@ -295,7 +206,11 @@ class _CatalogDetail extends StatelessWidget {
                 title: 'Code example',
                 description:
                     'A minimal construction snippet for the live example above.',
-                child: _CatalogCodeBlock(code: component.api),
+                child: BlenderCodeBlock(
+                  key: const ValueKey<String>('catalog-code-example'),
+                  code: component.api,
+                  highlighter: blenderDartCodeHighlighter,
+                ),
               ),
             ],
           ),
@@ -379,90 +294,6 @@ class _TutorialStep extends StatelessWidget {
       ),
     );
   }
-}
-
-class _CatalogCodeBlock extends StatelessWidget {
-  const _CatalogCodeBlock({required this.code});
-
-  final String code;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = BlenderTheme.of(context);
-    final baseStyle = TextStyle(
-      color: theme.colors.foreground,
-      fontFamily: 'monospace',
-      fontSize: 12,
-      height: 1.45,
-    );
-    return DecoratedBox(
-      key: const ValueKey<String>('catalog-code-example'),
-      decoration: BoxDecoration(
-        color: theme.colors.menuBackground,
-        border: Border.all(color: theme.colors.borderSubtle),
-        borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(12),
-        child: RichText(
-          text: TextSpan(
-            style: baseStyle,
-            children: _highlightCode(code, baseStyle, theme),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-List<TextSpan> _highlightCode(
-  String code,
-  TextStyle baseStyle,
-  BlenderThemeData theme,
-) {
-  final tokenPattern = RegExp(
-    r'''("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|//[^\n]*|\b(?:const|final|var|return|void|true|false|null)\b|\b[A-Z][A-Za-z0-9_]*\b|[{}()\[\],:.=<>]|\b[A-Za-z_][A-Za-z0-9_]*\b)''',
-  );
-  final spans = <TextSpan>[];
-  var cursor = 0;
-  for (final match in tokenPattern.allMatches(code)) {
-    if (match.start > cursor) {
-      spans.add(TextSpan(text: code.substring(cursor, match.start)));
-    }
-    final token = match.group(0)!;
-    final color = token.startsWith('//')
-        ? const Color(0xFF7FA77F)
-        : token.startsWith('"') || token.startsWith("'")
-        ? const Color(0xFFA8D47A)
-        : <String>{
-            'const',
-            'final',
-            'var',
-            'return',
-            'void',
-            'true',
-            'false',
-            'null',
-          }.contains(token)
-        ? const Color(0xFFE3A7FF)
-        : RegExp(r'^[A-Z]').hasMatch(token)
-        ? theme.colors.focus
-        : RegExp(r'^[{}()\[\],:.=<>]$').hasMatch(token)
-        ? theme.colors.foregroundMuted
-        : baseStyle.color;
-    spans.add(
-      TextSpan(
-        text: token,
-        style: baseStyle.copyWith(color: color),
-      ),
-    );
-    cursor = match.end;
-  }
-  if (cursor < code.length) {
-    spans.add(TextSpan(text: code.substring(cursor)));
-  }
-  return spans;
 }
 
 class _CatalogEmptyState extends StatelessWidget {

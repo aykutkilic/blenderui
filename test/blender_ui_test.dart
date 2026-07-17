@@ -1,5 +1,8 @@
+import 'dart:ui' as ui;
+
 import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -2324,10 +2327,10 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _harness(
-        SizedBox(
+        const SizedBox(
           height: 80,
           child: BlenderTree<String>(
-            roots: const <BlenderTreeNode<String>>[
+            roots: <BlenderTreeNode<String>>[
               BlenderTreeNode<String>(
                 id: 'collection',
                 label: 'Collection',
@@ -3770,18 +3773,22 @@ void main() {
   testWidgets('bounded number fields render a proportional range fill', (
     tester,
   ) async {
+    final repaintKey = GlobalKey();
     await tester.pumpWidget(
       _harness(
-        const SizedBox(
-          width: 180,
-          child: BlenderNumberField(
-            value: 36,
-            min: 0,
-            max: 100,
-            decimalDigits: 0,
-            suffix: '%',
-            showSteppers: false,
-            onChanged: _ignoreDouble,
+        RepaintBoundary(
+          key: repaintKey,
+          child: const SizedBox(
+            width: 180,
+            child: BlenderNumberField(
+              value: 36,
+              min: 0,
+              max: 100,
+              decimalDigits: 0,
+              suffix: '%',
+              showSteppers: false,
+              onChanged: _ignoreDouble,
+            ),
           ),
         ),
       ),
@@ -3791,21 +3798,59 @@ void main() {
       find.byType(FractionallySizedBox),
     );
     expect(fill.widthFactor, closeTo(.36, .001));
+    final surfaceFinder = find.byKey(
+      const ValueKey<String>('blender-number-field-surface'),
+    );
+    final surface = tester.widget<Container>(surfaceFinder);
+    expect(surface.clipBehavior, Clip.antiAlias);
+    expect(
+      tester.getTopLeft(find.byType(FractionallySizedBox)).dx,
+      tester.getTopLeft(surfaceFinder).dx,
+    );
+    final fillDecoration =
+        tester
+                .widget<DecoratedBox>(
+                  find.descendant(
+                    of: find.byType(FractionallySizedBox),
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .decoration
+            as BoxDecoration;
+    expect(fillDecoration.borderRadius, isNull);
     expect(tester.getSize(find.byType(FractionallySizedBox)).height, 20);
     expect(
       tester.getSize(find.byType(FractionallySizedBox)).width,
-      closeTo(
-        tester
-                .getSize(
-                  find.byKey(
-                    const ValueKey<String>('blender-number-field-surface'),
-                  ),
-                )
-                .width *
-            .36,
-        .001,
-      ),
+      closeTo(tester.getSize(surfaceFinder).width * .36, .001),
     );
+
+    final boundary =
+        repaintKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final leadingPixels = await tester.runAsync(() async {
+      final image = await boundary.toImage(pixelRatio: 2);
+      final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      expect(pixels, isNotNull);
+      final centerY = image.height ~/ 2;
+      final result = <int>[];
+      for (var x = 1; x <= 10; x += 1) {
+        final offset = (centerY * image.width + x) * 4;
+        final red = pixels!.getUint8(offset);
+        final green = pixels.getUint8(offset + 1);
+        final blue = pixels.getUint8(offset + 2);
+        final alpha = pixels.getUint8(offset + 3);
+        result.add((alpha << 24) | (red << 16) | (green << 8) | blue);
+      }
+      image.dispose();
+      return result;
+    });
+    final selected = BlenderThemeData.dark.colors.buttonSelected.toARGB32();
+    for (var x = 0; x < leadingPixels!.length; x += 1) {
+      expect(
+        leadingPixels[x],
+        selected,
+        reason: 'leading fill pixel x=${x + 1}',
+      );
+    }
 
     final pointer = await tester.createGesture();
     await pointer.moveTo(tester.getCenter(find.byType(BlenderNumberField)));
@@ -5122,12 +5167,12 @@ BlenderWorkspaceService<String> _persistentWorkspaceService(
     BlenderWorkspaceDefinition<String>(
       id: 'folders',
       sessionState: sessionState,
-      layout: BlenderDockAreaNode<String>(
+      layout: const BlenderDockAreaNode<String>(
         id: 'folders-outliner',
         value: 'outliner',
       ),
     ),
-    BlenderWorkspaceDefinition<String>(
+    const BlenderWorkspaceDefinition<String>(
       id: 'authoring',
       layout: BlenderDockAreaNode<String>(
         id: 'authoring-page',
