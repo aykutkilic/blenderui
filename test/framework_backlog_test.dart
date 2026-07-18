@@ -7,7 +7,81 @@ Widget _harness(Widget child) => Directionality(
   child: BlenderTheme(child: child),
 );
 
+class _TrackingStorage implements BlenderPersistentStorage {
+  final Map<String, String> values = <String, String>{};
+  int reads = 0;
+  int writes = 0;
+
+  @override
+  Future<String?> read(String key) async {
+    reads++;
+    return values[key];
+  }
+
+  @override
+  Future<void> remove(String key) async => values.remove(key);
+
+  @override
+  Future<void> write(String key, String value) async {
+    writes++;
+    values[key] = value;
+  }
+}
+
+class _TrackingEditorSessionService extends BlenderEditorSessionService {
+  int disposals = 0;
+
+  @override
+  void dispose() {
+    disposals++;
+    super.dispose();
+  }
+}
+
 void main() {
+  test('persistence coordinator memoizes restore and coalesces writes', () async {
+    final storage = _TrackingStorage()..values['settings'] = 'restored';
+    var current = 'initial';
+    final coordinator = BlenderPersistenceCoordinator(
+      storage: storage,
+      storageKey: 'settings',
+      serialize: () => current,
+    );
+
+    expect(
+      await coordinator.restore((raw) {
+        current = raw;
+        return true;
+      }),
+      isTrue,
+    );
+    expect(await coordinator.restore((_) => false), isTrue);
+    expect(storage.reads, 1);
+
+    current = 'updated';
+    coordinator
+      ..scheduleWrite()
+      ..scheduleWrite();
+    await Future<void>.delayed(Duration.zero);
+    expect(storage.writes, 1);
+    expect(storage.values['settings'], 'updated');
+    expect(coordinator.lastError, isNull);
+  });
+
+  test('application controller delegates adopted service disposal', () {
+    final editorSession = _TrackingEditorSessionService();
+    final controller = BlenderApplicationController<int>(
+      initialState: 0,
+      editorSession: editorSession,
+    );
+
+    controller.dispose();
+    expect(controller.services.isDisposed, isTrue);
+    expect(editorSession.disposals, 1);
+    controller.dispose();
+    expect(editorSession.disposals, 1);
+  });
+
   test(
     'editor area restores, persists, and falls back through one controller',
     () {

@@ -401,7 +401,23 @@ class BlenderThemeService extends ChangeNotifier
     List<BlenderThemeDefinition>? builtIns,
     String selectedThemeId = 'blender-dark',
   }) : _themes = <BlenderThemeDefinition>[...(builtIns ?? _defaultThemes)],
-       _selectedThemeId = selectedThemeId;
+       _selectedThemeId = selectedThemeId {
+    final persistence = this.persistence;
+    if (persistence != null) {
+      _persistenceCoordinator = BlenderPersistenceCoordinator(
+        storage: persistence.storage,
+        storageKey: persistence.storageKey,
+        serialize: () => jsonEncode(<String, Object?>{
+          'version': 1,
+          'selectedThemeId': _selectedThemeId,
+          'themes': <Map<String, Object?>>[
+            for (final theme in _themes)
+              if (!theme.isBuiltIn) theme.toJson(),
+          ],
+        }),
+      );
+    }
+  }
 
   static const List<BlenderThemeDefinition> _defaultThemes =
       <BlenderThemeDefinition>[
@@ -422,11 +438,9 @@ class BlenderThemeService extends ChangeNotifier
   final BlenderThemePersistence? persistence;
   final List<BlenderThemeDefinition> _themes;
   String _selectedThemeId;
-  Future<bool>? _restoreFuture;
-  Future<void> _pendingWrite = Future<void>.value();
-  bool _writeScheduled = false;
+  BlenderPersistenceCoordinator? _persistenceCoordinator;
   bool _disposed = false;
-  Object? lastPersistenceError;
+  Object? get lastPersistenceError => _persistenceCoordinator?.lastError;
 
   List<BlenderThemeDefinition> get themes =>
       List<BlenderThemeDefinition>.unmodifiable(_themes);
@@ -509,14 +523,10 @@ class BlenderThemeService extends ChangeNotifier
   String exportActiveBlenderXml() =>
       const BlenderThemeXmlCodec().encode(activeTheme);
 
-  Future<bool> restore() => _restoreFuture ??= _restore();
-
-  Future<bool> _restore() async {
-    final persistence = this.persistence;
-    if (persistence == null) return false;
-    try {
-      final raw = await persistence.storage.read(persistence.storageKey);
-      if (raw == null || raw.isEmpty) return false;
+  Future<bool> restore() {
+    final coordinator = _persistenceCoordinator;
+    if (coordinator == null) return Future<bool>.value(false);
+    return coordinator.restore((raw) {
       final root = jsonDecode(raw);
       if (root is! Map<Object?, Object?> || root['version'] != 1) return false;
       final themes = root['themes'];
@@ -533,39 +543,13 @@ class BlenderThemeService extends ChangeNotifier
       if (!_themes.any((theme) => theme.id == _selectedThemeId)) {
         _selectedThemeId = 'blender-dark';
       }
-      lastPersistenceError = null;
       notifyListeners();
       return true;
-    } catch (error) {
-      lastPersistenceError = error;
-      return false;
-    }
+    });
   }
 
-  Future<void> flush() {
-    final persistence = this.persistence;
-    if (persistence == null) return Future<void>.value();
-    _writeScheduled = false;
-    _pendingWrite = _pendingWrite.then((_) async {
-      try {
-        await persistence.storage.write(
-          persistence.storageKey,
-          jsonEncode(<String, Object?>{
-            'version': 1,
-            'selectedThemeId': _selectedThemeId,
-            'themes': <Map<String, Object?>>[
-              for (final theme in _themes)
-                if (!theme.isBuiltIn) theme.toJson(),
-            ],
-          }),
-        );
-        lastPersistenceError = null;
-      } catch (error) {
-        lastPersistenceError = error;
-      }
-    });
-    return _pendingWrite;
-  }
+  Future<void> flush() =>
+      _persistenceCoordinator?.flush() ?? Future<void>.value();
 
   void _replaceActive(
     BlenderThemeDefinition Function(BlenderThemeDefinition theme) change,
@@ -589,12 +573,7 @@ class BlenderThemeService extends ChangeNotifier
 
   void _changed() {
     notifyListeners();
-    if (_disposed || persistence == null || _writeScheduled) return;
-    _writeScheduled = true;
-    scheduleMicrotask(() {
-      if (_disposed || !_writeScheduled) return;
-      unawaited(flush());
-    });
+    _persistenceCoordinator?.scheduleWrite();
   }
 
   String _nextId(String prefix) =>
@@ -617,7 +596,8 @@ class BlenderThemeService extends ChangeNotifier
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    unawaited(flush());
+    final coordinator = _persistenceCoordinator;
+    if (coordinator != null) unawaited(coordinator.dispose());
     super.dispose();
   }
 }

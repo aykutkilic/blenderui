@@ -303,6 +303,7 @@ export 'src/services.dart'
         BlenderInterfacePreferencesPersistence,
         BlenderInterfacePreferencesService,
         BlenderPersistentStorage,
+        BlenderPersistenceCoordinator,
         BlenderServiceContainer,
         BlenderServiceDisposable,
         BlenderServiceFactory,

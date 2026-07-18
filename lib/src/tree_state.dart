@@ -1,9 +1,21 @@
 /// A flattened entry in a nested Blender data tree.
 class BlenderTreeEntry<T> {
-  const BlenderTreeEntry(this.value, this.depth);
+  const BlenderTreeEntry(
+    this.value,
+    this.depth, {
+    this.ancestorHasNext = const <bool>[],
+    this.isLast = true,
+  });
 
   final T value;
   final int depth;
+
+  /// Whether each ancestor has a following sibling.
+  ///
+  /// Tree renderers use this topology to draw continuation guides without
+  /// reimplementing traversal.
+  final List<bool> ancestorHasNext;
+  final bool isLast;
 }
 
 /// Pure expansion and flattening operations shared by nested editor trees.
@@ -41,19 +53,31 @@ abstract final class BlenderTreeState {
     bool Function(T value)? expandWhen,
   }) {
     final result = <BlenderTreeEntry<T>>[];
-    void visit(T value, int depth) {
+    void visit(T value, int depth, List<bool> ancestorHasNext, bool isLast) {
       if (include?.call(value) ?? true) {
-        result.add(BlenderTreeEntry<T>(value, depth));
+        result.add(
+          BlenderTreeEntry<T>(
+            value,
+            depth,
+            ancestorHasNext: List<bool>.unmodifiable(ancestorHasNext),
+            isLast: isLast,
+          ),
+        );
       }
       if (expandWhen?.call(value) ?? expanded.contains(idOf(value))) {
-        for (final child in childrenOf(value)) {
-          visit(child, depth + 1);
+        final children = childrenOf(value).toList(growable: false);
+        for (var index = 0; index < children.length; index++) {
+          visit(children[index], depth + 1, <bool>[
+            ...ancestorHasNext,
+            !isLast,
+          ], index == children.length - 1);
         }
       }
     }
 
-    for (final root in roots) {
-      visit(root, 0);
+    final rootList = roots.toList(growable: false);
+    for (var index = 0; index < rootList.length; index++) {
+      visit(rootList[index], 0, const <bool>[], index == rootList.length - 1);
     }
     return result;
   }

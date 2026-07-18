@@ -167,6 +167,15 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
       );
     }
     _activeWorkspaceId = initial;
+    final persistence = this.persistence;
+    if (persistence != null) {
+      _persistenceCoordinator = BlenderPersistenceCoordinator(
+        storage: persistence.storage,
+        storageKey: persistence.storageKey,
+        serialize: _serializeSession,
+        canWrite: () => !_restoring && !_sessionCleared,
+      );
+    }
   }
 
   final Map<String, BlenderWorkspaceDefinition<T>> _definitions =
@@ -177,16 +186,14 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
   late String _activeWorkspaceId;
   bool _disposed = false;
   bool _restoring = false;
-  Future<bool>? _restoreFuture;
-  Future<void> _pendingWrite = Future<void>.value();
-  bool _writeScheduled = false;
+  BlenderPersistenceCoordinator? _persistenceCoordinator;
   bool _sessionCleared = false;
 
   /// The most recent persistence failure, if any.
   ///
   /// Session failures are non-fatal: default layouts remain usable. Hosts can
   /// expose this value in diagnostics or clear the session explicitly.
-  Object? lastPersistenceError;
+  Object? get lastPersistenceError => _persistenceCoordinator?.lastError;
 
   /// The declared workspace definitions in their application-defined order.
   List<BlenderWorkspaceDefinition<T>> get workspaces =>
@@ -247,14 +254,13 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
   /// This is safe to call more than once; concurrent callers receive the same
   /// operation. Unknown workspaces and malformed layouts are discarded as a
   /// whole, so an application update can safely change its default views.
-  Future<bool> restore() => _restoreFuture ??= _restore();
-
-  Future<bool> _restore() async {
+  Future<bool> restore() {
     final persistence = this.persistence;
-    if (persistence == null) return false;
-    try {
-      final raw = await persistence.storage.read(persistence.storageKey);
-      if (raw == null || raw.isEmpty) return false;
+    final coordinator = _persistenceCoordinator;
+    if (persistence == null || coordinator == null) {
+      return Future<bool>.value(false);
+    }
+    return coordinator.restore((raw) {
       final decoded = _decodeSession(raw, persistence.valueCodec);
       if (decoded == null) return false;
 
@@ -275,64 +281,37 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
       }
       notifyListeners();
       return true;
-    } catch (error) {
-      lastPersistenceError = error;
-      return false;
-    }
+    });
   }
 
   /// Writes the current workspace selection and dock trees immediately.
   ///
   /// Automatic writes are coalesced after layout gestures. Call this before a
   /// host-controlled shutdown when it needs to await the final disk write.
-  Future<void> flush() {
-    final persistence = this.persistence;
-    if (persistence == null || _restoring || _sessionCleared) {
-      return Future<void>.value();
-    }
-    _writeScheduled = false;
-    _pendingWrite = _pendingWrite.then((_) async {
-      final session = <String, Object?>{
-        'version': 1,
-        'activeWorkspaceId': _activeWorkspaceId,
-        'layouts': <String, Object?>{
-          for (final entry in _controllers.entries)
-            entry.key: _encodeNode(entry.value.root, persistence.valueCodec),
-        },
-        'states': <String, Object?>{
-          for (final entry in _definitions.entries)
-            if (entry.value.sessionState != null)
-              entry.key: entry.value.sessionState!.save(),
-        },
-      };
-      try {
-        await persistence.storage.write(
-          persistence.storageKey,
-          jsonEncode(session),
-        );
-        lastPersistenceError = null;
-      } catch (error) {
-        lastPersistenceError = error;
-      }
+  String _serializeSession() {
+    final persistence = this.persistence!;
+    return jsonEncode(<String, Object?>{
+      'version': 1,
+      'activeWorkspaceId': _activeWorkspaceId,
+      'layouts': <String, Object?>{
+        for (final entry in _controllers.entries)
+          entry.key: _encodeNode(entry.value.root, persistence.valueCodec),
+      },
+      'states': <String, Object?>{
+        for (final entry in _definitions.entries)
+          if (entry.value.sessionState != null)
+            entry.key: entry.value.sessionState!.save(),
+      },
     });
-    return _pendingWrite;
   }
+
+  Future<void> flush() =>
+      _persistenceCoordinator?.flush() ?? Future<void>.value();
 
   /// Deletes the saved session. Declared default layouts remain untouched.
   Future<void> clearPersistedSession() {
-    final persistence = this.persistence;
-    if (persistence == null) return Future<void>.value();
-    _writeScheduled = false;
     _sessionCleared = true;
-    _pendingWrite = _pendingWrite.then((_) async {
-      try {
-        await persistence.storage.remove(persistence.storageKey);
-        lastPersistenceError = null;
-      } catch (error) {
-        lastPersistenceError = error;
-      }
-    });
-    return _pendingWrite;
+    return _persistenceCoordinator?.clear() ?? Future<void>.value();
   }
 
   void _handleLayoutChanged() {
@@ -341,14 +320,8 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
   }
 
   void _schedulePersist() {
-    if (persistence == null || _restoring || _writeScheduled || _disposed) {
-      return;
-    }
-    _writeScheduled = true;
-    scheduleMicrotask(() {
-      if (_disposed || !_writeScheduled) return;
-      unawaited(flush());
-    });
+    if (_disposed) return;
+    _persistenceCoordinator?.scheduleWrite();
   }
 
   @override
@@ -362,7 +335,8 @@ class BlenderWorkspaceService<T> extends ChangeNotifier
     for (final definition in _definitions.values) {
       definition.sessionState?.removeListener(_handleLayoutChanged);
     }
-    unawaited(flush());
+    final coordinator = _persistenceCoordinator;
+    if (coordinator != null) unawaited(coordinator.dispose());
     super.dispose();
   }
 }

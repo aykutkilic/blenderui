@@ -4,6 +4,18 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-17 — Audited source-size and duplication boundaries
+
+- Measured the current Dart tree and recorded every file, class, widget, and
+  function that violates or approaches the 750-line maintainability limit in
+  [`cleanup_backlog.md`](../cleanup_backlog.md).
+- Identified repeated property-sidebar helpers, descriptor factories, category
+  and tree navigation, menu overlay placement, persistence lifecycles, and
+  status/report presentation as cleanup targets.
+- Preserved the existing ownership rule: reusable shell and interaction
+  mechanics belong to BlenderUI, while showcase data and domain examples stay
+  in the example app. No runtime code was changed during this audit.
+
 ## 2026-07-17 — Audited example and library ownership boundaries
 
 - Audited the example app's reusable editor chrome, service glue, property
@@ -100,6 +112,43 @@ live in [the decision records](decisions/).
   so unstyled labels no longer retain dark-theme white after selecting Light.
 
 ## 2026-07-17 — Consolidated app services and interactive documentation
+
+### Reorganized the framework by durable feature boundaries
+
+- Replaced the mechanically generated, flat, numbered part-file layout with
+  descriptive domain folders across controls, layout, editors, templates,
+  services, application composition, icons, demos, the showcase, and tests.
+  Parent libraries now act as small ownership-preserving entry points rather
+  than mixed implementation files.
+- Split the showcase state and its large render, physics, view-layer, gallery,
+  header, editor-area, and Preferences catalogs into app-owned feature parts.
+  The package continues to own reusable mechanics; example values and actions
+  remain in `example/`.
+- Consolidated exact duplication through shared property-form primitives,
+  descriptor factories, category navigation, `BlenderTreeState`, menu
+  presentation, an example-owned brush control catalog, and the public
+  `BlenderPersistenceCoordinator`. Added explicit lifecycle documentation and
+  tests for container-adopted services.
+- Kept collection surfaces, editor canvas renderers, and status/report storage
+  separate after review because their activation, coordinate, and lifecycle
+  contracts differ. Shared lower-level presentation remains in use where the
+  behavior is actually identical.
+- Added an Analyzer-backed structural guard and CI workflow. The guard rejects
+  files or declarations over 750 lines, numeric generated part names, a flat
+  `lib/src/parts/` directory, and recurring exact helper families. Final
+  verification passed for 261 Dart files, all 149 package tests, and all 67
+  example tests.
+- Tooling lesson: an initial brace-counting Ruby rewrite confused closure
+  braces with declaration bodies and truncated several sidebar helpers. Those
+  files were repaired and subsequent declaration moves used Analyzer-backed or
+  marker-validated migrations with dry runs. Other corrections caught during
+  the migration included an Analyzer API cast for `BlockClassBody`, extension
+  access to protected `setState`, an icon painter context color dependency, a
+  duplicate part directive, and an off-by-one Preferences catalog boundary.
+- Environment lesson: `dart format` attempted to refresh Flutter SDK cache
+  files outside the repository and failed under the workspace sandbox. The
+  command was rerun with the required SDK-cache permission. Temporary migration
+  rewriters were removed after use; only the durable structural guard remains.
 
 - Completed the reusable-framework backlog discovered during the example
   audit. Session-bound editor hosts, command/menu descriptors, typed header

@@ -357,6 +357,17 @@ Widget blenderFormColumn(List<Widget> children) =>
 /// Compact static form field helpers for documentation and visual-only
 /// surfaces. Stateful applications should prefer [BlenderPropertyFactory].
 abstract final class BlenderStaticPropertyField {
+  static BlenderPanel panel(
+    String title,
+    List<Widget> children, {
+    bool expanded = false,
+  }) => BlenderPanel(
+    title: title,
+    collapsible: true,
+    initiallyExpanded: expanded,
+    child: blenderFormColumn(children),
+  );
+
   static BlenderPropertyRow checkbox(String label, {bool value = true}) {
     return BlenderPropertyRow(
       label: label,
