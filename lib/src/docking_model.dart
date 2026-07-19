@@ -104,6 +104,51 @@ class BlenderDockingController<T> extends ChangeNotifier {
     return newArea.id;
   }
 
+  /// Joins two neighboring areas while preserving [retainedAreaId].
+  ///
+  /// The caller owns adjacency because that is a rendered-geometry concern.
+  /// This mirrors Blender's area-edge commands: "Join Right", for example,
+  /// keeps the editor on the left and removes the editor on the right.
+  bool joinAreas({
+    required String retainedAreaId,
+    required String removedAreaId,
+  }) {
+    if (retainedAreaId == removedAreaId ||
+        _findArea(_root, retainedAreaId) == null ||
+        _findArea(_root, removedAreaId) == null) {
+      return false;
+    }
+    final next = _removeArea(_root, removedAreaId);
+    if (next == null) return false;
+    _root = next;
+    notifyListeners();
+    return true;
+  }
+
+  /// Exchanges the editor contents of two areas without moving their geometry.
+  bool swapAreaValues({
+    required String firstAreaId,
+    required String secondAreaId,
+  }) {
+    if (firstAreaId == secondAreaId) return false;
+    final first = _findArea(_root, firstAreaId);
+    final second = _findArea(_root, secondAreaId);
+    if (first == null || second == null) return false;
+    var next = _replaceNode(
+      _root,
+      firstAreaId,
+      BlenderDockAreaNode<T>(id: first.id, value: second.value),
+    );
+    next = _replaceNode(
+      next,
+      secondAreaId,
+      BlenderDockAreaNode<T>(id: second.id, value: first.value),
+    );
+    _root = next;
+    notifyListeners();
+    return true;
+  }
+
   bool dockArea({
     required String sourceAreaId,
     required String targetAreaId,

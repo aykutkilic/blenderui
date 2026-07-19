@@ -11,6 +11,8 @@ The sample includes:
 - tool-option popovers with selection tool variants and contextual tooltips
 - an orbitable perspective grid, shaded/wire cube, axes, and orientation gizmo
 - corner-drag area splitting and edge/center docking with live previews
+- divider context menus for vertical/horizontal split, directional join, and
+  area-content swap commands
 - properties with numeric fields, sliders, dropdowns, and checkboxes
 - a resizable quick-controls sidebar
 - timeline and shader-node tabs
@@ -58,6 +60,8 @@ rather than a mock card.
 Drag inside the viewport to orbit, scroll to zoom, and double-click to reset.
 Drag from any editor corner to split that area or move it onto an edge or the
 center of another area; existing divider lines remain directly resizable.
+Secondary-click a divider to open Blender's source-shaped **Area Options**
+menu.
 
 Run it from this directory with:
 

@@ -70,6 +70,30 @@ bool _paintWindowFeedbackAndFilesGlyph(
     case BlenderGlyph.split:
       canvas.drawRect(Rect.fromLTWH(w * .14, h * .2, w * .32, h * .6), paint);
       canvas.drawRect(Rect.fromLTWH(w * .54, h * .2, w * .32, h * .6), paint);
+    case BlenderGlyph.splitHorizontal:
+      canvas.drawRect(Rect.fromLTWH(w * .14, h * .14, w * .72, h * .72), paint);
+      canvas.drawLine(
+        Offset(w * .14, center.dy),
+        Offset(w * .86, center.dy),
+        paint,
+      );
+    case BlenderGlyph.splitVertical:
+      canvas.drawRect(Rect.fromLTWH(w * .14, h * .14, w * .72, h * .72), paint);
+      canvas.drawLine(
+        Offset(center.dx, h * .14),
+        Offset(center.dx, h * .86),
+        paint,
+      );
+    case BlenderGlyph.areaJoinRight:
+      _paintAreaJoinGlyph(icon, AxisDirection.right);
+    case BlenderGlyph.areaJoinLeft:
+      _paintAreaJoinGlyph(icon, AxisDirection.left);
+    case BlenderGlyph.areaJoinUp:
+      _paintAreaJoinGlyph(icon, AxisDirection.up);
+    case BlenderGlyph.areaJoinDown:
+      _paintAreaJoinGlyph(icon, AxisDirection.down);
+    case BlenderGlyph.areaSwap:
+      _paintAreaSwapGlyph(icon);
     case BlenderGlyph.more:
       for (final x in <double>[.28, .5, .72]) {
         canvas.drawCircle(Offset(w * x, center.dy), w * .07, paint);
@@ -230,4 +254,61 @@ bool _paintWindowFeedbackAndFilesGlyph(
       return false;
   }
   return true;
+}
+
+void _paintAreaJoinGlyph(
+  _BlenderIconPaintContext icon,
+  AxisDirection direction,
+) {
+  final canvas = icon.canvas;
+  final paint = icon.paint;
+  final w = icon.size.width;
+  final h = icon.size.height;
+  canvas.save();
+  canvas.translate(w / 2, h / 2);
+  final turns = switch (direction) {
+    AxisDirection.right => 0.0,
+    AxisDirection.down => math.pi / 2,
+    AxisDirection.left => math.pi,
+    AxisDirection.up => -math.pi / 2,
+  };
+  canvas.rotate(turns);
+  canvas.translate(-w / 2, -h / 2);
+  canvas.drawRect(Rect.fromLTWH(w * .1, h * .16, w * .32, h * .68), paint);
+  canvas.drawRect(Rect.fromLTWH(w * .58, h * .16, w * .32, h * .68), paint);
+  final dashed = Paint()
+    ..color = icon.color.withAlpha(155)
+    ..strokeWidth = paint.strokeWidth;
+  for (final y in <double>[.28, .5, .72]) {
+    canvas.drawLine(Offset(w * .46, h * y), Offset(w * .54, h * y), dashed);
+  }
+  final arrow = Path()
+    ..moveTo(w * .34, h * .5)
+    ..lineTo(w * .68, h * .5)
+    ..moveTo(w * .57, h * .38)
+    ..lineTo(w * .69, h * .5)
+    ..lineTo(w * .57, h * .62);
+  canvas.drawPath(arrow, paint);
+  canvas.restore();
+}
+
+void _paintAreaSwapGlyph(_BlenderIconPaintContext icon) {
+  final canvas = icon.canvas;
+  final paint = icon.paint;
+  final w = icon.size.width;
+  final h = icon.size.height;
+  canvas.drawRect(Rect.fromLTWH(w * .08, h * .16, w * .3, h * .68), paint);
+  canvas.drawRect(Rect.fromLTWH(w * .62, h * .16, w * .3, h * .68), paint);
+  final arrows = Path()
+    ..moveTo(w * .26, h * .4)
+    ..lineTo(w * .7, h * .4)
+    ..moveTo(w * .6, h * .3)
+    ..lineTo(w * .71, h * .4)
+    ..lineTo(w * .6, h * .5)
+    ..moveTo(w * .74, h * .62)
+    ..lineTo(w * .3, h * .62)
+    ..moveTo(w * .4, h * .52)
+    ..lineTo(w * .29, h * .62)
+    ..lineTo(w * .4, h * .72);
+  canvas.drawPath(arrows, paint);
 }

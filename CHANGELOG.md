@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added Blender-style `Area Options` context menus to dock dividers with
+  centered vertical/horizontal splits, directional joins, and content swaps.
+- Added atomic dock-controller join and swap operations plus nested-edge leaf
+  targeting, shared menu command presentation, and source-shaped area glyphs.
 - Added viewport-safe, titled Blender context menus with disabled states,
   shortcuts, nested commands, delayed help, and secondary-click/long-press
   lifecycle callbacks.

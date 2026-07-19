@@ -27,6 +27,30 @@ void registerContextMenusFollowBlenderRegionsAndTargetsTests() {
     );
     expect(property.any((item) => item.label == 'Delete Keyframe'), isTrue);
     expect(property.any((item) => item.label == 'Edit Source'), isTrue);
+
+    final verticalEdge = BlenderContextMenuCatalog.areaEdge(
+      dividerAxis: Axis.vertical,
+    );
+    expect(
+      verticalEdge.where((item) => !item.separator).map((item) => item.label),
+      <String>[
+        'Vertical Split',
+        'Horizontal Split',
+        'Join Right',
+        'Join Left',
+        'Swap Areas',
+      ],
+    );
+    expect(
+      verticalEdge.first.description,
+      'Split selected area into new windows',
+    );
+    final horizontalEdge = BlenderContextMenuCatalog.areaEdge(
+      dividerAxis: Axis.horizontal,
+    );
+    expect(horizontalEdge.any((item) => item.label == 'Join Up'), isTrue);
+    expect(horizontalEdge.any((item) => item.label == 'Join Down'), isTrue);
+    expect(horizontalEdge.any((item) => item.label == 'Join Left'), isFalse);
   });
 
   testWidgets('context menu is titled, actionable, and clamped to the view', (

@@ -28,6 +28,27 @@ live in [the decision records](decisions/).
   that the routed entity/action message is present without coupling the test to
   that application-layout count.
 
+## 2026-07-19 — Added Blender area-edge options to docking
+
+- Traced blenderapp's `screen_area_options_invoke()`, edge selection, area
+  join, and area swap operators, then added the matching titled divider menu:
+  Vertical Split, Horizontal Split, directional Join actions, and Swap Areas.
+- Added atomic controller operations that preserve Blender's directional join
+  semantics and swap editor contents without changing geometry. Nested split
+  edges resolve the two rendered leaf areas at the pointer rather than acting
+  on whole subtrees.
+- Wired the behavior through the reusable docking workspace, workspace host,
+  and application shell, so the example app receives it without app-local
+  menu code. Added package controller/widget coverage and a real showcase-path
+  regression.
+- Recorded source anchors, the centered-split adaptation, icon provenance, and
+  the Flutter gesture-arena correction in
+  [the area-edge options decision](decisions/2026-07-19-area-edge-options.md).
+- Tooling note: wrapping a resize detector with the declarative context-menu
+  widget did not receive secondary clicks because the drag recognizer won the
+  gesture arena. A focused test drove the shared imperative presentation path.
+  Formatter and tests again needed scoped Flutter SDK-cache access.
+
 ## 2026-07-17 — Audited source-size and duplication boundaries
 
 - Measured the Dart tree and recorded the original 750-line cleanup plan. The

@@ -100,7 +100,8 @@ export 'src/controls.dart'
         BlenderStateProperty,
         BlenderTextField,
         BlenderToggle,
-        BlenderTooltip;
+        BlenderTooltip,
+        showBlenderContextMenu;
 export 'src/collections.dart'
     show
         BlenderFilterBar,

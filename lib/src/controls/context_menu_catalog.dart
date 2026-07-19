@@ -50,6 +50,13 @@ abstract final class BlenderContextActionIds {
   static const area = 'area';
   static const view = 'view';
   static const libraryOverride = 'library-override';
+  static const splitHorizontal = 'split-horizontal';
+  static const splitVertical = 'split-vertical';
+  static const joinRight = 'join-right';
+  static const joinLeft = 'join-left';
+  static const joinUp = 'join-up';
+  static const joinDown = 'join-down';
+  static const swapAreas = 'swap-areas';
 }
 
 /// Source-shaped menu catalogs with caller-owned command execution.
@@ -353,11 +360,66 @@ abstract final class BlenderContextMenuCatalog {
   ];
 
   static List<BlenderMenuItem<String>> area() => <BlenderMenuItem<String>>[
-    _item('split-horizontal', 'Horizontal Split'),
-    _item('split-vertical', 'Vertical Split'),
+    _item(BlenderContextActionIds.splitHorizontal, 'Horizontal Split'),
+    _item(BlenderContextActionIds.splitVertical, 'Vertical Split'),
     _item('duplicate-area', 'Duplicate Area into New Window'),
     _separator,
     _item('maximize-area', 'Maximize Area', shortcut: 'Ctrl Space'),
     _item('close-area', 'Close Area'),
   ];
+
+  /// Blender's context menu for a divider between two editor areas.
+  ///
+  /// [dividerAxis] describes the visible edge: a vertical divider offers
+  /// Join Right/Left, while a horizontal divider offers Join Up/Down.
+  static List<BlenderMenuItem<String>> areaEdge({required Axis dividerAxis}) =>
+      <BlenderMenuItem<String>>[
+        _item(
+          BlenderContextActionIds.splitVertical,
+          'Vertical Split',
+          glyph: BlenderGlyph.splitVertical,
+          description: 'Split selected area into new windows',
+        ),
+        _item(
+          BlenderContextActionIds.splitHorizontal,
+          'Horizontal Split',
+          glyph: BlenderGlyph.splitHorizontal,
+          description: 'Split selected area into new windows',
+        ),
+        _separator,
+        if (dividerAxis == Axis.vertical) ...<BlenderMenuItem<String>>[
+          _item(
+            BlenderContextActionIds.joinRight,
+            'Join Right',
+            glyph: BlenderGlyph.areaJoinRight,
+            description: 'Join selected areas into new window',
+          ),
+          _item(
+            BlenderContextActionIds.joinLeft,
+            'Join Left',
+            glyph: BlenderGlyph.areaJoinLeft,
+            description: 'Join selected areas into new window',
+          ),
+        ] else ...<BlenderMenuItem<String>>[
+          _item(
+            BlenderContextActionIds.joinUp,
+            'Join Up',
+            glyph: BlenderGlyph.areaJoinUp,
+            description: 'Join selected areas into new window',
+          ),
+          _item(
+            BlenderContextActionIds.joinDown,
+            'Join Down',
+            glyph: BlenderGlyph.areaJoinDown,
+            description: 'Join selected areas into new window',
+          ),
+        ],
+        _separator,
+        _item(
+          BlenderContextActionIds.swapAreas,
+          'Swap Areas',
+          glyph: BlenderGlyph.areaSwap,
+          description: 'Swap selected areas screen positions',
+        ),
+      ];
 }

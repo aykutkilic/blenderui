@@ -2,9 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
+import 'controls.dart';
 import 'docking_model.dart';
 import 'layout.dart';
 import 'theme.dart';
+
+part 'docking/area_edge_options.dart';
 
 typedef BlenderDockAreaBuilder<T> =
     Widget Function(BuildContext context, BlenderDockAreaNode<T> area);
@@ -36,6 +39,7 @@ class _BlenderDockingWorkspaceState<T>
   final GlobalKey _workspaceKey = GlobalKey();
   final Map<String, GlobalKey> _areaKeys = <String, GlobalKey>{};
   _DockDragPreview? _preview;
+  _DockEdgeSelection<T>? _activeEdge;
 
   @override
   void initState() {
@@ -86,6 +90,9 @@ class _BlenderDockingWorkspaceState<T>
         initialFraction: node.fraction,
         onFractionChanged: (value) =>
             widget.controller.setSplitFraction(node.id, value),
+        dividerKey: ValueKey<String>('dock-divider-${node.id}'),
+        onDividerSecondaryTapDown: (details) =>
+            _showAreaOptions(context, node, details.globalPosition),
         first: _buildNode(node.first),
         second: _buildNode(node.second),
       );

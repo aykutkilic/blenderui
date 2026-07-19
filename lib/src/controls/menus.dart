@@ -135,6 +135,32 @@ Future<void> _showBlenderMenuOverlay<T>({
   );
 }
 
+/// Opens a Blender-style context menu at a global pointer position.
+///
+/// Use [BlenderContextMenu] for ordinary child widgets. This imperative form
+/// is intended for existing gesture surfaces, such as a draggable divider,
+/// where wrapping the target would compete in Flutter's gesture arena.
+Future<void> showBlenderContextMenu<T>({
+  required BuildContext context,
+  required Offset globalPosition,
+  required List<BlenderMenuItem<T>> items,
+  ValueChanged<T>? onSelected,
+  String? title,
+}) async {
+  if (items.isEmpty) return;
+  final overlay = Overlay.maybeOf(context);
+  if (overlay == null) return;
+  final renderObject = overlay.context.findRenderObject();
+  if (renderObject is! RenderBox) return;
+  await _showBlenderMenuOverlay<T>(
+    context: context,
+    position: renderObject.globalToLocal(globalPosition),
+    items: items,
+    onSelected: onSelected,
+    title: title,
+  );
+}
+
 class BlenderDropdown<T> extends StatefulWidget {
   const BlenderDropdown({
     super.key,
@@ -516,17 +542,12 @@ class BlenderContextMenu<T> extends StatelessWidget {
 
   Future<void> _show(BuildContext context, Offset globalPosition) async {
     if (items.isEmpty) return;
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-    final renderObject = overlay.context.findRenderObject();
-    if (renderObject is! RenderBox) return;
-    final position = renderObject.globalToLocal(globalPosition);
     onContextRequested?.call(globalPosition);
     onOpenChanged?.call(true);
     try {
-      await _showBlenderMenuOverlay<T>(
+      await showBlenderContextMenu<T>(
         context: context,
-        position: position,
+        globalPosition: globalPosition,
         items: items,
         onSelected: onSelected,
         title: title,

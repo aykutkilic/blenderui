@@ -188,6 +188,149 @@ void registerWorkspaceServiceClearsADurableSessionAfterTests() {
     controller.dispose();
   });
 
+  test('docking controller joins and swaps area contents atomically', () {
+    final controller = BlenderDockingController<String>(
+      root: const BlenderDockSplitNode<String>(
+        id: 'columns',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .5,
+        first: BlenderDockAreaNode<String>(id: 'left', value: 'viewport'),
+        second: BlenderDockAreaNode<String>(id: 'right', value: 'properties'),
+      ),
+    );
+
+    expect(
+      controller.swapAreaValues(firstAreaId: 'left', secondAreaId: 'right'),
+      isTrue,
+    );
+    final swapped = controller.root as BlenderDockSplitNode<String>;
+    expect((swapped.first as BlenderDockAreaNode<String>).value, 'properties');
+    expect((swapped.second as BlenderDockAreaNode<String>).value, 'viewport');
+
+    expect(
+      controller.joinAreas(retainedAreaId: 'left', removedAreaId: 'right'),
+      isTrue,
+    );
+    final joined = controller.root as BlenderDockAreaNode<String>;
+    expect(joined.id, 'left');
+    expect(joined.value, 'properties');
+    controller.dispose();
+  });
+
+  testWidgets('dock divider exposes Blender area options and executes them', (
+    tester,
+  ) async {
+    final controller = BlenderDockingController<String>(
+      root: const BlenderDockSplitNode<String>(
+        id: 'columns',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .5,
+        first: BlenderDockAreaNode<String>(id: 'left', value: 'viewport'),
+        second: BlenderDockAreaNode<String>(id: 'right', value: 'properties'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Center(
+          child: SizedBox(
+            width: 500,
+            height: 300,
+            child: BlenderDockingWorkspace<String>(
+              controller: controller,
+              areaBuilder: (context, area) => Text(area.value),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final divider = find.byKey(const ValueKey<String>('dock-divider-columns'));
+    await tester.tapAt(
+      tester.getCenter(divider),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Area Options'), findsOneWidget);
+    expect(find.text('Vertical Split'), findsOneWidget);
+    expect(find.text('Horizontal Split'), findsOneWidget);
+    expect(find.text('Join Right'), findsOneWidget);
+    expect(find.text('Join Left'), findsOneWidget);
+    expect(find.text('Swap Areas'), findsOneWidget);
+
+    await tester.tap(find.text('Swap Areas'));
+    await tester.pumpAndSettle();
+    final swapped = controller.root as BlenderDockSplitNode<String>;
+    expect((swapped.first as BlenderDockAreaNode<String>).value, 'properties');
+    expect((swapped.second as BlenderDockAreaNode<String>).value, 'viewport');
+
+    await tester.tapAt(
+      tester.getCenter(divider),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Join Right'));
+    await tester.pumpAndSettle();
+
+    final joined = controller.root as BlenderDockAreaNode<String>;
+    expect(joined.id, 'left');
+    expect(joined.value, 'properties');
+  });
+
+  testWidgets('area edge split command clones Blender-selected neighbor', (
+    tester,
+  ) async {
+    String? clonedValue;
+    final controller = BlenderDockingController<String>(
+      root: const BlenderDockSplitNode<String>(
+        id: 'columns',
+        direction: BlenderSplitDirection.horizontal,
+        fraction: .5,
+        first: BlenderDockAreaNode<String>(id: 'left', value: 'viewport'),
+        second: BlenderDockAreaNode<String>(id: 'right', value: 'properties'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Center(
+          child: SizedBox(
+            width: 500,
+            height: 300,
+            child: BlenderDockingWorkspace<String>(
+              controller: controller,
+              cloneValue: (value) {
+                clonedValue = value;
+                return '$value-copy';
+              },
+              areaBuilder: (context, area) => Text(area.value),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final divider = find.byKey(const ValueKey<String>('dock-divider-columns'));
+    await tester.tapAt(
+      tester.getCenter(divider),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Vertical Split'));
+    await tester.pumpAndSettle();
+
+    expect(clonedValue, 'properties');
+    final root = controller.root as BlenderDockSplitNode<String>;
+    final splitRight = root.second as BlenderDockSplitNode<String>;
+    expect(splitRight.direction, BlenderSplitDirection.horizontal);
+    expect((splitRight.first as BlenderDockAreaNode<String>).id, 'right');
+    expect(
+      (splitRight.second as BlenderDockAreaNode<String>).value,
+      'properties-copy',
+    );
+  });
+
   testWidgets('corner action zone creates a live editor split', (tester) async {
     final controller = BlenderDockingController<String>(
       root: const BlenderDockAreaNode<String>(id: 'main', value: 'viewport'),

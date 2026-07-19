@@ -11,6 +11,8 @@ class BlenderSplitter extends StatefulWidget {
     this.initialFraction = .5,
     this.onFractionChanged,
     this.dividerExtent = 4,
+    this.dividerKey,
+    this.onDividerSecondaryTapDown,
   });
 
   final Widget first;
@@ -19,6 +21,12 @@ class BlenderSplitter extends StatefulWidget {
   final double initialFraction;
   final ValueChanged<double>? onFractionChanged;
   final double dividerExtent;
+
+  /// Optional identity for the complete divider hit surface.
+  final Key? dividerKey;
+
+  /// Receives a secondary click without replacing divider resize behavior.
+  final GestureTapDownCallback? onDividerSecondaryTapDown;
 
   @override
   State<BlenderSplitter> createState() => _BlenderSplitterState();
@@ -74,6 +82,7 @@ class _BlenderSplitterState extends State<BlenderSplitter> {
                 ? 'Resize editor width'
                 : 'Resize editor height',
             child: MouseRegion(
+              key: widget.dividerKey,
               cursor: isHorizontal
                   ? SystemMouseCursors.resizeColumn
                   : SystemMouseCursors.resizeRow,
@@ -99,6 +108,7 @@ class _BlenderSplitterState extends State<BlenderSplitter> {
                 onVerticalDragEnd: !isHorizontal ? (_) => _endDrag() : null,
                 onHorizontalDragCancel: isHorizontal ? _endDrag : null,
                 onVerticalDragCancel: !isHorizontal ? _endDrag : null,
+                onSecondaryTapDown: widget.onDividerSecondaryTapDown,
                 child: SizedBox(
                   width: isHorizontal ? widget.dividerExtent : double.infinity,
                   height: isHorizontal ? double.infinity : widget.dividerExtent,
