@@ -10,6 +10,11 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
           showGrid: _showGrid,
           wireframe: _wireframe,
           sidebar: const BlenderViewportSidebar(),
+          toolShelf: _buildLeftSidebar(floating: true),
+          selectionMode: _selectionMode,
+          onSelectionModeChanged: (value) =>
+              _update(() => _selectionMode = value),
+          onStatus: _setStatus,
         ),
       ),
       BlenderEditorType.imageEditor => const BlenderImageEditor(

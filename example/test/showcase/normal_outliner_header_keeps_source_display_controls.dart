@@ -123,10 +123,19 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BlenderViewportSidebar), findsOneWidget);
+    expect(find.text('Transform'), findsWidgets);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('viewport-sidebar-tab-View')),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Focal Length'), findsOneWidget);
     expect(find.text('View Lock'), findsOneWidget);
     expect(find.text('3D Cursor'), findsOneWidget);
     expect(find.text('Collections'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('viewport-sidebar-tab-Animation')),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Global Transform'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('viewport-transform-orientation')),

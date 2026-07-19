@@ -37,9 +37,11 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
   Widget _buildMainToolbar() =>
       Builder(builder: (context) => _buildMainToolbarForTheme(context));
 
-  Widget _buildLeftSidebar() {
+  Widget _buildLeftSidebar({bool floating = false}) {
     return BlenderToolShelf(
-      width: 48,
+      key: floating ? const ValueKey<String>('viewport-tool-shelf') : null,
+      width: floating ? 42 : 48,
+      floating: floating,
       tools: const <BlenderToolDefinition>[
         BlenderToolDefinition(
           glyph: BlenderGlyph.pointer,
@@ -71,21 +73,27 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             ),
           ],
         ),
-        BlenderToolDefinition(glyph: BlenderGlyph.plus, tooltip: 'Add tool'),
+        BlenderToolDefinition(glyph: BlenderGlyph.radio, tooltip: '3D Cursor'),
         BlenderToolDefinition(
           glyph: BlenderGlyph.transform,
           tooltip: 'Move tool',
+          groupBreakBefore: true,
         ),
         BlenderToolDefinition(
           glyph: BlenderGlyph.rotate,
           tooltip: 'Rotate tool',
         ),
         BlenderToolDefinition(glyph: BlenderGlyph.scale, tooltip: 'Scale tool'),
-        BlenderToolDefinition(glyph: BlenderGlyph.pan, tooltip: 'Pan tool'),
-        BlenderToolDefinition(glyph: BlenderGlyph.zoom, tooltip: 'Zoom tool'),
         BlenderToolDefinition(
           glyph: BlenderGlyph.tool,
-          tooltip: 'Tool settings',
+          tooltip: 'Annotate',
+          groupBreakBefore: true,
+        ),
+        BlenderToolDefinition(glyph: BlenderGlyph.grid, tooltip: 'Measure'),
+        BlenderToolDefinition(
+          glyph: BlenderGlyph.plus,
+          tooltip: 'Add Cube',
+          groupBreakBefore: true,
         ),
       ],
       selectedIndex: _toolIndex,
@@ -105,7 +113,8 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              _buildLeftSidebar(),
+              if (_mainEditorType != BlenderEditorType.view3d)
+                _buildLeftSidebar(),
               Expanded(child: _buildMainEditorSurface()),
             ],
           ),

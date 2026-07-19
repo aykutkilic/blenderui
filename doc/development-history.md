@@ -238,3 +238,14 @@ live in [the decision records](decisions/).
 - The installed Flutter SDK may need permission to refresh its cache outside
   the repository before formatting or verification. This does not alter project
   source, but it should be surfaced when it blocks a command.
+## 2026-07-19 — 3D Viewport editor-chrome parity
+
+- Audited the example app against the local `blenderapp` View3D header, tool
+  system, navigation gizmo, and sidebar sources.
+- Replaced the permanent left toolbar region with a floating, grouped Object
+  Mode shelf and added the missing selection-operation radio group.
+- Added reusable navigation overlays and collapsible vertical N-panel tabs,
+  separated Item/Tool/View/Animation content, and made gizmo positioning part
+  of the renderer-neutral viewport shell contract.
+- Documented source anchors, architecture decisions, full backlog, failures,
+  and verification in `doc/3d-viewport-parity.md`.

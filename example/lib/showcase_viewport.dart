@@ -12,6 +12,10 @@ class ShowcaseViewport extends StatefulWidget {
     required this.wireframe,
     this.sidebar,
     this.sidebarWidth = 240,
+    this.toolShelf,
+    this.selectionMode = 'Set',
+    this.onSelectionModeChanged,
+    this.onStatus,
   });
 
   final String selectedObject;
@@ -19,6 +23,10 @@ class ShowcaseViewport extends StatefulWidget {
   final bool wireframe;
   final Widget? sidebar;
   final double sidebarWidth;
+  final Widget? toolShelf;
+  final String selectionMode;
+  final ValueChanged<String>? onSelectionModeChanged;
+  final ValueChanged<String>? onStatus;
 
   @override
   State<ShowcaseViewport> createState() => _ShowcaseViewportState();
@@ -26,6 +34,8 @@ class ShowcaseViewport extends StatefulWidget {
 
 class _ShowcaseViewportState extends State<ShowcaseViewport> {
   late final BlenderViewportController _controller;
+  bool _sidebarExpanded = true;
+  String _sidebarCategory = 'Item';
 
   @override
   void initState() {
@@ -50,16 +60,83 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
   @override
   Widget build(BuildContext context) {
     final colors = BlenderTheme.of(context).colors;
+    const sidebarTabs = <BlenderViewportSidebarTab>[
+      BlenderViewportSidebarTab(id: 'Item', label: 'Item'),
+      BlenderViewportSidebarTab(id: 'Tool', label: 'Tool'),
+      BlenderViewportSidebarTab(id: 'View', label: 'View'),
+      BlenderViewportSidebarTab(id: 'Animation', label: 'Animation'),
+    ];
     return BlenderViewportShell(
       controller: _controller,
       background: colors.panelBackground,
-      sidebar: widget.sidebar,
-      sidebarWidth: widget.sidebarWidth,
+      gizmoTop: 42,
+      sidebar: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          BlenderViewportSidebarRail(
+            tabs: sidebarTabs,
+            selected: _sidebarCategory,
+            expanded: _sidebarExpanded,
+            onSelected: (category) => setState(() {
+              if (_sidebarExpanded && _sidebarCategory == category) {
+                _sidebarExpanded = false;
+              } else {
+                _sidebarCategory = category;
+                _sidebarExpanded = true;
+              }
+            }),
+          ),
+          if (_sidebarExpanded)
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.panelBackground,
+                  border: Border(left: BorderSide(color: colors.editorBorder)),
+                ),
+                child: BlenderViewportSidebar(category: _sidebarCategory),
+              ),
+            ),
+        ],
+      ),
+      sidebarWidth: _sidebarExpanded ? widget.sidebarWidth : 30,
       caption: _ViewportCaption(objectName: widget.selectedObject),
       footer: const Text(
         'Drag to orbit  •  Scroll to zoom  •  Double-click to reset',
         style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 11),
       ),
+      overlays: <Widget>[
+        Positioned(
+          left: 6,
+          top: 6,
+          child: BlenderViewportSelectionModeBar(
+            value: widget.selectionMode,
+            onChanged: widget.onSelectionModeChanged ?? (_) {},
+          ),
+        ),
+        if (widget.toolShelf != null)
+          Positioned(left: 6, top: 44, bottom: 6, child: widget.toolShelf!),
+        Positioned(
+          right: 14,
+          top: 124,
+          child: BlenderViewportNavigationControls(
+            onZoom: () {
+              _controller.zoomBy(-90);
+              widget.onStatus?.call('Viewport zoom');
+            },
+            onCamera: () => widget.onStatus?.call('Camera view toggled'),
+            onPerspective: () => widget.onStatus?.call('Perspective toggled'),
+          ),
+        ),
+        Positioned(
+          right: 8,
+          top: 6,
+          child: BlenderButton(
+            label: 'Options',
+            variant: BlenderButtonVariant.toolbar,
+            onPressed: () => widget.onStatus?.call('Viewport options'),
+          ),
+        ),
+      ],
       sceneBuilder: (context, state) {
         final camera = _OrbitCamera(
           yaw: state.yaw,

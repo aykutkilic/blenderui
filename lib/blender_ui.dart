@@ -394,6 +394,10 @@ export 'src/theme.dart'
 export 'src/tree_state.dart' show BlenderTreeEntry, BlenderTreeState;
 export 'src/viewport.dart'
     show
+        BlenderViewportNavigationControls,
+        BlenderViewportSelectionModeBar,
+        BlenderViewportSidebarRail,
+        BlenderViewportSidebarTab,
         BlenderViewportController,
         BlenderViewportSceneBuilder,
         BlenderViewportShell,

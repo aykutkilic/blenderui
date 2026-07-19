@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 
 import 'services.dart';
 import 'theme.dart';
+import 'controls.dart';
+import 'icons.dart';
 
 @immutable
 class BlenderViewportState {
@@ -118,6 +120,8 @@ class BlenderViewportShell extends StatelessWidget {
     this.orbitEnabled = true,
     this.zoomEnabled = true,
     this.resetEnabled = true,
+    this.gizmoTop = 10,
+    this.gizmoRight = 12,
   });
 
   final BlenderViewportController controller;
@@ -132,6 +136,8 @@ class BlenderViewportShell extends StatelessWidget {
   final bool orbitEnabled;
   final bool zoomEnabled;
   final bool resetEnabled;
+  final double gizmoTop;
+  final double gizmoRight;
 
   @override
   Widget build(BuildContext context) {
@@ -165,8 +171,8 @@ class BlenderViewportShell extends StatelessWidget {
                   Positioned(left: 12, top: 10, child: caption!),
                 if (gizmoBuilder != null)
                   Positioned(
-                    right: 12,
-                    top: 10,
+                    right: gizmoRight,
+                    top: gizmoTop,
                     child: gizmoBuilder!(context, controller.state),
                   ),
                 ...overlays,
@@ -185,6 +191,189 @@ class BlenderViewportShell extends StatelessWidget {
       children: <Widget>[
         Expanded(child: viewport),
         SizedBox(width: sidebarWidth, child: sidebar),
+      ],
+    );
+  }
+}
+
+/// The compact selection-operation strip shown below Blender's 3D header.
+class BlenderViewportSelectionModeBar extends StatelessWidget {
+  const BlenderViewportSelectionModeBar({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    const modes = <(String, BlenderGlyph, String)>[
+      ('Set', BlenderGlyph.selectBox, 'Set Selection'),
+      ('Extend', BlenderGlyph.selectExtend, 'Extend Selection'),
+      ('Subtract', BlenderGlyph.selectSubtract, 'Subtract Selection'),
+      ('Difference', BlenderGlyph.selectDifference, 'Difference Selection'),
+      ('Intersect', BlenderGlyph.selectIntersect, 'Intersect Selection'),
+    ];
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.surface.withAlpha(244),
+        border: Border.all(color: theme.colors.editorBorder),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final mode in modes)
+            BlenderIconButton(
+              key: ValueKey<String>(
+                'viewport-selection-${mode.$1.toLowerCase()}',
+              ),
+              glyph: mode.$2,
+              selected: value == mode.$1,
+              onPressed: () => onChanged(mode.$1),
+              tooltip: mode.$3,
+              size: 30,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Blender-shaped navigation buttons that sit below the axis gizmo.
+class BlenderViewportNavigationControls extends StatelessWidget {
+  const BlenderViewportNavigationControls({
+    super.key,
+    required this.onZoom,
+    required this.onCamera,
+    required this.onPerspective,
+  });
+
+  final VoidCallback onZoom;
+  final VoidCallback onCamera;
+  final VoidCallback onPerspective;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      _ViewportRoundButton(
+        glyph: BlenderGlyph.zoom,
+        tooltip: 'Zoom in/out in the view',
+        onPressed: onZoom,
+      ),
+      const SizedBox(height: 4),
+      _ViewportRoundButton(
+        glyph: BlenderGlyph.camera,
+        tooltip: 'Toggle camera view',
+        onPressed: onCamera,
+      ),
+      const SizedBox(height: 4),
+      _ViewportRoundButton(
+        glyph: BlenderGlyph.grid,
+        tooltip: 'Toggle perspective/orthographic',
+        onPressed: onPerspective,
+      ),
+    ],
+  );
+}
+
+class _ViewportRoundButton extends StatelessWidget {
+  const _ViewportRoundButton({
+    required this.glyph,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final BlenderGlyph glyph;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return BlenderTooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.surface.withAlpha(218),
+            shape: BoxShape.circle,
+          ),
+          child: SizedBox.square(
+            dimension: 34,
+            child: Center(child: BlenderIcon(glyph, size: 20)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BlenderViewportSidebarTab {
+  const BlenderViewportSidebarTab({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+/// Vertical N-panel category tabs. Selecting the active tab collapses the
+/// panel, matching the region toggle used by Blender's 3D viewport.
+class BlenderViewportSidebarRail extends StatelessWidget {
+  const BlenderViewportSidebarRail({
+    super.key,
+    required this.tabs,
+    required this.selected,
+    required this.expanded,
+    required this.onSelected,
+  });
+
+  final List<BlenderViewportSidebarTab> tabs;
+  final String selected;
+  final bool expanded;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (final tab in tabs)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: GestureDetector(
+              key: ValueKey<String>('viewport-sidebar-tab-${tab.id}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onSelected(tab.id),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: expanded && selected == tab.id
+                      ? theme.colors.panelBackground
+                      : theme.colors.surface.withAlpha(246),
+                  border: Border.all(color: theme.colors.editorBorder),
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(5),
+                  ),
+                ),
+                child: SizedBox(
+                  width: 29,
+                  height: 78,
+                  child: Center(
+                    child: RotatedBox(
+                      quarterTurns: 1,
+                      child: Text(tab.label, style: theme.textTheme.body),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

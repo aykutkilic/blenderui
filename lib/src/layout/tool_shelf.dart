@@ -8,6 +8,8 @@ class BlenderToolShelf extends StatelessWidget {
     required this.onChanged,
     this.onOptionSelected,
     this.width = 32,
+    this.floating = false,
+    this.buttonSpacing = 0,
   });
 
   final List<BlenderToolDefinition> tools;
@@ -16,32 +18,27 @@ class BlenderToolShelf extends StatelessWidget {
   final ValueChanged<BlenderToolOption>? onOptionSelected;
   final double width;
 
+  /// Uses Blender's viewport-overlay treatment instead of consuming an opaque
+  /// editor region. Group breaks remain encoded by each tool definition.
+  final bool floating;
+  final double buttonSpacing;
+
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: Border(right: BorderSide(color: theme.colors.editorBorder)),
-      ),
-      child: SizedBox(
-        width: width,
-        child: ListView.builder(
-          padding: const EdgeInsets.only(top: 4),
-          itemCount: tools.length,
-          itemExtent: width,
-          itemBuilder: (context, index) {
-            final tool = tools[index];
-            final button = BlenderIconButton(
-              glyph: tool.glyph,
-              selected: index == selectedIndex,
-              enabled: tool.enabled,
-              onPressed: tool.options.isEmpty ? () => onChanged(index) : () {},
-              tooltip: tool.options.isEmpty ? tool.tooltip : null,
-              size: width - 2,
-            );
-            if (tool.options.isEmpty) return button;
-            return BlenderTooltip(
+    Widget buildTool(int index) {
+      final tool = tools[index];
+      final button = BlenderIconButton(
+        glyph: tool.glyph,
+        selected: index == selectedIndex,
+        enabled: tool.enabled,
+        onPressed: tool.options.isEmpty ? () => onChanged(index) : null,
+        tooltip: tool.options.isEmpty ? tool.tooltip : null,
+        size: width - 2,
+      );
+      final interactive = tool.options.isEmpty
+          ? button
+          : BlenderTooltip(
               message: tool.tooltip,
               child: BlenderPopover(
                 targetAnchor: Alignment.centerRight,
@@ -59,10 +56,44 @@ class BlenderToolShelf extends StatelessWidget {
                 ),
               ),
             );
-          },
+      return Padding(
+        padding: EdgeInsets.only(
+          top: tool.groupBreakBefore ? 6 : (index == 0 ? 0 : buttonSpacing),
+        ),
+        child: SizedBox(height: width, child: interactive),
+      );
+    }
+
+    final contents = floating
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < tools.length; index++)
+                buildTool(index),
+            ],
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            itemCount: tools.length,
+            itemBuilder: (context, index) => buildTool(index),
+          );
+    final shelf = DecoratedBox(
+      decoration: BoxDecoration(
+        color: floating
+            ? theme.colors.surface.withAlpha(244)
+            : theme.colors.surface,
+        border: Border.all(color: theme.colors.editorBorder),
+        borderRadius: floating ? BorderRadius.circular(5) : BorderRadius.zero,
+      ),
+      child: SizedBox(
+        width: width,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: floating ? 2 : 0),
+          child: contents,
         ),
       ),
     );
+    return shelf;
   }
 }
 
@@ -89,6 +120,7 @@ class BlenderToolDefinition {
     this.enabled = true,
     this.options = const <BlenderToolOption>[],
     this.selectedOption = 0,
+    this.groupBreakBefore = false,
   });
 
   final BlenderGlyph glyph;
@@ -96,6 +128,7 @@ class BlenderToolDefinition {
   final bool enabled;
   final List<BlenderToolOption> options;
   final int selectedOption;
+  final bool groupBreakBefore;
 }
 
 class _BlenderToolOptionMenu extends StatelessWidget {

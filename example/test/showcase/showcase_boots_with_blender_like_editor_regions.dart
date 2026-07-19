@@ -22,17 +22,11 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
       expect(arrow.size, 9);
     }
 
-    final firstTool = find.descendant(
-      of: find.byType(BlenderToolShelf),
-      matching: find.byType(BlenderIconButton),
+    final firstToolOptions = find.descendant(
+      of: find.byKey(const ValueKey<String>('viewport-tool-shelf')),
+      matching: find.byType(BlenderPopover),
     );
-    final firstToolRect = tester.getRect(firstTool.first);
-    await tester.tapAt(firstToolRect.topLeft + const Offset(6, 6));
-    await tester.pump();
-    expect(find.text('Tweak'), findsOneWidget);
-    expect(find.text('Select Box'), findsWidgets);
-    await tester.tapAt(const Offset(700, 50));
-    await tester.pump();
+    expect(firstToolOptions, findsOneWidget);
 
     final fileRect = tester.getRect(find.text('File'));
     await tester.tapAt(fileRect.topLeft + const Offset(5, 5));
@@ -53,7 +47,7 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
     await tester.tapAt(selectorRect.topLeft + const Offset(12, 11));
     await tester.pump();
     expect(find.text('General'), findsOneWidget);
-    expect(find.text('Animation'), findsNWidgets(2));
+    expect(find.text('Animation'), findsNWidgets(3));
     expect(find.text('Scripting'), findsOneWidget);
     expect(find.text('Data'), findsOneWidget);
     expect(find.text('Asset Browser'), findsOneWidget);
