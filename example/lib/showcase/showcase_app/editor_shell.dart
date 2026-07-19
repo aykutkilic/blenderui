@@ -38,64 +38,10 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
       Builder(builder: (context) => _buildMainToolbarForTheme(context));
 
   Widget _buildLeftSidebar({bool floating = false}) {
-    return BlenderToolShelf(
+    return BlenderView3dToolShelf(
       key: floating ? const ValueKey<String>('viewport-tool-shelf') : null,
       width: floating ? 42 : 48,
       floating: floating,
-      tools: const <BlenderToolDefinition>[
-        BlenderToolDefinition(
-          glyph: BlenderGlyph.pointer,
-          tooltip: 'Select tool',
-          options: <BlenderToolOption>[
-            BlenderToolOption(
-              label: 'Tweak',
-              glyph: BlenderGlyph.pointer,
-              shortcut: 'Space Bar',
-              description: 'Select and transform elements directly.',
-            ),
-            BlenderToolOption(
-              label: 'Select Box',
-              glyph: BlenderGlyph.selectBox,
-              shortcut: 'W',
-              description: 'Select elements inside a rectangular region.',
-            ),
-            BlenderToolOption(
-              label: 'Select Circle',
-              glyph: BlenderGlyph.radio,
-              shortcut: 'C',
-              description: 'Select elements inside a circular region.',
-            ),
-            BlenderToolOption(
-              label: 'Select Lasso',
-              glyph: BlenderGlyph.pointer,
-              shortcut: 'Ctrl Space',
-              description: 'Select elements inside a freeform region.',
-            ),
-          ],
-        ),
-        BlenderToolDefinition(glyph: BlenderGlyph.radio, tooltip: '3D Cursor'),
-        BlenderToolDefinition(
-          glyph: BlenderGlyph.transform,
-          tooltip: 'Move tool',
-          groupBreakBefore: true,
-        ),
-        BlenderToolDefinition(
-          glyph: BlenderGlyph.rotate,
-          tooltip: 'Rotate tool',
-        ),
-        BlenderToolDefinition(glyph: BlenderGlyph.scale, tooltip: 'Scale tool'),
-        BlenderToolDefinition(
-          glyph: BlenderGlyph.tool,
-          tooltip: 'Annotate',
-          groupBreakBefore: true,
-        ),
-        BlenderToolDefinition(glyph: BlenderGlyph.grid, tooltip: 'Measure'),
-        BlenderToolDefinition(
-          glyph: BlenderGlyph.plus,
-          tooltip: 'Add Cube',
-          groupBreakBefore: true,
-        ),
-      ],
       selectedIndex: _toolIndex,
       onChanged: (value) {
         _update(() => _toolIndex = value);
@@ -233,7 +179,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             tooltip: 'Toggle gizmos',
           ),
           popover: (context, close) =>
-              _buildViewportPopoverPanel('Gizmo Display', <Widget>[
+              BlenderPopoverPanel.settings('Gizmo Display', <Widget>[
                 BlenderCheckbox(
                   value: _showGizmos,
                   label: 'Show Gizmos',
@@ -249,7 +195,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
                   label: 'Tool Gizmos',
                   onChanged: (value) => _setStatus('Tool gizmos toggled'),
                 ),
-              ]),
+              ], width: 240),
         ),
         BlenderPopover(
           child: BlenderIconButton(
@@ -260,7 +206,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             tooltip: 'Toggle overlays',
           ),
           popover: (context, close) =>
-              _buildViewportPopoverPanel('Overlays', <Widget>[
+              BlenderPopoverPanel.settings('Overlays', <Widget>[
                 BlenderCheckbox(
                   value: _showOverlays,
                   label: 'Show Overlays',
@@ -282,7 +228,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
                   label: 'Text Info',
                   onChanged: (value) => _setStatus('Text info toggled'),
                 ),
-              ]),
+              ], width: 240),
         ),
         BlenderIconButton(
           key: const ValueKey<String>('viewport-xray'),
@@ -320,7 +266,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             glyph: BlenderGlyph.settings,
             tooltip: 'Viewport shading options',
           ),
-          popover: (context, close) => _buildViewportPopoverPanel(
+          popover: (context, close) => BlenderPopoverPanel.settings(
             'Shading',
             <Widget>[
               BlenderDropdown<String>(
@@ -359,6 +305,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
                 onChanged: (value) => _setStatus('Outline toggled'),
               ),
             ],
+            width: 240,
           ),
         ),
         const BlenderIconButton(
@@ -366,17 +313,6 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
           tooltip: 'Area options',
         ),
       ],
-    );
-  }
-
-  Widget _buildViewportPopoverPanel(String title, List<Widget> children) {
-    return BlenderPopoverPanel(
-      title: title,
-      width: 240,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
     );
   }
 
@@ -498,7 +434,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             tooltip: 'UV snapping',
           ),
           onOpenChanged: (open) => _update(() => _imageSnap = open),
-          popover: (context, close) => _buildAnimationPopoverPanel(
+          popover: (context, close) => BlenderPopoverPanel.settings(
             'Snapping',
             <Widget>[
               Text(
@@ -549,7 +485,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             ),
             onOpenChanged: (open) => _update(() => _imageProportional = open),
             popover: (context, close) =>
-                _buildAnimationPopoverPanel('Proportional Editing', <Widget>[
+                BlenderPopoverPanel.settings('Proportional Editing', <Widget>[
                   BlenderCheckbox(
                     value: true,
                     label: 'Connected',
@@ -583,7 +519,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             tooltip: 'Image gizmos',
           ),
           popover: (context, close) =>
-              _buildAnimationPopoverPanel('Gizmos', <Widget>[
+              BlenderPopoverPanel.settings('Gizmos', <Widget>[
                 BlenderCheckbox(
                   value: _imageGizmos,
                   label: 'Show Gizmos',
@@ -604,7 +540,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             tooltip: 'Image overlays',
           ),
           popover: (context, close) =>
-              _buildAnimationPopoverPanel('Overlays', <Widget>[
+              BlenderPopoverPanel.settings('Overlays', <Widget>[
                 BlenderCheckbox(
                   value: _imageOverlays,
                   label: 'Show Overlays',

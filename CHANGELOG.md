@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Moved the standard grouped Object Mode tool shelf and orientation gizmo from
+  the example into reusable View3D package widgets.
+- Added the shared `BlenderPopoverPanel.settings` composition and removed
+  repeated example-only editor-popover builders.
+- Replaced completed, obsolete backlog documents with a current architecture
+  guide and ownership decision record.
+
 ## 0.1.0 — 2026-07-15
 
 Initial public release, prepared for publication on pub.dev.

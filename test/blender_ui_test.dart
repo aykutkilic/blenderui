@@ -15,6 +15,7 @@ part 'blender_ui/running_jobs_panel_includes_source_status_rows.dart';
 part 'blender_ui/properties_context_tiles_fill_their_navigation_rail.dart';
 part 'blender_ui/operator_redo_and_property_dialog_preserve_popup.dart';
 part 'blender_ui/status_info_preserves_version_extension_and_warning.dart';
+part 'blender_ui/view3d_chrome_is_library_owned.dart';
 
 Widget _harness(Widget child) {
   return Directionality(
@@ -45,6 +46,7 @@ void main() {
   registerPropertiesContextTilesFillTheirNavigationRailTests();
   registerOperatorRedoAndPropertyDialogPreservePopupTests();
   registerStatusInfoPreservesVersionExtensionAndWarningTests();
+  registerView3dChromeIsLibraryOwnedTests();
 }
 
 void _ignoreDouble(double value) {}

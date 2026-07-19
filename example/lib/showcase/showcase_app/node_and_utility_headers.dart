@@ -284,7 +284,7 @@ extension _ShowcaseNodeUtilityHeaders on _ShowcaseAppState {
   ];
 
   Widget _buildNodeGizmoPopover() =>
-      _buildAnimationPopoverPanel('Gizmos', <Widget>[
+      BlenderPopoverPanel.settings('Gizmos', <Widget>[
         const Text('Viewport Gizmos'),
         BlenderCheckbox(
           value: _nodeGizmos,
@@ -297,7 +297,7 @@ extension _ShowcaseNodeUtilityHeaders on _ShowcaseAppState {
     final geometry = type == BlenderEditorType.geometryNodeEditor;
     final compositor = type == BlenderEditorType.compositor;
     final shader = type == BlenderEditorType.shaderEditor;
-    return _buildAnimationPopoverPanel('Overlays', <Widget>[
+    return BlenderPopoverPanel.settings('Overlays', <Widget>[
       const Text('Node Editor Overlays'),
       BlenderCheckbox(
         value: _nodeOverlays,

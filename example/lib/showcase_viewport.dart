@@ -152,14 +152,8 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
           ),
         );
       },
-      gizmoBuilder: (context, state) => _OrientationGizmo(
-        camera: _OrbitCamera(
-          yaw: state.yaw,
-          pitch: state.pitch,
-          distance: state.distance,
-        ),
-        colors: colors,
-      ),
+      gizmoBuilder: (context, state) =>
+          BlenderViewportOrientationGizmo(yaw: state.yaw, pitch: state.pitch),
     );
   }
 }
@@ -176,23 +170,6 @@ class _ViewportCaption extends StatelessWidget {
       style: BlenderTheme.of(context).textTheme.body.copyWith(
         color: BlenderTheme.of(context).colors.foreground,
         height: 1.35,
-      ),
-    );
-  }
-}
-
-class _OrientationGizmo extends StatelessWidget {
-  const _OrientationGizmo({required this.camera, required this.colors});
-
-  final _OrbitCamera camera;
-  final BlenderColorScheme colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 76,
-      child: CustomPaint(
-        painter: _OrientationGizmoPainter(camera: camera, colors: colors),
       ),
     );
   }
@@ -377,43 +354,6 @@ void _line(
       ..color = color
       ..strokeWidth = width,
   );
-}
-
-class _OrientationGizmoPainter extends CustomPainter {
-  const _OrientationGizmoPainter({required this.camera, required this.colors});
-
-  final _OrbitCamera camera;
-  final BlenderColorScheme colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    for (final axis in <(_Vec3, Color, String)>[
-      (const _Vec3(1, 0, 0), colors.axisX, 'X'),
-      (const _Vec3(0, 1, 0), colors.axisY, 'Y'),
-      (const _Vec3(0, 0, 1), colors.axisZ, 'Z'),
-    ]) {
-      final rotated = camera.rotate(axis.$1);
-      final end = center + Offset(rotated.x, -rotated.y) * 27;
-      final axisPaint = Paint()
-        ..color = axis.$2
-        ..strokeWidth = 2;
-      canvas.drawLine(center, end, axisPaint);
-      canvas.drawCircle(end, 10, Paint()..color = axis.$2);
-      final label = TextPainter(
-        text: TextSpan(
-          text: axis.$3,
-          style: const TextStyle(color: Color(0xFF151515), fontSize: 11),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      label.paint(canvas, end - Offset(label.width / 2, label.height / 2));
-    }
-  }
-
-  @override
-  bool shouldRepaint(_OrientationGizmoPainter oldDelegate) =>
-      oldDelegate.camera != camera || oldDelegate.colors != colors;
 }
 
 class _ViewportProjection {

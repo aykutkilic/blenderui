@@ -14,6 +14,24 @@ class BlenderPopoverPanel extends StatelessWidget {
     this.padding = const EdgeInsets.all(8),
   });
 
+  /// Standard vertical settings content used by editor-header popovers.
+  factory BlenderPopoverPanel.settings(
+    String title,
+    List<Widget> children, {
+    Key? key,
+    double width = 280,
+    double maxHeight = 520,
+  }) => BlenderPopoverPanel(
+    key: key,
+    title: title,
+    width: width,
+    maxHeight: maxHeight,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    ),
+  );
+
   final String title;
   final Widget child;
   final double width;

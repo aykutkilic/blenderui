@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
@@ -279,6 +281,92 @@ class BlenderViewportNavigationControls extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Renderer-independent axis gizmo driven by the viewport's orbit angles.
+class BlenderViewportOrientationGizmo extends StatelessWidget {
+  const BlenderViewportOrientationGizmo({
+    super.key,
+    required this.yaw,
+    required this.pitch,
+    this.size = 76,
+  });
+
+  final double yaw;
+  final double pitch;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(
+      painter: _ViewportOrientationGizmoPainter(
+        yaw: yaw,
+        pitch: pitch,
+        colors: BlenderTheme.of(context).colors,
+      ),
+    ),
+  );
+}
+
+class _ViewportOrientationGizmoPainter extends CustomPainter {
+  const _ViewportOrientationGizmoPainter({
+    required this.yaw,
+    required this.pitch,
+    required this.colors,
+  });
+
+  final double yaw;
+  final double pitch;
+  final BlenderColorScheme colors;
+
+  Offset _rotate(double x, double y, double z) {
+    final cy = math.cos(yaw);
+    final sy = math.sin(yaw);
+    final cp = math.cos(pitch);
+    final sp = math.sin(pitch);
+    final rotatedX = cy * x - sy * y;
+    final rotatedY = sy * x + cy * y;
+    return Offset(rotatedX, cp * z - sp * rotatedY);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    for (final axis in <(Offset, Color, String)>[
+      (_rotate(1, 0, 0), colors.axisX, 'X'),
+      (_rotate(0, 1, 0), colors.axisY, 'Y'),
+      (_rotate(0, 0, 1), colors.axisZ, 'Z'),
+    ]) {
+      final end =
+          center + Offset(axis.$1.dx, -axis.$1.dy) * (size.width * .355);
+      canvas.drawLine(
+        center,
+        end,
+        Paint()
+          ..color = axis.$2
+          ..strokeWidth = 2,
+      );
+      canvas.drawCircle(end, size.width * .132, Paint()..color = axis.$2);
+      final label = TextPainter(
+        text: TextSpan(
+          text: axis.$3,
+          style: TextStyle(
+            color: const Color(0xFF151515),
+            fontSize: size.width * .145,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      label.paint(canvas, end - Offset(label.width / 2, label.height / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ViewportOrientationGizmoPainter oldDelegate) =>
+      oldDelegate.yaw != yaw ||
+      oldDelegate.pitch != pitch ||
+      oldDelegate.colors != colors;
 }
 
 class _ViewportRoundButton extends StatelessWidget {

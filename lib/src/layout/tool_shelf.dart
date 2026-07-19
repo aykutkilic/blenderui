@@ -97,6 +97,89 @@ class BlenderToolShelf extends StatelessWidget {
   }
 }
 
+/// Blender's standard Object Mode tool ordering for a 3D viewport.
+///
+/// Applications own selection and command handling; BlenderUI owns the stable
+/// tool taxonomy, grouping, glyphs, and compact/floating presentation.
+class BlenderView3dToolShelf extends StatelessWidget {
+  const BlenderView3dToolShelf({
+    super.key,
+    required this.selectedIndex,
+    required this.onChanged,
+    this.onOptionSelected,
+    this.width = 42,
+    this.floating = true,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+  final ValueChanged<BlenderToolOption>? onOptionSelected;
+  final double width;
+  final bool floating;
+
+  static const List<BlenderToolDefinition> tools = <BlenderToolDefinition>[
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.pointer,
+      tooltip: 'Select tool',
+      options: <BlenderToolOption>[
+        BlenderToolOption(
+          label: 'Tweak',
+          glyph: BlenderGlyph.pointer,
+          shortcut: 'Space Bar',
+          description: 'Select and transform elements directly.',
+        ),
+        BlenderToolOption(
+          label: 'Select Box',
+          glyph: BlenderGlyph.selectBox,
+          shortcut: 'W',
+          description: 'Select elements inside a rectangular region.',
+        ),
+        BlenderToolOption(
+          label: 'Select Circle',
+          glyph: BlenderGlyph.radio,
+          shortcut: 'C',
+          description: 'Select elements inside a circular region.',
+        ),
+        BlenderToolOption(
+          label: 'Select Lasso',
+          glyph: BlenderGlyph.pointer,
+          shortcut: 'Ctrl Space',
+          description: 'Select elements inside a freeform region.',
+        ),
+      ],
+    ),
+    BlenderToolDefinition(glyph: BlenderGlyph.radio, tooltip: '3D Cursor'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.transform,
+      tooltip: 'Move tool',
+      groupBreakBefore: true,
+    ),
+    BlenderToolDefinition(glyph: BlenderGlyph.rotate, tooltip: 'Rotate tool'),
+    BlenderToolDefinition(glyph: BlenderGlyph.scale, tooltip: 'Scale tool'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.tool,
+      tooltip: 'Annotate',
+      groupBreakBefore: true,
+    ),
+    BlenderToolDefinition(glyph: BlenderGlyph.grid, tooltip: 'Measure'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.plus,
+      tooltip: 'Add Cube',
+      groupBreakBefore: true,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => BlenderToolShelf(
+    tools: tools,
+    selectedIndex: selectedIndex,
+    onChanged: onChanged,
+    onOptionSelected: onOptionSelected,
+    width: width,
+    floating: floating,
+  );
+}
+
 class BlenderToolOption {
   const BlenderToolOption({
     required this.label,

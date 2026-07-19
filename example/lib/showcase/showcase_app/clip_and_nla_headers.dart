@@ -81,7 +81,7 @@ extension _ShowcaseClipAndNlaHeaders on _ShowcaseAppState {
   }
 
   Widget _buildClipGizmoPopover() =>
-      _buildAnimationPopoverPanel('Gizmos', <Widget>[
+      BlenderPopoverPanel.settings('Gizmos', <Widget>[
         BlenderCheckbox(
           value: _clipGizmos,
           label: 'Show Gizmos',
@@ -96,7 +96,7 @@ extension _ShowcaseClipAndNlaHeaders on _ShowcaseAppState {
       ]);
 
   Widget _buildClipOverlayPopover() =>
-      _buildAnimationPopoverPanel('Overlays', <Widget>[
+      BlenderPopoverPanel.settings('Overlays', <Widget>[
         BlenderCheckbox(
           value: _clipOverlays,
           label: 'Show Overlays',
@@ -305,7 +305,7 @@ extension _ShowcaseClipAndNlaHeaders on _ShowcaseAppState {
   }
 
   Widget _buildNlaFiltersPopover() =>
-      _buildAnimationPopoverPanel('Filters', <Widget>[
+      BlenderPopoverPanel.settings('Filters', <Widget>[
         BlenderCheckbox(
           value: _nlaSelectedOnly,
           label: 'Only Selected',
@@ -376,7 +376,7 @@ extension _ShowcaseClipAndNlaHeaders on _ShowcaseAppState {
       ]);
 
   Widget _buildNlaSnappingPopover() =>
-      _buildAnimationPopoverPanel('Snapping', <Widget>[
+      BlenderPopoverPanel.settings('Snapping', <Widget>[
         const Text('Snap To'),
         BlenderDropdown<String>(
           value: 'Frame',

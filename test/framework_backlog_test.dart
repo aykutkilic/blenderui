@@ -39,34 +39,37 @@ class _TrackingEditorSessionService extends BlenderEditorSessionService {
 }
 
 void main() {
-  test('persistence coordinator memoizes restore and coalesces writes', () async {
-    final storage = _TrackingStorage()..values['settings'] = 'restored';
-    var current = 'initial';
-    final coordinator = BlenderPersistenceCoordinator(
-      storage: storage,
-      storageKey: 'settings',
-      serialize: () => current,
-    );
+  test(
+    'persistence coordinator memoizes restore and coalesces writes',
+    () async {
+      final storage = _TrackingStorage()..values['settings'] = 'restored';
+      var current = 'initial';
+      final coordinator = BlenderPersistenceCoordinator(
+        storage: storage,
+        storageKey: 'settings',
+        serialize: () => current,
+      );
 
-    expect(
-      await coordinator.restore((raw) {
-        current = raw;
-        return true;
-      }),
-      isTrue,
-    );
-    expect(await coordinator.restore((_) => false), isTrue);
-    expect(storage.reads, 1);
+      expect(
+        await coordinator.restore((raw) {
+          current = raw;
+          return true;
+        }),
+        isTrue,
+      );
+      expect(await coordinator.restore((_) => false), isTrue);
+      expect(storage.reads, 1);
 
-    current = 'updated';
-    coordinator
-      ..scheduleWrite()
-      ..scheduleWrite();
-    await Future<void>.delayed(Duration.zero);
-    expect(storage.writes, 1);
-    expect(storage.values['settings'], 'updated');
-    expect(coordinator.lastError, isNull);
-  });
+      current = 'updated';
+      coordinator
+        ..scheduleWrite()
+        ..scheduleWrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(storage.writes, 1);
+      expect(storage.values['settings'], 'updated');
+      expect(coordinator.lastError, isNull);
+    },
+  );
 
   test('application controller delegates adopted service disposal', () {
     final editorSession = _TrackingEditorSessionService();

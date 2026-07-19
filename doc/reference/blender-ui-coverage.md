@@ -155,7 +155,10 @@ The local `space_*` sources used for the current shell pass are:
 - `space_view3d.py`, `space_view3d_sidebar.py`, and
   `space_view3d_toolbar.py` for 3D Viewport N-panel and Tool families. The
   reusable Viewport sidebar now exposes View, View Lock, 3D Cursor,
-  Collections, Item/Transform, and Global Transform surfaces. Its header also
+  Collections, Item/Transform, and Global Transform surfaces.
+  `BlenderView3dToolShelf` owns the standard grouped Object Mode tools and
+  `BlenderViewportOrientationGizmo` owns the renderer-independent axis overlay.
+  The header also
   follows Blender's transform, gizmo, overlay, X-ray, and four-mode shading
   sequence with anchored visual popovers; viewport state, object transforms,
   collections, shading evaluation, and animation operators remain caller-owned.

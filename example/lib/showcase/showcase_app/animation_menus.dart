@@ -1,19 +1,8 @@
 part of '../showcase_app.dart';
 
 extension _ShowcaseAnimationMenus on _ShowcaseAppState {
-  Widget _buildAnimationPopoverPanel(String title, List<Widget> children) {
-    return BlenderPopoverPanel(
-      title: title,
-      width: 280,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
-    );
-  }
-
   Widget _buildAnimationFiltersPopover() {
-    return _buildAnimationPopoverPanel('Filters', <Widget>[
+    return BlenderPopoverPanel.settings('Filters', <Widget>[
       BlenderCheckbox(
         value: true,
         label: 'Summary',
@@ -66,7 +55,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildAnimationSnappingPopover() {
-    return _buildAnimationPopoverPanel('Snapping', <Widget>[
+    return BlenderPopoverPanel.settings('Snapping', <Widget>[
       const Text('Snap To'),
       BlenderDropdown<String>(
         value: 'Frame',
@@ -96,7 +85,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildAnimationOverlayPopover() {
-    return _buildAnimationPopoverPanel('Overlays', <Widget>[
+    return BlenderPopoverPanel.settings('Overlays', <Widget>[
       BlenderCheckbox(
         value: _animationOverlays,
         label: 'Show Overlays',
@@ -126,7 +115,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildProportionalEditingPopover() {
-    return _buildAnimationPopoverPanel('Proportional Editing', <Widget>[
+    return BlenderPopoverPanel.settings('Proportional Editing', <Widget>[
       BlenderDropdown<String>(
         value: 'Connected',
         items: const <BlenderMenuItem<String>>[
@@ -431,7 +420,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   ];
 
   Widget _buildAnimationPlaybackPopover() {
-    return _buildAnimationPopoverPanel('Playback', <Widget>[
+    return BlenderPopoverPanel.settings('Playback', <Widget>[
       BlenderDropdown<String>(
         value: 'Play Every Frame',
         items: const <BlenderMenuItem<String>>[
@@ -480,7 +469,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildAnimationAutoKeyingPopover() {
-    return _buildAnimationPopoverPanel('Auto Keying', <Widget>[
+    return BlenderPopoverPanel.settings('Auto Keying', <Widget>[
       BlenderSegmentedControl<String>(
         value: 'Add & Replace',
         items: const <BlenderMenuItem<String>>[
@@ -508,7 +497,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildAnimationTimeJumpPopover() {
-    return _buildAnimationPopoverPanel('Time Jump', <Widget>[
+    return BlenderPopoverPanel.settings('Time Jump', <Widget>[
       const Text('Jump Unit'),
       BlenderSegmentedControl<String>(
         value: 'Frame',
@@ -532,7 +521,7 @@ extension _ShowcaseAnimationMenus on _ShowcaseAppState {
   }
 
   Widget _buildAnimationPlayheadSnappingPopover() {
-    return _buildAnimationPopoverPanel('Playhead', <Widget>[
+    return BlenderPopoverPanel.settings('Playhead', <Widget>[
       BlenderNumberField(
         value: 2,
         min: 0,

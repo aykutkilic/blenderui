@@ -385,7 +385,7 @@ extension _ShowcaseAnimationSequencerHeaders on _ShowcaseAppState {
       ];
 
   Widget _buildSequencerSnappingPopover() {
-    return _buildAnimationPopoverPanel('Snapping', <Widget>[
+    return BlenderPopoverPanel.settings('Snapping', <Widget>[
       const Text('Snap To'),
       BlenderSegmentedControl<String>(
         value: 'Frame',
@@ -405,7 +405,7 @@ extension _ShowcaseAnimationSequencerHeaders on _ShowcaseAppState {
   }
 
   Widget _buildSequencerGizmoPopover() {
-    return _buildAnimationPopoverPanel('Gizmos', <Widget>[
+    return BlenderPopoverPanel.settings('Gizmos', <Widget>[
       BlenderCheckbox(
         value: _sequencerGizmos,
         label: 'Show Gizmos',
@@ -425,7 +425,7 @@ extension _ShowcaseAnimationSequencerHeaders on _ShowcaseAppState {
   }
 
   Widget _buildSequencerOverlayPopover() {
-    return _buildAnimationPopoverPanel('Overlays', <Widget>[
+    return BlenderPopoverPanel.settings('Overlays', <Widget>[
       BlenderCheckbox(
         value: _sequencerOverlays,
         label: 'Show Overlays',

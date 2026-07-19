@@ -12,6 +12,9 @@ The package is implemented as ordinary Flutter widgets wherever possible. A
 small number of dense surfaces use custom painting and viewport-aware layout so
 large outliners, timelines, and node graphs remain responsive.
 
+For repository ownership, dependency direction, extension rules, and a guided
+source map, start with the [architecture guide](doc/architecture.md).
+
 The public API includes Blender-style control variants, property decorators,
 color/curve/property templates, matrices, scopes, attribute and layer
 selectors, recent-file and running-job rows,

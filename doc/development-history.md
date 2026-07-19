@@ -6,9 +6,9 @@ live in [the decision records](decisions/).
 
 ## 2026-07-17 — Audited source-size and duplication boundaries
 
-- Measured the current Dart tree and recorded every file, class, widget, and
-  function that violates or approaches the 750-line maintainability limit in
-  [`cleanup_backlog.md`](../cleanup_backlog.md).
+- Measured the Dart tree and recorded the original 750-line cleanup plan. The
+  completed plan was retired on 2026-07-19; its lasting rules are now in
+  [reviewable codebase boundaries](decisions/2026-07-19-reviewable-codebase-boundaries.md).
 - Identified repeated property-sidebar helpers, descriptor factories, category
   and tree navigation, menu overlay placement, persistence lifecycles, and
   status/report presentation as cleanup targets.
@@ -21,9 +21,9 @@ live in [the decision records](decisions/).
 - Audited the example app's reusable editor chrome, service glue, property
   factories, viewport behavior, status composition, platform integration, and
   documentation utilities against the current public BlenderUI APIs.
-- Added [`backlog.md`](backlog.md) as a decision-ready extraction queue with
-  priorities, dependencies, acceptance criteria, and explicit boundaries for
-  content that must remain example-owned.
+- Added and completed a decision-ready framework extraction queue. The active
+  ownership rules now live in
+  [reviewable codebase boundaries](decisions/2026-07-19-reviewable-codebase-boundaries.md).
 - Kept every extraction candidate proposed rather than treating the audit as
   implementation approval. Existing public APIs must be extended or
   consolidated before introducing parallel abstractions.
@@ -249,3 +249,15 @@ live in [the decision records](decisions/).
   of the renderer-neutral viewport shell contract.
 - Documented source anchors, architecture decisions, full backlog, failures,
   and verification in `doc/3d-viewport-parity.md`.
+
+## 2026-07-19 — Retired completed plans and extracted remaining View3D chrome
+
+- Re-audited all 261 Dart files and the maintained documentation for current
+  ownership, duplication, obsolete guidance, and reviewability.
+- Moved the standard Object Mode tool shelf and orientation gizmo from the
+  example app into public BlenderUI widgets; the example retains only state,
+  callbacks, and renderer-specific scene geometry.
+- Removed the completed structural and framework-extraction backlog documents,
+  which contained obsolete paths and duplicated accepted decisions.
+- Consolidated current ownership rules, rejected abstractions, size limits,
+  and verification expectations in a single decision record.

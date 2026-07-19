@@ -516,7 +516,7 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
       ];
 
   Widget _buildGraphFiltersPopover({required bool drivers}) {
-    return _buildAnimationPopoverPanel('Filters', <Widget>[
+    return BlenderPopoverPanel.settings('Filters', <Widget>[
       BlenderCheckbox(
         value: true,
         label: 'Only Selected',
@@ -549,7 +549,7 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
   }
 
   Widget _buildGraphSnappingPopover({required bool drivers}) {
-    return _buildAnimationPopoverPanel('Snapping', <Widget>[
+    return BlenderPopoverPanel.settings('Snapping', <Widget>[
       const Text('Snap To'),
       BlenderDropdown<String>(
         value: drivers ? 'Absolute Time' : 'Frame',
@@ -574,7 +574,7 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
   }
 
   Widget _buildGraphProportionalPopover() {
-    return _buildAnimationPopoverPanel('Proportional Editing', <Widget>[
+    return BlenderPopoverPanel.settings('Proportional Editing', <Widget>[
       BlenderDropdown<String>(
         value: 'Connected',
         items: const <BlenderMenuItem<String>>[

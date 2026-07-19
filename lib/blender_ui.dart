@@ -210,6 +210,7 @@ export 'src/layout.dart'
         BlenderToolDefinition,
         BlenderToolOption,
         BlenderToolShelf,
+        BlenderView3dToolShelf,
         BlenderToolbar;
 export 'src/non3d_editors.dart'
     show
@@ -395,6 +396,7 @@ export 'src/tree_state.dart' show BlenderTreeEntry, BlenderTreeState;
 export 'src/viewport.dart'
     show
         BlenderViewportNavigationControls,
+        BlenderViewportOrientationGizmo,
         BlenderViewportSelectionModeBar,
         BlenderViewportSidebarRail,
         BlenderViewportSidebarTab,
