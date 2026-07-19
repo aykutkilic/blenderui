@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added viewport-safe, titled Blender context menus with disabled states,
+  shortcuts, nested commands, delayed help, and secondary-click/long-press
+  lifecycle callbacks.
+- Added reusable Object, Outliner, Node, File Browser, Property, Tool, and Area
+  context-menu catalogs with stable action IDs.
+- Added target-aware context-menu builders to tree/list, Outliner, file, node,
+  Properties, and tool-shelf surfaces; the example now routes commands with
+  the exact entity under the pointer.
 - Moved the standard grouped Object Mode tool shelf and orientation gizmo from
   the example into reusable View3D package widgets.
 - Added the shared `BlenderPopoverPanel.settings` composition and removed

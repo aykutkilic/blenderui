@@ -32,6 +32,9 @@ class BlenderListView<T> extends StatelessWidget {
     this.selectedId,
     this.onSelected,
     this.onActivated,
+    this.contextMenuTitleBuilder,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
     this.rowHeight,
     this.emptyLabel = 'No items',
   });
@@ -40,6 +43,10 @@ class BlenderListView<T> extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<BlenderListItem<T>>? onSelected;
   final ValueChanged<BlenderListItem<T>>? onActivated;
+  final String Function(BlenderListItem<T>)? contextMenuTitleBuilder;
+  final List<BlenderMenuItem<String>> Function(BlenderListItem<T>)?
+  contextMenuItemsBuilder;
+  final void Function(BlenderListItem<T>, String)? onContextMenuSelected;
   final double? rowHeight;
   final String emptyLabel;
 
@@ -63,7 +70,7 @@ class BlenderListView<T> extends StatelessWidget {
         final item = items[index];
         final selected = item.id == selectedId;
         final active = item.enabled && onSelected != null;
-        return Semantics(
+        Widget row = Semantics(
           selected: selected,
           enabled: item.enabled,
           button: active,
@@ -114,6 +121,19 @@ class BlenderListView<T> extends StatelessWidget {
             ),
           ),
         );
+        final contextItems = contextMenuItemsBuilder?.call(item);
+        if (contextItems != null && contextItems.isNotEmpty) {
+          row = BlenderContextMenu<String>(
+            title: contextMenuTitleBuilder?.call(item),
+            items: contextItems,
+            onContextRequested: (_) {
+              if (active) onSelected!(item);
+            },
+            onSelected: (action) => onContextMenuSelected?.call(item, action),
+            child: row,
+          );
+        }
+        return row;
       },
     );
   }

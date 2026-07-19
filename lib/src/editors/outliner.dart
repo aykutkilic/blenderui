@@ -78,6 +78,10 @@ class BlenderOutliner<T> extends StatelessWidget {
     required this.roots,
     this.selectedId,
     this.onSelected,
+    this.onActivated,
+    this.contextMenuTitleBuilder,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
     this.showVisibility = false,
     this.showLock = false,
     this.onVisibilityChanged,
@@ -128,6 +132,11 @@ class BlenderOutliner<T> extends StatelessWidget {
   final List<BlenderTreeNode<T>> roots;
   final String? selectedId;
   final ValueChanged<BlenderTreeNode<T>>? onSelected;
+  final ValueChanged<BlenderTreeNode<T>>? onActivated;
+  final String Function(BlenderTreeNode<T>)? contextMenuTitleBuilder;
+  final List<BlenderMenuItem<String>> Function(BlenderTreeNode<T>)?
+  contextMenuItemsBuilder;
+  final void Function(BlenderTreeNode<T>, String)? onContextMenuSelected;
   final bool showVisibility;
   final bool showLock;
   final ValueChanged<BlenderTreeNode<T>>? onVisibilityChanged;
@@ -367,6 +376,10 @@ class BlenderOutliner<T> extends StatelessWidget {
               roots: roots,
               selectedId: selectedId,
               onSelected: onSelected,
+              onActivated: onActivated,
+              contextMenuTitleBuilder: contextMenuTitleBuilder,
+              contextMenuItemsBuilder: contextMenuItemsBuilder,
+              onContextMenuSelected: onContextMenuSelected,
               showVisibility: showVisibility,
               showLock: showLock,
               onVisibilityChanged: onVisibilityChanged,

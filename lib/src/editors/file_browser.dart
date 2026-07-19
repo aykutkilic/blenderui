@@ -7,6 +7,8 @@ class BlenderFileBrowser extends StatelessWidget {
     this.selectedPath,
     this.onSelected,
     this.onOpen,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
     this.searchController,
     this.pathSegments = const <String>[],
     this.onPathSelected,
@@ -27,6 +29,9 @@ class BlenderFileBrowser extends StatelessWidget {
   final String? selectedPath;
   final ValueChanged<BlenderFileEntry>? onSelected;
   final ValueChanged<BlenderFileEntry>? onOpen;
+  final List<BlenderMenuItem<String>> Function(BlenderFileEntry)?
+  contextMenuItemsBuilder;
+  final void Function(BlenderFileEntry, String)? onContextMenuSelected;
   final TextEditingController? searchController;
   final List<String> pathSegments;
   final ValueChanged<int>? onPathSelected;
@@ -193,6 +198,14 @@ class BlenderFileBrowser extends StatelessWidget {
               onActivated: onOpen == null
                   ? null
                   : (item) => onOpen!(item.value!),
+              contextMenuTitleBuilder: (item) => item.label,
+              contextMenuItemsBuilder: contextMenuItemsBuilder == null
+                  ? null
+                  : (item) => contextMenuItemsBuilder!(item.value!),
+              onContextMenuSelected: onContextMenuSelected == null
+                  ? null
+                  : (item, action) =>
+                        onContextMenuSelected!(item.value!, action),
             ),
           ),
       ],
@@ -202,7 +215,7 @@ class BlenderFileBrowser extends StatelessWidget {
   Widget _buildGridEntry(BuildContext context, BlenderFileEntry entry) {
     final theme = BlenderTheme.of(context);
     final selected = entry.path == selectedPath;
-    return GestureDetector(
+    Widget tile = GestureDetector(
       onTap: () => onSelected?.call(entry),
       onDoubleTap: () => onOpen?.call(entry),
       child: DecoratedBox(
@@ -226,6 +239,17 @@ class BlenderFileBrowser extends StatelessWidget {
         ),
       ),
     );
+    final contextItems = contextMenuItemsBuilder?.call(entry);
+    if (contextItems != null && contextItems.isNotEmpty) {
+      tile = BlenderContextMenu<String>(
+        title: entry.name,
+        items: contextItems,
+        onContextRequested: (_) => onSelected?.call(entry),
+        onSelected: (action) => onContextMenuSelected?.call(entry, action),
+        child: tile,
+      );
+    }
+    return tile;
   }
 }
 

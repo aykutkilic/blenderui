@@ -227,6 +227,8 @@ class BlenderPropertiesEditor extends StatefulWidget {
     this.joinNavigationRail = false,
     this.onGroupOrderChanged,
     this.searchController,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
   });
 
   final List<BlenderPropertyGroup> groups;
@@ -254,6 +256,15 @@ class BlenderPropertiesEditor extends StatefulWidget {
   /// behavior. Matching panels are temporarily expanded without changing the
   /// user's stored expansion state.
   final TextEditingController? searchController;
+  final List<BlenderMenuItem<String>> Function(
+    BlenderPropertyDescriptor<dynamic> property,
+  )?
+  contextMenuItemsBuilder;
+  final void Function(
+    BlenderPropertyDescriptor<dynamic> property,
+    String action,
+  )?
+  onContextMenuSelected;
 
   @override
   State<BlenderPropertiesEditor> createState() =>
@@ -373,19 +384,36 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
       children: <Widget>[
         if (view.group.content != null) view.group.content!,
         for (final property in view.properties)
-          BlenderPropertyRow(
-            label: property.label,
-            tooltip: property.tooltip,
-            state: property.state,
-            labelPlacement: property.effectiveLabelPlacement,
-            onKeyframe: property.onKeyframe,
-            onReset: property.onReset,
-            editor: property.buildEditor(context),
-          ),
+          _buildPropertyRow(context, property),
         for (final child in view.children)
           _buildPanel(context, child, searchActive: searchActive, nested: true),
       ],
     );
+  }
+
+  Widget _buildPropertyRow(
+    BuildContext context,
+    BlenderPropertyDescriptor<dynamic> property,
+  ) {
+    Widget row = BlenderPropertyRow(
+      label: property.label,
+      tooltip: property.tooltip,
+      state: property.state,
+      labelPlacement: property.effectiveLabelPlacement,
+      onKeyframe: property.onKeyframe,
+      onReset: property.onReset,
+      editor: property.buildEditor(context),
+    );
+    final items = widget.contextMenuItemsBuilder?.call(property);
+    if (items == null || items.isEmpty) return row;
+    row = BlenderContextMenu<String>(
+      title: property.label,
+      items: items,
+      onSelected: (action) =>
+          widget.onContextMenuSelected?.call(property, action),
+      child: row,
+    );
+    return row;
   }
 
   Widget _buildPanel(

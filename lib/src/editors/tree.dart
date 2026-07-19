@@ -63,6 +63,8 @@ class BlenderTree<T> extends StatefulWidget {
     required this.roots,
     this.selectedId,
     this.onSelected,
+    this.onActivated,
+    this.contextMenuTitleBuilder,
     this.rowHeight,
     this.indent = 16,
     this.showVisibility = false,
@@ -78,6 +80,10 @@ class BlenderTree<T> extends StatefulWidget {
   final List<BlenderTreeNode<T>> roots;
   final String? selectedId;
   final ValueChanged<BlenderTreeNode<T>>? onSelected;
+
+  /// Called when a selectable row is double-clicked.
+  final ValueChanged<BlenderTreeNode<T>>? onActivated;
+  final String Function(BlenderTreeNode<T>)? contextMenuTitleBuilder;
   final double? rowHeight;
   final double indent;
   final bool showVisibility;
@@ -105,6 +111,8 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
   late final ScrollController _scrollController;
   late final Set<String> _expanded;
   String? _hoveredNodeId;
+  String? _lastTappedNodeId;
+  Duration? _lastTapTime;
 
   @override
   void initState() {
@@ -129,6 +137,31 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
       }
     });
     widget.onExpandedChanged?.call(Set<String>.unmodifiable(_expanded));
+  }
+
+  void _handleSelectablePointerDown(
+    BlenderTreeNode<T> node,
+    PointerDownEvent event,
+  ) {
+    if (event.kind != PointerDeviceKind.touch &&
+        event.buttons != kPrimaryMouseButton) {
+      return;
+    }
+    widget.onSelected?.call(node);
+    final previousNodeId = _lastTappedNodeId;
+    final previousTime = _lastTapTime;
+    final isDoubleTap =
+        previousNodeId == node.id &&
+        previousTime != null &&
+        event.timeStamp - previousTime <= const Duration(milliseconds: 300);
+    if (isDoubleTap) {
+      widget.onActivated?.call(node);
+      _lastTappedNodeId = null;
+      _lastTapTime = null;
+    } else {
+      _lastTappedNodeId = node.id;
+      _lastTapTime = event.timeStamp;
+    }
   }
 
   @override
@@ -172,9 +205,6 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                   const <BlenderMenuItem<String>>[];
               Widget row = GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: node.selectable
-                    ? () => widget.onSelected?.call(node)
-                    : null,
                 onSecondaryTapDown: node.onContextMenuRequested == null
                     ? null
                     : (details) =>
@@ -344,6 +374,17 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                   ),
                 ),
               );
+              // Select on pointer-down so adding double-click activation does
+              // not delay ordinary single-click selection until the double
+              // tap recognizer times out.
+              if (node.selectable) {
+                row = Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (event) =>
+                      _handleSelectablePointerDown(node, event),
+                  child: row,
+                );
+              }
               row = MouseRegion(
                 onEnter: (_) => setState(() => _hoveredNodeId = node.id),
                 onExit: (_) {
@@ -398,7 +439,13 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
               }
               if (contextMenuItems.isNotEmpty) {
                 row = BlenderContextMenu<String>(
+                  title: widget.contextMenuTitleBuilder?.call(node),
                   items: contextMenuItems,
+                  // Blender activates the view item under the pointer before
+                  // asking that item to build its context menu.
+                  onContextRequested: (_) {
+                    if (node.selectable) widget.onSelected?.call(node);
+                  },
                   onSelected: (item) =>
                       widget.onContextMenuSelected?.call(node, item),
                   child: row,

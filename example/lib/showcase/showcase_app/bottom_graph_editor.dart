@@ -236,6 +236,9 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
         model: _nodeGraph,
         onNodeSelected: (node) => _setStatus('Selected node ${node.title}'),
         onNodeMoved: _moveNode,
+        contextMenuItemsBuilder: (_) => BlenderContextMenuCatalog.node(),
+        onContextMenuSelected: (node, action) =>
+            _setStatus('$action: ${node.title}'),
       ),
       3 => BlenderSpreadsheetEditor(
         columns: _spreadsheetColumns,

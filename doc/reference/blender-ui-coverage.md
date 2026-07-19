@@ -24,7 +24,7 @@ than visual.
 | --- | --- | --- |
 | `interface_layout.cc` | `BlenderBox`, `BlenderFlow`, `BlenderGrid`, `BlenderOverlap`, `BlenderPanel`, `BlenderRegion`, `BlenderSplitter` | Implemented |
 | `interface_widgets.cc`, `interface_style.cc` | `BlenderTheme`, controls, property indicators, semantic glyphs | Implemented |
-| `interface_region_menu_popup.cc` | `BlenderMenu`, `BlenderDropdown`, `BlenderMenuButton`, `BlenderContextMenu` | Implemented |
+| `interface_region_menu_popup.cc`, `interface_context_menu.cc`, `screen_ops.cc` | `BlenderMenu`, `BlenderDropdown`, `BlenderMenuButton`, `BlenderContextMenu`, `BlenderContextMenuCatalog` | Implemented presentation and target routing; operator execution is host-owned |
 | `interface_region_popover.cc` | `BlenderPopover` and anchored template popovers | Implemented |
 | `wm_operators.cc` (`wm_block_dialog_create`) | `showBlenderDialog`, `BlenderDialog`, `BlenderAlertDialog` with source-shaped two-column Cancel/Confirm actions | Implemented |
 | `wm_operators.cc` (`wm_block_create_redo`, `WM_operator_props_dialog_popup`) | `BlenderOperatorRedoPopup`, `BlenderOperatorPropertiesDialog` | Implemented |

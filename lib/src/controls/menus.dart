@@ -9,6 +9,7 @@ class BlenderMenuItem<T> {
     this.selected = false,
     this.checked = false,
     this.shortcut,
+    this.description,
     this.separator = false,
     this.submenu,
   });
@@ -20,6 +21,9 @@ class BlenderMenuItem<T> {
   final bool selected;
   final bool checked;
   final String? shortcut;
+
+  /// Optional operator-style help shown after the standard tooltip delay.
+  final String? description;
   final bool separator;
   final List<BlenderMenuItem<T>>? submenu;
 
@@ -31,6 +35,7 @@ class BlenderMenuItem<T> {
     bool? selected,
     bool? checked,
     String? shortcut,
+    String? description,
     bool? separator,
     List<BlenderMenuItem<T>>? submenu,
   }) {
@@ -42,6 +47,7 @@ class BlenderMenuItem<T> {
       selected: selected ?? this.selected,
       checked: checked ?? this.checked,
       shortcut: shortcut ?? this.shortcut,
+      description: description ?? this.description,
       separator: separator ?? this.separator,
       submenu: submenu ?? this.submenu,
     );
@@ -87,6 +93,7 @@ Future<void> _showBlenderMenuOverlay<T>({
   required List<BlenderMenuItem<T>> items,
   required ValueChanged<T>? onSelected,
   T? selectedValue,
+  String? title,
 }) {
   return showGeneralDialog<void>(
     context: context,
@@ -99,10 +106,15 @@ Future<void> _showBlenderMenuOverlay<T>({
           context,
           Stack(
             children: <Widget>[
-              Positioned(
-                left: position.dx,
-                top: position.dy,
+              CustomSingleChildLayout(
+                delegate: _BlenderPopoverPositionDelegate(
+                  target: Rect.fromLTWH(position.dx, position.dy, 0, 0),
+                  offset: Offset.zero,
+                  targetAnchor: Alignment.topLeft,
+                  followerAnchor: Alignment.topLeft,
+                ),
                 child: BlenderMenu<T>(
+                  title: title,
                   items: selectedValue == null
                       ? items
                       : <BlenderMenuItem<T>>[
@@ -194,10 +206,16 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
 }
 
 class BlenderMenu<T> extends StatelessWidget {
-  const BlenderMenu({super.key, required this.items, required this.onSelected});
+  const BlenderMenu({
+    super.key,
+    required this.items,
+    required this.onSelected,
+    this.title,
+  });
 
   final List<BlenderMenuItem<T>> items;
   final ValueChanged<BlenderMenuItem<T>> onSelected;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
@@ -219,50 +237,72 @@ class BlenderMenu<T> extends StatelessWidget {
           border: Border.all(color: theme.colors.borderSubtle),
           borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
         ),
-        child: ListView.builder(
+        child: ListView(
           shrinkWrap: true,
           padding: const EdgeInsets.all(4),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            if (item.separator) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: SizedBox(
-                  height: 1,
-                  child: ColoredBox(
-                    color: BlenderTheme.of(context).colors.borderSubtle,
+          children: <Widget>[
+            if (title != null && title!.isNotEmpty) ...<Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 5, 8, 7),
+                child: Text(
+                  title!,
+                  style: theme.textTheme.body.copyWith(
+                    color: theme.colors.foregroundMuted,
+                    fontSize: 12,
                   ),
                 ),
-              );
-            }
-            final leading = hasLeadingMarkers
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      if (hasSelectionMarkers)
-                        SizedBox(
-                          width: 15,
-                          child: item.selected
-                              ? const BlenderIcon(BlenderGlyph.check, size: 12)
-                              : null,
-                        ),
-                      if (item.checked)
-                        _BlenderMenuCheck(enabled: item.enabled)
-                      else if (item.icon != null)
-                        SizedBox(width: 16, height: 16, child: item.icon!),
-                    ],
-                  )
-                : null;
-            return _BlenderMenuRow<T>(
-              item: item,
-              leading: leading,
-              leadingWidth: hasLeadingMarkers
-                  ? (hasSelectionMarkers ? 35 : 18)
-                  : 0,
-              onSelected: onSelected,
-            );
-          },
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: SizedBox(
+                  height: 1,
+                  child: ColoredBox(color: theme.colors.borderSubtle),
+                ),
+              ),
+            ],
+            for (final item in items)
+              if (item.separator)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: SizedBox(
+                    height: 1,
+                    child: ColoredBox(color: theme.colors.borderSubtle),
+                  ),
+                )
+              else
+                _BlenderMenuRow<T>(
+                  item: item,
+                  leading: hasLeadingMarkers
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            if (hasSelectionMarkers)
+                              SizedBox(
+                                width: 15,
+                                child: item.selected
+                                    ? const BlenderIcon(
+                                        BlenderGlyph.check,
+                                        size: 12,
+                                      )
+                                    : null,
+                              ),
+                            if (item.checked)
+                              _BlenderMenuCheck(enabled: item.enabled)
+                            else if (item.icon != null)
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: item.icon!,
+                              ),
+                          ],
+                        )
+                      : null,
+                  leadingWidth: hasLeadingMarkers
+                      ? (hasSelectionMarkers ? 35 : 18)
+                      : 0,
+                  onSelected: onSelected,
+                ),
+          ],
         ),
       ),
     );
@@ -315,7 +355,7 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
     final foreground = widget.item.enabled
         ? theme.colors.foreground
         : theme.colors.foregroundDisabled;
-    return MouseRegion(
+    Widget content = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Container(
@@ -370,6 +410,13 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
         ),
       ),
     );
+    if (widget.item.description != null) {
+      content = BlenderTooltip(
+        message: widget.item.description!,
+        child: content,
+      );
+    }
+    return content;
   }
 
   @override
@@ -453,30 +500,50 @@ class BlenderContextMenu<T> extends StatelessWidget {
     required this.child,
     required this.items,
     this.onSelected,
+    this.title,
+    this.onOpenChanged,
+    this.onContextRequested,
+    this.includeLongPress = true,
   });
 
   final Widget child;
   final List<BlenderMenuItem<T>> items;
   final ValueChanged<T>? onSelected;
+  final String? title;
+  final ValueChanged<bool>? onOpenChanged;
+  final ValueChanged<Offset>? onContextRequested;
+  final bool includeLongPress;
 
   Future<void> _show(BuildContext context, Offset globalPosition) async {
+    if (items.isEmpty) return;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     final renderObject = overlay.context.findRenderObject();
     if (renderObject is! RenderBox) return;
     final position = renderObject.globalToLocal(globalPosition);
-    await _showBlenderMenuOverlay<T>(
-      context: context,
-      position: position,
-      items: items,
-      onSelected: onSelected,
-    );
+    onContextRequested?.call(globalPosition);
+    onOpenChanged?.call(true);
+    try {
+      await _showBlenderMenuOverlay<T>(
+        context: context,
+        position: position,
+        items: items,
+        onSelected: onSelected,
+        title: title,
+      );
+    } finally {
+      onOpenChanged?.call(false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onSecondaryTapDown: (details) => _show(context, details.globalPosition),
+      onLongPressStart: includeLongPress
+          ? (details) => _show(context, details.globalPosition)
+          : null,
       child: child,
     );
   }

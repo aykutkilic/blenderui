@@ -157,6 +157,19 @@ BlenderApplicationTopBar<String, String>(
 );
 ```
 
+### Context menus
+
+Use `BlenderContextMenu<T>` for a custom command family, or start from
+`BlenderContextMenuCatalog` for Blender-shaped Object, Outliner, Node, File
+Browser, Property, Tool, and Area menus. Catalogs describe presentation and
+stable action IDs; the application executes the selected command.
+
+Target-aware surfaces such as `BlenderOutliner`, `BlenderFileBrowser`,
+`BlenderNodeEditor`, `BlenderPropertiesEditor`, and `BlenderToolShelf` accept
+context-menu builders. Their callbacks include the exact entity under the
+pointer, and selectable targets become active before their menu opens. See
+[the source and ownership analysis](doc/context-menu-parity.md).
+
 ### Multiple dockable workspaces
 
 Use `BlenderWorkspaceService` when an application has Blender-style

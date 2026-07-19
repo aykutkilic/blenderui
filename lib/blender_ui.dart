@@ -76,6 +76,8 @@ export 'src/controls.dart'
         BlenderButtonVariant,
         BlenderCheckbox,
         BlenderContextMenu,
+        BlenderContextActionIds,
+        BlenderContextMenuCatalog,
         BlenderDialog,
         BlenderDialogAction,
         BlenderControlState,

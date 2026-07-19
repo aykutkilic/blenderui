@@ -525,6 +525,13 @@ extension _ShowcasePropertiesSurface on _ShowcaseAppState {
                               size: 24,
                             ),
                           ],
+                    contextMenuItemsBuilder: (property) =>
+                        BlenderContextMenuCatalog.property(
+                          animated:
+                              property.state != BlenderPropertyState.normal,
+                        ),
+                    onContextMenuSelected: (property, action) =>
+                        _setStatus('$action: ${property.label}'),
                   ),
                   second: BlenderPanel(
                     title: 'Quick Controls',

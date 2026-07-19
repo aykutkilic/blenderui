@@ -47,6 +47,30 @@ void registerColorPickerEmitsAChangedColorTests() {
     expect(selected?.id, 'cube');
   });
 
+  testWidgets('tree activates a row on a second click', (tester) async {
+    BlenderTreeNode<String>? activated;
+    const roots = <BlenderTreeNode<String>>[
+      BlenderTreeNode<String>(id: 'cube', label: 'Cube', value: 'cube'),
+    ];
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          height: 100,
+          child: BlenderTree<String>(
+            roots: roots,
+            onActivated: (node) => activated = node,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Cube'));
+    await tester.tap(find.text('Cube'));
+    await tester.pump();
+
+    expect(activated?.id, 'cube');
+  });
+
   testWidgets('tree labels and disclosures share the optical row center', (
     tester,
   ) async {

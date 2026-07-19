@@ -6,6 +6,8 @@ class BlenderNodeEditor extends StatelessWidget {
     required this.model,
     this.onNodeSelected,
     this.onNodeMoved,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
     this.sidebar,
     this.sidebarWidth = 230,
     this.title = 'Node Editor',
@@ -14,6 +16,9 @@ class BlenderNodeEditor extends StatelessWidget {
   final BlenderNodeGraphModel model;
   final ValueChanged<BlenderGraphNode>? onNodeSelected;
   final void Function(BlenderGraphNode node, Offset position)? onNodeMoved;
+  final List<BlenderMenuItem<String>> Function(BlenderGraphNode)?
+  contextMenuItemsBuilder;
+  final void Function(BlenderGraphNode, String)? onContextMenuSelected;
   final Widget? sidebar;
   final double sidebarWidth;
   final String title;
@@ -71,22 +76,36 @@ class BlenderNodeEditor extends StatelessWidget {
                 top: node.position.dy,
                 width: node.size.width,
                 height: node.size.height,
-                child: GestureDetector(
-                  onTap: () => onNodeSelected?.call(node),
-                  onPanUpdate: onNodeMoved == null
-                      ? null
-                      : (details) =>
-                            onNodeMoved!(node, node.position + details.delta),
-                  child: BlenderPanel(
-                    title: node.title,
-                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
-                    child: _BlenderNodeBody(node: node),
-                  ),
-                ),
+                child: _buildNode(node),
               ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildNode(BlenderGraphNode node) {
+    Widget child = GestureDetector(
+      onTap: () => onNodeSelected?.call(node),
+      onPanUpdate: onNodeMoved == null
+          ? null
+          : (details) => onNodeMoved!(node, node.position + details.delta),
+      child: BlenderPanel(
+        title: node.title,
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
+        child: _BlenderNodeBody(node: node),
+      ),
+    );
+    final contextItems = contextMenuItemsBuilder?.call(node);
+    if (contextItems != null && contextItems.isNotEmpty) {
+      child = BlenderContextMenu<String>(
+        title: node.title,
+        items: contextItems,
+        onContextRequested: (_) => onNodeSelected?.call(node),
+        onSelected: (action) => onContextMenuSelected?.call(node, action),
+        child: child,
+      );
+    }
+    return child;
   }
 }

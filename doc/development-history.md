@@ -4,6 +4,30 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-19 — Added source-shaped, target-aware context menus
+
+- Traced blenderapp's common button popup assembly, region context operator,
+  abstract-view target activation, and Outliner, View3D, Node, File Browser,
+  property, tool, and area menu families.
+- Added reusable viewport-constrained menu presentation, stable common action
+  catalogs, and target-aware builders for trees/lists, Outliner, files, nodes,
+  Properties, and tool shelves. Applications continue to own commands and
+  mutations.
+- Replaced the example app's generic three-action editor menu with active
+  editor catalogs and per-entity routing. Secondary clicks now select the
+  pointed entity before opening its menu.
+- Added behavioral coverage for menu grouping and disabled state, window-edge
+  placement, action selection, target ordering, and file/node identity. The
+  source analysis and ownership boundary are retained in
+  [context-menu parity](context-menu-parity.md) and the
+  [context-menu ownership decision](decisions/2026-07-19-context-menu-ownership.md).
+- Tooling note: Flutter's formatter/test runner needed access to its shared SDK
+  cache outside the repository sandbox and was rerun with scoped permission.
+- The focused showcase test initially assumed one rendered status label; the
+  shell deliberately mirrors status in two surfaces. The assertion now checks
+  that the routed entity/action message is present without coupling the test to
+  that application-layout count.
+
 ## 2026-07-17 — Audited source-size and duplication boundaries
 
 - Measured the Dart tree and recorded the original 750-line cleanup plan. The

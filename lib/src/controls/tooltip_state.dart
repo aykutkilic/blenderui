@@ -17,7 +17,10 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
             link: _link,
             targetAnchor: Alignment.bottomLeft,
             followerAnchor: Alignment.topLeft,
-            offset: const Offset(0, 4),
+            // Keep the tooltip clear of the pointer resting on the control's
+            // lower edge. This also matches the breathing room of Blender's
+            // native tooltip placement.
+            offset: const Offset(0, 10),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topLeft,

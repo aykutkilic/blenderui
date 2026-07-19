@@ -166,6 +166,12 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         onSelected: (node) {
           if (node.value != null) _setStatus('Selected ${node.value}');
         },
+        contextMenuTitleBuilder: (node) => node.label,
+        contextMenuItemsBuilder: (node) => BlenderContextMenuCatalog.outliner(
+          isAsset: node.id.contains('asset'),
+        ),
+        onContextMenuSelected: (node, action) =>
+            _setStatus('$action: ${node.label}'),
       ),
       BlenderEditorType.properties => BlenderPropertiesEditor(
         groups: _propertyGroups,
@@ -215,6 +221,9 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         onGridViewChanged: (value) => _update(() => _fileGrid = value),
         onSelected: (entry) => _update(() => _selectedFile = entry.path),
         onOpen: (entry) => _setStatus('Opened ${entry.name}'),
+        contextMenuItemsBuilder: (_) => BlenderContextMenuCatalog.fileBrowser(),
+        onContextMenuSelected: (entry, action) =>
+            _setStatus('$action: ${entry.name}'),
         onPathSelected: (index) => _setStatus('Path segment $index'),
       ),
       BlenderEditorType.assetBrowser => BlenderFileBrowser(
@@ -288,6 +297,9 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         gridView: true,
         onSelected: (entry) => _update(() => _selectedFile = entry.path),
         onOpen: (entry) => _setStatus('Opened ${entry.name}'),
+        contextMenuItemsBuilder: (_) => BlenderContextMenuCatalog.fileBrowser(),
+        onContextMenuSelected: (entry, action) =>
+            _setStatus('$action asset: ${entry.name}'),
         onPathSelected: (index) => _setStatus('Asset path segment $index'),
       ),
       BlenderEditorType.shaderEditor ||
@@ -302,14 +314,38 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         ),
         onNodeSelected: (node) => _setStatus('Selected node ${node.title}'),
         onNodeMoved: _moveNode,
+        contextMenuItemsBuilder: (_) => BlenderContextMenuCatalog.node(),
+        onContextMenuSelected: (node, action) =>
+            _setStatus('$action: ${node.title}'),
       ),
     };
+    final contextTitle = switch (_mainEditorType) {
+      BlenderEditorType.view3d => 'Object',
+      BlenderEditorType.outliner => 'Outliner',
+      BlenderEditorType.fileBrowser => 'Files',
+      BlenderEditorType.assetBrowser => 'Assets',
+      BlenderEditorType.shaderEditor ||
+      BlenderEditorType.geometryNodeEditor ||
+      BlenderEditorType.compositor ||
+      BlenderEditorType.textureNodeEditor => 'Node',
+      BlenderEditorType.properties => 'Property',
+      _ => _mainEditorType.label,
+    };
+    final contextItems = switch (_mainEditorType) {
+      BlenderEditorType.view3d => BlenderContextMenuCatalog.object(),
+      BlenderEditorType.outliner => BlenderContextMenuCatalog.outliner(),
+      BlenderEditorType.fileBrowser ||
+      BlenderEditorType.assetBrowser => BlenderContextMenuCatalog.fileBrowser(),
+      BlenderEditorType.shaderEditor ||
+      BlenderEditorType.geometryNodeEditor ||
+      BlenderEditorType.compositor ||
+      BlenderEditorType.textureNodeEditor => BlenderContextMenuCatalog.node(),
+      BlenderEditorType.properties => BlenderContextMenuCatalog.property(),
+      _ => BlenderContextMenuCatalog.area(),
+    };
     return BlenderContextMenu<String>(
-      items: const <BlenderMenuItem<String>>[
-        BlenderMenuItem<String>(value: 'Duplicate', label: 'Duplicate'),
-        BlenderMenuItem<String>(value: 'Delete', label: 'Delete'),
-        BlenderMenuItem<String>(value: 'Frame', label: 'Frame Selected'),
-      ],
+      title: contextTitle,
+      items: contextItems,
       onSelected: _setStatus,
       child: surface,
     );
@@ -362,6 +398,12 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         );
         _setStatus('Selected ${node.label}');
       },
+      contextMenuTitleBuilder: (node) => node.label,
+      contextMenuItemsBuilder: (node) => BlenderContextMenuCatalog.outliner(
+        isAsset: node.id.contains('asset'),
+      ),
+      onContextMenuSelected: (node, action) =>
+          _setStatus('$action: ${node.label}'),
       onVisibilityChanged: (node) =>
           _setStatus('${node.visible ? 'Hide' : 'Show'} ${node.label}'),
       onLockChanged: (node) =>

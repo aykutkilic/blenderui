@@ -48,6 +48,8 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
         _setStatus('Tool changed');
       },
       onOptionSelected: (option) => _setStatus('Tool: ${option.label}'),
+      onContextMenuSelected: (tool, index, action) =>
+          _setStatus('${tool.tooltip}: $action'),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:blender_ui_example/main.dart';
 import 'package:blender_ui_example/demo/demo_workbench.dart';
 import 'package:blender_ui/blender_ui.dart';
+import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/widgets.dart'
     show
         BoxDecoration,
@@ -23,6 +24,7 @@ part 'showcase/scene_properties_follows_blender_panel_anatomy.dart';
 part 'showcase/lattice_data_follows_blender_source_panel_anatomy.dart';
 part 'showcase/physics_properties_follows_blender_source_panel_anatomy.dart';
 part 'showcase/timeline_header_popovers_expose_source_time_settings.dart';
+part 'showcase/context_menus_follow_the_pointed_entity.dart';
 
 Future<void> tapPropertyTab(WidgetTester tester, String id) async {
   final tab = find.byKey(ValueKey<String>('property-tab-$id'));
@@ -52,4 +54,5 @@ void main() {
   registerLatticeDataFollowsBlenderSourcePanelAnatomyTests();
   registerPhysicsPropertiesFollowsBlenderSourcePanelAnatomyTests();
   registerTimelineHeaderPopoversExposeSourceTimeSettingsTests();
+  registerContextMenusFollowThePointedEntityTests();
 }

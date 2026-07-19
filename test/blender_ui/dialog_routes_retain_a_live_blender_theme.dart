@@ -501,6 +501,9 @@ void registerDialogRoutesRetainALiveBlenderThemeTests() {
 
     await tester.pump(const Duration(milliseconds: 1));
     expect(find.text('Delayed help'), findsOneWidget);
+    final tooltip = tester.getRect(find.text('Delayed help'));
+    final target = tester.getRect(find.text('Hover me'));
+    expect(tooltip.top, greaterThanOrEqualTo(target.bottom + 10));
 
     await pointer.removePointer();
     await tester.pump(const Duration(milliseconds: 1));

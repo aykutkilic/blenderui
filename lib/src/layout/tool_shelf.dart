@@ -10,6 +10,8 @@ class BlenderToolShelf extends StatelessWidget {
     this.width = 32,
     this.floating = false,
     this.buttonSpacing = 0,
+    this.contextMenuItemsBuilder,
+    this.onContextMenuSelected,
   });
 
   final List<BlenderToolDefinition> tools;
@@ -22,6 +24,13 @@ class BlenderToolShelf extends StatelessWidget {
   /// editor region. Group breaks remain encoded by each tool definition.
   final bool floating;
   final double buttonSpacing;
+  final List<BlenderMenuItem<String>> Function(
+    BlenderToolDefinition tool,
+    int index,
+  )?
+  contextMenuItemsBuilder;
+  final void Function(BlenderToolDefinition tool, int index, String action)?
+  onContextMenuSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +45,7 @@ class BlenderToolShelf extends StatelessWidget {
         tooltip: tool.options.isEmpty ? tool.tooltip : null,
         size: width - 2,
       );
-      final interactive = tool.options.isEmpty
+      Widget interactive = tool.options.isEmpty
           ? button
           : BlenderTooltip(
               message: tool.tooltip,
@@ -56,6 +65,16 @@ class BlenderToolShelf extends StatelessWidget {
                 ),
               ),
             );
+      final contextItems = contextMenuItemsBuilder?.call(tool, index);
+      if (contextItems != null && contextItems.isNotEmpty) {
+        interactive = BlenderContextMenu<String>(
+          title: tool.tooltip,
+          items: contextItems,
+          onSelected: (action) =>
+              onContextMenuSelected?.call(tool, index, action),
+          child: interactive,
+        );
+      }
       return Padding(
         padding: EdgeInsets.only(
           top: tool.groupBreakBefore ? 6 : (index == 0 ? 0 : buttonSpacing),
@@ -109,6 +128,7 @@ class BlenderView3dToolShelf extends StatelessWidget {
     this.onOptionSelected,
     this.width = 42,
     this.floating = true,
+    this.onContextMenuSelected,
   });
 
   final int selectedIndex;
@@ -116,6 +136,8 @@ class BlenderView3dToolShelf extends StatelessWidget {
   final ValueChanged<BlenderToolOption>? onOptionSelected;
   final double width;
   final bool floating;
+  final void Function(BlenderToolDefinition tool, int index, String action)?
+  onContextMenuSelected;
 
   static const List<BlenderToolDefinition> tools = <BlenderToolDefinition>[
     BlenderToolDefinition(
@@ -177,6 +199,8 @@ class BlenderView3dToolShelf extends StatelessWidget {
     onOptionSelected: onOptionSelected,
     width: width,
     floating: floating,
+    contextMenuItemsBuilder: (_, _) => BlenderContextMenuCatalog.tool(),
+    onContextMenuSelected: onContextMenuSelected,
   );
 }
 
