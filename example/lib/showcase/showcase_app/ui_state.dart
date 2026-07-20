@@ -209,6 +209,14 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
   String _preferenceCategory = 'Interface';
   bool _lockObjectModes = true;
   bool _fileGrid = false;
+  BlenderFileBrowserHeaderState _fileBrowserHeaderState =
+      const BlenderFileBrowserHeaderState();
+  BlenderFileBrowserHeaderState _assetBrowserHeaderState =
+      const BlenderFileBrowserHeaderState(
+        displayMode: BlenderFileDisplayMode.thumbnails,
+      );
+  String _selectedFileSource = 'home';
+  String _selectedAssetCatalog = '__all__';
   bool _galleryToggle = true;
   bool _galleryEyedropperActive = false;
   String _galleryMode = 'Regular';

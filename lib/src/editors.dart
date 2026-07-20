@@ -25,6 +25,7 @@ part 'editors/properties.dart';
 part 'editors/tree.dart';
 part 'editors/outliner.dart';
 part 'editors/file_browser.dart';
+part 'editors/file_browser_regions.dart';
 part 'editors/node_editor.dart';
 part 'editors/node_editor_header.dart';
 part 'editors/node_editor_toolbar.dart';

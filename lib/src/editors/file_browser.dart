@@ -28,6 +28,13 @@ class BlenderFileBrowser extends StatelessWidget {
     this.sidebarWidth = 220,
     this.assetBrowser = false,
     this.title = 'File Browser',
+    this.headerState,
+    this.onHeaderStateChanged,
+    this.onCommand,
+    this.sourceList,
+    this.pathController,
+    this.showHeader = true,
+    this.catalogId,
   });
 
   final List<BlenderFileEntry> entries;
@@ -60,12 +67,32 @@ class BlenderFileBrowser extends StatelessWidget {
   final double sidebarWidth;
   final bool assetBrowser;
   final String? title;
+  final BlenderFileBrowserHeaderState? headerState;
+  final ValueChanged<BlenderFileBrowserHeaderState>? onHeaderStateChanged;
+  final ValueChanged<String>? onCommand;
+  final Widget? sourceList;
+  final TextEditingController? pathController;
+  final bool showHeader;
+  final String? catalogId;
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final resolvedHeaderState =
+        headerState ??
+        BlenderFileBrowserHeaderState(
+          displayMode: gridView
+              ? BlenderFileDisplayMode.thumbnails
+              : BlenderFileDisplayMode.listVertical,
+        );
     final content = searchController == null
-        ? _buildFilteredContent(context, entries, theme, '')
+        ? _buildFilteredContent(
+            context,
+            entries,
+            theme,
+            '',
+            resolvedHeaderState.displayMode,
+          )
         : ValueListenableBuilder<TextEditingValue>(
             valueListenable: searchController!,
             builder: (context, value, child) => _buildFilteredContent(
@@ -73,79 +100,67 @@ class BlenderFileBrowser extends StatelessWidget {
               entries,
               theme,
               value.text.trim().toLowerCase(),
+              resolvedHeaderState.displayMode,
             ),
           );
-    final headerActions = <Widget>[
-      _headerAction(BlenderGlyph.stepBack, 'Back', onBack),
-      _headerAction(BlenderGlyph.stepForward, 'Forward', onForward),
-      _headerAction(BlenderGlyph.folder, 'Parent Directory', onParent),
-      _headerAction(BlenderGlyph.refresh, 'Refresh', onRefresh),
-      _headerAction(BlenderGlyph.plus, 'New Folder', onNewFolder),
-      _BlenderFileBrowserPopover(assetBrowser: assetBrowser, filter: false),
-      _BlenderFileBrowserPopover(assetBrowser: assetBrowser, filter: true),
-      if (onGridViewChanged != null) ...<Widget>[
-        BlenderIconButton(
-          glyph: BlenderGlyph.outliner,
-          selected: !gridView,
-          onPressed: () => onGridViewChanged!(false),
-          tooltip: 'List view',
-          size: 22,
-        ),
-        BlenderIconButton(
-          glyph: BlenderGlyph.grid,
-          selected: gridView,
-          onPressed: () => onGridViewChanged!(true),
-          tooltip: 'Grid view',
-          size: 22,
-        ),
+    final main = Column(
+      children: <Widget>[
+        if (!assetBrowser && pathController != null)
+          BlenderFileBrowserPathBar(
+            pathController: pathController!,
+            searchController: searchController,
+            onBack: onBack,
+            onForward: onForward,
+            onParent: onParent,
+            onRefresh: onRefresh,
+            onNewFolder: onNewFolder,
+          ),
+        Expanded(child: content),
       ],
-    ];
-    final body = sidebar == null
-        ? content
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(child: content),
-              SizedBox(
-                width: sidebarWidth,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.surface,
-                    border: Border(
-                      left: BorderSide(color: theme.colors.editorBorder),
-                    ),
-                  ),
-                  child: sidebar,
+    );
+    final body = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (resolvedHeaderState.showSourceList && sourceList != null)
+          sourceList!,
+        Expanded(child: main),
+        if (sidebar != null)
+          SizedBox(
+            width: sidebarWidth,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colors.surface,
+                border: Border(
+                  left: BorderSide(color: theme.colors.editorBorder),
                 ),
               ),
-            ],
-          );
-    if (title == null) {
-      return Column(
-        children: <Widget>[
-          BlenderToolbar(height: 28, children: headerActions),
-          Expanded(child: body),
-        ],
-      );
-    }
-    return BlenderPanel(
-      title: title!,
-      headerActions: headerActions,
-      child: body,
+              child: sidebar,
+            ),
+          ),
+      ],
     );
-  }
-
-  Widget _headerAction(
-    BlenderGlyph glyph,
-    String tooltip,
-    VoidCallback? callback,
-  ) {
-    return BlenderIconButton(
-      glyph: glyph,
-      tooltip: tooltip,
-      onPressed: callback ?? () {},
-      size: 22,
+    final browser = Column(
+      children: <Widget>[
+        if (showHeader)
+          BlenderFileBrowserHeader(
+            state: resolvedHeaderState,
+            mode: assetBrowser
+                ? BlenderFileBrowserMode.assets
+                : BlenderFileBrowserMode.files,
+            searchController: assetBrowser ? searchController : null,
+            onStateChanged: (value) {
+              onHeaderStateChanged?.call(value);
+              onGridViewChanged?.call(
+                value.displayMode == BlenderFileDisplayMode.thumbnails,
+              );
+            },
+            onCommand: onCommand,
+          ),
+        Expanded(child: body),
+      ],
     );
+    if (title == null) return browser;
+    return BlenderPanel(title: title!, child: browser);
   }
 
   Widget _buildFilteredContent(
@@ -153,21 +168,27 @@ class BlenderFileBrowser extends StatelessWidget {
     List<BlenderFileEntry> source,
     BlenderThemeData theme,
     String query,
+    BlenderFileDisplayMode displayMode,
   ) {
-    final filtered = query.isEmpty
-        ? source
-        : source
-              .where(
-                (entry) =>
-                    entry.name.toLowerCase().contains(query) ||
-                    entry.path.toLowerCase().contains(query) ||
-                    (entry.detail?.toLowerCase().contains(query) ?? false),
-              )
-              .toList(growable: false);
+    final filtered = source
+        .where((entry) {
+          final catalogMatches =
+              catalogId == null ||
+              catalogId == '__all__' ||
+              (catalogId == '__unassigned__'
+                  ? entry.catalogId == null
+                  : entry.catalogId == catalogId);
+          if (!catalogMatches) return false;
+          return query.isEmpty ||
+              entry.name.toLowerCase().contains(query) ||
+              entry.path.toLowerCase().contains(query) ||
+              (entry.detail?.toLowerCase().contains(query) ?? false);
+        })
+        .toList(growable: false);
     final visible = filtered.toList(growable: false)..sort(_compareEntries);
     return Column(
       children: <Widget>[
-        if (pathSegments.isNotEmpty)
+        if (pathController == null && pathSegments.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 4, 6, 2),
             child: BlenderBreadcrumbs(
@@ -175,7 +196,7 @@ class BlenderFileBrowser extends StatelessWidget {
               onSelected: onPathSelected,
             ),
           ),
-        if (searchController != null)
+        if (pathController == null && searchController != null && !assetBrowser)
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
             child: BlenderFilterBar(
@@ -183,7 +204,7 @@ class BlenderFileBrowser extends StatelessWidget {
               placeholder: 'Search files',
             ),
           ),
-        if (gridView)
+        if (displayMode == BlenderFileDisplayMode.thumbnails)
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(4),
@@ -204,37 +225,11 @@ class BlenderFileBrowser extends StatelessWidget {
               children: <Widget>[
                 if (showListColumns) _buildListHeader(context),
                 Expanded(
-                  child: BlenderListView<BlenderFileEntry>(
-                    items: [
-                      for (final entry in visible)
-                        BlenderListItem<BlenderFileEntry>(
-                          id: entry.path,
-                          value: entry,
-                          label: entry.name,
-                          detail: _entryDetail(entry),
-                          icon: entry.isDirectory
-                              ? BlenderGlyph.folder
-                              : BlenderGlyph.file,
-                          iconColor: entry.isDirectory
-                              ? theme.colors.iconFolder
-                              : theme.colors.foregroundMuted,
-                        ),
-                    ],
-                    selectedId: selectedPath,
-                    onSelected: onSelected == null
-                        ? null
-                        : (item) => onSelected!(item.value!),
-                    onActivated: onOpen == null
-                        ? null
-                        : (item) => onOpen!(item.value!),
-                    contextMenuTitleBuilder: (item) => item.label,
-                    contextMenuItemsBuilder: contextMenuItemsBuilder == null
-                        ? null
-                        : (item) => contextMenuItemsBuilder!(item.value!),
-                    onContextMenuSelected: onContextMenuSelected == null
-                        ? null
-                        : (item, action) =>
-                              onContextMenuSelected!(item.value!, action),
+                  child: ListView.builder(
+                    itemExtent: theme.density.rowHeight,
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) =>
+                        _buildListEntry(context, visible[index]),
                   ),
                 ),
               ],
@@ -242,6 +237,74 @@ class BlenderFileBrowser extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  Widget _buildListEntry(BuildContext context, BlenderFileEntry entry) {
+    final theme = BlenderTheme.of(context);
+    Widget cell(String? value, int flex) => Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          value ?? '',
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.body,
+        ),
+      ),
+    );
+    Widget row = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onSelected?.call(entry),
+      onDoubleTap: () => onOpen?.call(entry),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selectedPath == entry.path
+              ? theme.colors.selection
+              : const Color(0x00000000),
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: <Widget>[
+                    BlenderIcon(
+                      entry.isDirectory
+                          ? BlenderGlyph.folder
+                          : BlenderGlyph.file,
+                      size: 16,
+                      color: entry.isDirectory
+                          ? theme.colors.iconFolder
+                          : theme.colors.foregroundMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(entry.name, overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            cell(entry.modifiedLabel, 3),
+            cell(entry.sizeLabel, 2),
+            cell(entry.typeLabel, 2),
+          ],
+        ),
+      ),
+    );
+    final items = contextMenuItemsBuilder?.call(entry);
+    if (items != null && items.isNotEmpty) {
+      row = BlenderContextMenu<String>(
+        title: entry.name,
+        items: items,
+        onContextRequested: (_) => onSelected?.call(entry),
+        onSelected: (action) => onContextMenuSelected?.call(entry, action),
+        child: row,
+      );
+    }
+    return row;
   }
 
   int _compareEntries(BlenderFileEntry a, BlenderFileEntry b) {
@@ -265,15 +328,6 @@ class BlenderFileBrowser extends StatelessWidget {
     return sortDirection == BlenderFileBrowserSortDirection.ascending
         ? result
         : -result;
-  }
-
-  String? _entryDetail(BlenderFileEntry entry) {
-    final values = <String>[
-      if (entry.modifiedLabel case final value?) value,
-      if (entry.sizeLabel case final value?) value,
-      if (entry.typeLabel case final value?) value,
-    ];
-    return values.isEmpty ? entry.detail : values.join('   ');
   }
 
   void _requestSort(BlenderFileBrowserSortColumn column) {
@@ -342,6 +396,7 @@ class BlenderFileBrowser extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         preview:
+            entry.preview ??
             previewBuilder?.call(context, entry) ??
             Center(
               child: BlenderIcon(
@@ -364,121 +419,6 @@ class BlenderFileBrowser extends StatelessWidget {
       );
     }
     return tile;
-  }
-}
-
-/// Source-shaped File Browser and Asset Browser header popovers from
-/// `space_filebrowser.py`.
-class _BlenderFileBrowserPopover extends StatelessWidget {
-  const _BlenderFileBrowserPopover({
-    required this.assetBrowser,
-    required this.filter,
-  });
-
-  final bool assetBrowser;
-  final bool filter;
-
-  List<Widget> _displayChildren() {
-    if (assetBrowser) {
-      return <Widget>[
-        BlenderStaticPropertyField.menu('Display Type', 'Thumbnail', <String>[
-          'Thumbnail',
-          'List Horizontal',
-          'List Vertical',
-        ]),
-        BlenderStaticPropertyField.menu('Preview Size', 'Medium', <String>[
-          'Small',
-          'Medium',
-          'Large',
-        ]),
-        BlenderStaticPropertyField.menu('Sort By', 'Name', <String>[
-          'Name',
-          'Asset Type',
-          'Modified',
-        ]),
-      ];
-    }
-    return <Widget>[
-      BlenderStaticPropertyField.menu('Display Type', 'List Vertical', <String>[
-        'List Vertical',
-        'List Horizontal',
-        'Thumbnail',
-      ]),
-      BlenderStaticPropertyField.menu('Size', 'Medium', <String>[
-        'Small',
-        'Medium',
-        'Large',
-      ]),
-      BlenderStaticPropertyField.checkbox('Date', value: false),
-      BlenderStaticPropertyField.menu('Recursions', 'None', <String>[
-        'None',
-        'One Level',
-        'All',
-      ]),
-      BlenderStaticPropertyField.menu('Sort By', 'Name', <String>[
-        'Name',
-        'Modified',
-        'Size',
-        'Type',
-      ]),
-      BlenderStaticPropertyField.checkbox('Invert Sort', value: false),
-    ];
-  }
-
-  List<Widget> _filterChildren() {
-    if (assetBrowser) {
-      return <Widget>[
-        BlenderStaticPropertyField.checkbox('Blender IDs'),
-        BlenderStaticPropertyField.checkbox('Objects'),
-        BlenderStaticPropertyField.checkbox('Materials'),
-        BlenderStaticPropertyField.checkbox('Collections'),
-        BlenderStaticPropertyField.checkbox('Worlds', value: false),
-        BlenderStaticPropertyField.menu('Access', 'All', <String>[
-          'All',
-          'Local',
-          'Remote',
-        ]),
-      ];
-    }
-    return <Widget>[
-      BlenderStaticPropertyField.checkbox('Folders'),
-      BlenderStaticPropertyField.checkbox('.blend Files'),
-      BlenderStaticPropertyField.checkbox('Backup .blend Files', value: false),
-      BlenderStaticPropertyField.checkbox('Image Files'),
-      BlenderStaticPropertyField.checkbox('Movie Files', value: false),
-      BlenderStaticPropertyField.checkbox('Script Files', value: false),
-      BlenderStaticPropertyField.checkbox('Font Files', value: false),
-      BlenderStaticPropertyField.checkbox('Sound Files', value: false),
-      BlenderStaticPropertyField.checkbox('Text Files', value: false),
-      BlenderStaticPropertyField.checkbox('Volume Files', value: false),
-      BlenderStaticPropertyField.checkbox('Show Hidden', value: false),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title = filter
-        ? (assetBrowser ? 'Filter' : 'Filter Settings')
-        : (assetBrowser ? 'Display Settings' : 'Display Settings');
-    return BlenderPopover(
-      child: BlenderIconButton(
-        glyph: filter ? BlenderGlyph.filter : BlenderGlyph.settings,
-        tooltip: title,
-        size: 22,
-      ),
-      popover: (context, close) => ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 330, maxHeight: 620),
-        child: SingleChildScrollView(
-          child: BlenderPanel(
-            title: title,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: filter ? _filterChildren() : _displayChildren(),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

@@ -457,22 +457,24 @@ extension _ShowcaseAnimationTemplates on _ShowcaseAppState {
     );
   }
 
-  Widget _buildVideoEditingPreview() => Column(
-    children: <Widget>[
-      BlenderSequencerEditorHeader(
-        editorType: BlenderEditorType.sequencer,
-        state: _sequencerHeaderState.copyWith(viewType: 'Preview'),
-        onStateChanged: (value) => _update(() => _sequencerHeaderState = value),
-        onCommand: _setStatus,
-      ),
-      const Expanded(
-        child: BlenderGreasePencilViewport(
-          strokes: _strokes,
-          objectName: 'Shot.001',
-          layerName: 'Preview',
-        ),
-      ),
-    ],
+  Widget _buildVideoEditingPreview() => BlenderVideoSequencerWorkspace(
+    headerState: _sequencerHeaderState.copyWith(viewType: 'Preview'),
+    onHeaderStateChanged: (value) =>
+        _update(() => _sequencerHeaderState = value),
+    onCommand: _setStatus,
+    strips: _storyboardStrips,
+    start: 1,
+    end: 97,
+    currentFrame: _frame,
+    currentFrameListenable: _playback,
+    onCurrentFrameChanged: _playback.seek,
+    preview: const BlenderGreasePencilViewport(
+      strokes: _strokes,
+      objectName: 'Shot.001',
+      layerName: 'Preview',
+    ),
+    showChannels: false,
+    showToolHeader: false,
   );
 
   Widget _buildGreasePencilDopeSheetArea() => Column(
@@ -525,51 +527,42 @@ extension _ShowcaseAnimationTemplates on _ShowcaseAppState {
     ],
   );
 
-  Widget _buildStoryboardSequencerArea() => Column(
-    children: <Widget>[
-      BlenderSequencerEditorHeader(
-        editorType: BlenderEditorType.sequencer,
-        state: _sequencerHeaderState.copyWith(
-          viewType: 'Sequencer',
-          scene: 'Scene',
-        ),
-        onStateChanged: (value) => _update(() => _sequencerHeaderState = value),
-        onCommand: _setStatus,
-      ),
-      Expanded(
-        child: BlenderSequencerEditor(
-          strips: _storyboardStrips,
-          start: 1,
-          end: 97,
-          currentFrame: _frame,
-          currentFrameListenable: _playback,
-          onCurrentFrameChanged: _playback.seek,
-          selectedId: _selectedStoryboardStrip,
-          onStripSelected: (strip) =>
-              _update(() => _selectedStoryboardStrip = strip.id),
-          showChannels: true,
-          channelLabels: const <int, String>{0: 'Channel 1'},
-          showSeconds: true,
-          framesPerSecond: 24,
-          title: null,
-        ),
-      ),
-      BlenderAnimationPlaybackFooter(
-        state: _animationHeaderState,
-        onStateChanged: (value) => _update(() => _animationHeaderState = value),
-        playing: _playback.playing,
-        onFirst: _playback.jumpToStart,
-        onPrevious: _playback.stepBackward,
-        onPlay: _playback.togglePlaying,
-        onNext: _playback.stepForward,
-        onLast: _playback.jumpToEnd,
-        onRecord: () => _setStatus('Record toggled'),
-        frame: _frame,
-        frameMax: 97,
-        onFrameChanged: _playback.seek,
-        keyPrefix: 'storyboard-playback',
-      ),
-    ],
+  Widget _buildStoryboardSequencerArea() => BlenderVideoSequencerWorkspace(
+    headerState: _sequencerHeaderState.copyWith(
+      viewType: 'Sequencer',
+      scene: 'Scene',
+    ),
+    onHeaderStateChanged: (value) =>
+        _update(() => _sequencerHeaderState = value),
+    onCommand: _setStatus,
+    strips: _storyboardStrips,
+    start: 1,
+    end: 97,
+    currentFrame: _frame,
+    currentFrameListenable: _playback,
+    onCurrentFrameChanged: _playback.seek,
+    selectedId: _selectedStoryboardStrip,
+    onStripSelected: (strip) =>
+        _update(() => _selectedStoryboardStrip = strip.id),
+    channelLabels: const <int, String>{0: 'Channel 1', 1: 'Channel 2'},
+    showChannels: true,
+    showSeconds: true,
+    framesPerSecond: 24,
+    footer: BlenderAnimationPlaybackFooter(
+      state: _animationHeaderState,
+      onStateChanged: (value) => _update(() => _animationHeaderState = value),
+      playing: _playback.playing,
+      onFirst: _playback.jumpToStart,
+      onPrevious: _playback.stepBackward,
+      onPlay: _playback.togglePlaying,
+      onNext: _playback.stepForward,
+      onLast: _playback.jumpToEnd,
+      onRecord: () => _setStatus('Record toggled'),
+      frame: _frame,
+      frameMax: 97,
+      onFrameChanged: _playback.seek,
+      keyPrefix: 'storyboard-playback',
+    ),
   );
 
   BlenderTimelineModel get _greasePencilTimelineModel => BlenderTimelineModel(

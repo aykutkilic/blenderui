@@ -74,7 +74,8 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
   }
 
   Widget _buildMainEditor() {
-    if (_templateMode != _ShowcaseTemplateMode.general) {
+    if (_templateMode != _ShowcaseTemplateMode.general &&
+        _mainEditorType == BlenderEditorType.view3d) {
       return _buildGreasePencilMainEditor();
     }
     return Column(

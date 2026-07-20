@@ -425,66 +425,19 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
     await tester.tap(find.text('File Browser'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(BlenderFileBrowserSidebar), findsOneWidget);
+    expect(find.byType(BlenderFileBrowserSourceList), findsOneWidget);
     final browserHeader = find.byType(BlenderFileBrowser);
     expect(
-      find.descendant(
-        of: browserHeader,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIconButton &&
-              widget.glyph == BlenderGlyph.stepBack,
-        ),
-      ),
+      find.byKey(const ValueKey<String>('file-browser-header-region')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: browserHeader,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIconButton &&
-              widget.glyph == BlenderGlyph.stepForward,
-        ),
-      ),
+      find.byKey(const ValueKey<String>('file-browser-path-region')),
       findsOneWidget,
     );
-    expect(
-      find.descendant(
-        of: browserHeader,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIconButton &&
-              widget.glyph == BlenderGlyph.folder,
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: browserHeader,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIconButton &&
-              widget.glyph == BlenderGlyph.refresh,
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: browserHeader,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIconButton && widget.glyph == BlenderGlyph.plus,
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Directory Path'), findsOneWidget);
+    expect(find.text('System'), findsOneWidget);
     expect(find.text('Volumes'), findsOneWidget);
     expect(find.text('Bookmarks'), findsOneWidget);
-    expect(find.text('Advanced Filter'), findsOneWidget);
     final fileBrowser = browserHeader;
     final displaySettings = find.descendant(
       of: fileBrowser,
@@ -519,13 +472,15 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
     await tester.tap(find.text('Asset Browser'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Asset Metadata'), findsOneWidget);
-    expect(find.text('Asset Catalogs'), findsOneWidget);
-    expect(find.text('Studio Lighting'), findsOneWidget);
-    expect(find.text('Outdoor'), findsOneWidget);
-    expect(find.text('Import'), findsOneWidget);
-    expect(find.text('Preview'), findsOneWidget);
-    expect(find.text('Tags'), findsOneWidget);
+    expect(find.byType(BlenderAssetBrowserCatalogRegion), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('asset-browser-header-region')),
+      findsOneWidget,
+    );
+    expect(find.text('Camera & Lens Effects'), findsOneWidget);
+    expect(find.text('Chromatic Aberration'), findsOneWidget);
+    expect(find.text('Sensor Noise'), findsOneWidget);
+    expect(find.text('Vignette'), findsOneWidget);
     final assetBrowser = find.byType(BlenderFileBrowser);
     await tester.tap(
       find.descendant(

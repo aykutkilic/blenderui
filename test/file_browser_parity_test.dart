@@ -94,4 +94,87 @@ void main() {
       lessThan(tester.getTopLeft(find.text('a.txt')).dy),
     );
   });
+
+  testWidgets('file browser composes source path and window regions', (
+    tester,
+  ) async {
+    final path = TextEditingController(text: '/Users/example/');
+    addTearDown(path.dispose);
+    await tester.pumpWidget(
+      harness(
+        BlenderFileBrowser(
+          entries: entries,
+          pathController: path,
+          searchController: TextEditingController(),
+          sourceList: const BlenderFileBrowserSourceList(
+            sections: <BlenderFileSourceSection>[
+              BlenderFileSourceSection(
+                id: 'system',
+                label: 'System',
+                entries: <BlenderFileSourceEntry>[
+                  BlenderFileSourceEntry(id: 'home', label: 'Home'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('file-browser-header-region')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('file-browser-source-region')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('file-browser-path-region')),
+      findsOneWidget,
+    );
+    expect(find.text('/Users/example/'), findsOneWidget);
+  });
+
+  testWidgets('asset catalog selection filters the reusable asset grid', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(
+        const BlenderFileBrowser(
+          assetBrowser: true,
+          gridView: true,
+          catalogId: 'camera',
+          sourceList: BlenderAssetBrowserCatalogRegion(
+            catalogs: <BlenderAssetCatalog>[
+              BlenderAssetCatalog(id: 'camera', label: 'Camera'),
+            ],
+          ),
+          entries: <BlenderFileEntry>[
+            BlenderFileEntry(
+              path: '/camera',
+              name: 'Vignette',
+              catalogId: 'camera',
+            ),
+            BlenderFileEntry(
+              path: '/brush',
+              name: 'Pencil',
+              catalogId: 'brushes',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('asset-browser-header-region')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('asset-browser-catalog-region')),
+      findsOneWidget,
+    );
+    expect(find.text('Vignette'), findsOneWidget);
+    expect(find.text('Pencil'), findsNothing);
+  });
 }

@@ -222,8 +222,37 @@ class _BlenderSequencerPainter extends CustomPainter {
         Paint()
           ..color = strip.muted
               ? colors.foregroundDisabled
-              : strip.color ?? colors.accent,
+              : strip.color ?? _stripColor(strip.type),
       );
+      if (strip.showWaveform && rect.width > 20) {
+        final waveform = Paint()
+          ..color = colors.foreground.withValues(alpha: .5)
+          ..strokeWidth = 1;
+        final center = rect.center.dy;
+        for (var x = rect.left + 5; x < rect.right - 5; x += 4) {
+          final amplitude = 2 + ((x - rect.left) % 11) * .35;
+          canvas.drawLine(
+            Offset(x, center - amplitude),
+            Offset(x, center + amplitude),
+            waveform,
+          );
+        }
+      }
+      if (strip.showHandles && rect.width > 12) {
+        final handle = Paint()
+          ..color = colors.foreground.withValues(alpha: .65)
+          ..strokeWidth = 2;
+        canvas.drawLine(
+          Offset(rect.left + 3, rect.top + 3),
+          Offset(rect.left + 3, rect.bottom - 3),
+          handle,
+        );
+        canvas.drawLine(
+          Offset(rect.right - 3, rect.top + 3),
+          Offset(rect.right - 3, rect.bottom - 3),
+          handle,
+        );
+      }
       final text = TextPainter(
         text: TextSpan(
           text: strip.label,
@@ -243,6 +272,16 @@ class _BlenderSequencerPainter extends CustomPainter {
       }
     }
   }
+
+  Color _stripColor(BlenderSequencerStripType type) => switch (type) {
+    BlenderSequencerStripType.movie => const Color(0xFF6B67B7),
+    BlenderSequencerStripType.image => const Color(0xFF6E73A8),
+    BlenderSequencerStripType.sound => const Color(0xFF3E8B62),
+    BlenderSequencerStripType.scene => const Color(0xFF7B6797),
+    BlenderSequencerStripType.color => const Color(0xFFB08C47),
+    BlenderSequencerStripType.effect => const Color(0xFF8F5E82),
+    BlenderSequencerStripType.transition => const Color(0xFF8A6262),
+  };
 
   String _formatSeconds(double seconds) {
     final minutes = seconds ~/ 60;

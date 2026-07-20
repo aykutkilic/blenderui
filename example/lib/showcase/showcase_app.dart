@@ -43,6 +43,7 @@ part 'showcase_app/node_and_utility_headers.dart';
 part 'showcase_app/node_document_interactions.dart';
 part 'showcase_app/node_graph_fixtures.dart';
 part 'showcase_app/editor_surfaces.dart';
+part 'showcase_app/browser_surfaces.dart';
 part 'showcase_app/properties_surface.dart';
 part 'showcase_app/bottom_graph_editor.dart';
 part 'showcase_app/gallery_controls.dart';
@@ -81,6 +82,9 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   final BlenderThemeService _themeService = BlenderThemeService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _fileSearchController = TextEditingController();
+  final TextEditingController _filePathController = TextEditingController(
+    text: '/Users/aykutkilic/',
+  );
   final TextEditingController _keymapSearchController = TextEditingController();
   final TextEditingController _mainOutlinerSearchController =
       TextEditingController();
@@ -615,6 +619,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     _application.dispose();
     _searchController.dispose();
     _fileSearchController.dispose();
+    _filePathController.dispose();
     _keymapSearchController.dispose();
     _mainOutlinerSearchController.dispose();
     _outlinerSearchController.dispose();

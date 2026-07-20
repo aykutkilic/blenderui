@@ -145,6 +145,15 @@ export 'src/editors.dart'
     show
         BlenderPropertyEditorBuilder,
         BlenderFileBrowser,
+        BlenderFileBrowserHeader,
+        BlenderFileBrowserHeaderState,
+        BlenderFileBrowserMode,
+        BlenderFileDisplayMode,
+        BlenderFileBrowserPathBar,
+        BlenderFileBrowserSourceList,
+        BlenderFileSourceEntry,
+        BlenderFileSourceSection,
+        BlenderAssetBrowserCatalogRegion,
         BlenderFileBrowserPreviewBuilder,
         BlenderFileBrowserSortColumn,
         BlenderFileBrowserSortDirection,
@@ -331,6 +340,9 @@ export 'src/non3d_editors.dart'
         BlenderSequencerEditor,
         BlenderSequencerSidebar,
         BlenderSequencerStrip,
+        BlenderSequencerStripType,
+        BlenderSequencerMarker,
+        BlenderSequencerPreview,
         BlenderSpreadsheetColumn,
         BlenderSpreadsheetEditor,
         BlenderSpreadsheetRowFilter,
@@ -342,7 +354,8 @@ export 'src/non3d_editors.dart'
         BlenderUVEdge,
         BlenderUVEditor,
         BlenderUVPoint,
-        BlenderVideoSequencerEditor;
+        BlenderVideoSequencerEditor,
+        BlenderVideoSequencerWorkspace;
 export 'src/property_templates.dart'
     show
         BlenderAttributeOption,

@@ -57,6 +57,7 @@ part 'non3d_editors/dope_sheet_editor.dart';
 part 'non3d_editors/sequencer_models.dart';
 part 'non3d_editors/nla_editor.dart';
 part 'non3d_editors/video_sequencer_editor.dart';
+part 'non3d_editors/sequencer_workspace.dart';
 part 'non3d_editors/uv_editor.dart';
 part 'non3d_editors/mask_properties.dart';
 part 'non3d_editors/sequencer_editor.dart';

@@ -584,3 +584,22 @@ live in [the decision records](decisions/).
   catalog/search/asset-grid popover, material selection opens the slot and
   stroke/fill inspector, and the shelf header has its independent catalog
   visibility tree. Added deterministic preview fallbacks and popup goldens.
+
+## 2026-07-20 — Added source-shaped File, Asset, and Video Sequencer regions
+
+- Audited Blender's File/Asset Browser region registration and Python header,
+  path, catalog, display, filter, bookmark, system, and volume UI definitions.
+- Split browser-wide header state, directory navigation, left source lists,
+  asset catalogs, and content windows into reusable library widgets; aligned
+  Name, Date Modified, Size, and Type cells to their sortable columns.
+- Added catalog-aware asset entries, searchable preview grids, import/display
+  controls, and reusable catalog filtering while keeping data and I/O host-owned.
+- Audited Sequencer Header, Tool Header, Footer, Channels, Window, and Preview
+  regions and introduced a reusable combined workspace plus typed strips,
+  handles, waveform hints, safe-area overlays, and repaint-isolated preview.
+- Migrated the Storyboarding and Video Editing example layouts to the shared
+  composition and made template main areas honor File/Asset editor selection.
+- Added region/composition/filter tests and updated the example integration
+  test from the obsolete right-sidebar approximation to Blender's left-region
+  structure. See the
+  [decision record](decisions/2026-07-20-file-asset-and-sequencer-regions.md).
