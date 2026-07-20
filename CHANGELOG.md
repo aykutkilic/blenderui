@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Rebuilt Timeline as Blender's Dope Sheet subtype with independently clipped
+  Channels/Search/Summary and window/scrub regions, source-ordered playback and
+  frame-range controls, padded View2D framing, and a numbered playhead flag.
+- Optimized Timeline scrubbing with prepared sorted keylists, horizontal and
+  vertical viewport culling, batched canvas paths, static/playhead repaint
+  layers, and example-workspace frame-state isolation.
+- Extracted reusable playback ownership from the example into
+  `BlenderPlaybackController` and `BlenderPlaybackBuilder`; Timeline and Dope
+  Sheet can now repaint their playheads directly from any frame listenable.
+- Removed the example's cross-editor View3D tool-shelf injection so each editor
+  surface exclusively owns the tools and side regions registered for it.
 - Added a manual-facing parity backlog for all 33 top-level interface topics
   and 23 documented editor types, and moved shared editor menu construction
   from the example app into the public `BlenderEditorMenuCatalog`.

@@ -1,7 +1,12 @@
 part of '../showcase_app.dart';
 
 mixin _ShowcaseUiState on State<ShowcaseApp> {
-  double _frame = 24;
+  final BlenderPlaybackController _playback = BlenderPlaybackController(
+    initialFrame: 24,
+    rangeStart: 1,
+    rangeEnd: 120,
+  );
+  double get _frame => _playback.currentFrame;
   double _resolutionX = 1920;
   double _resolutionY = 1080;
   double _resolutionPercentage = 76;
@@ -94,7 +99,6 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
       const BlenderSequencerEditorHeaderState();
   String _preferenceCategory = 'Interface';
   bool _lockObjectModes = true;
-  bool _playing = false;
   bool _fileGrid = false;
   bool _galleryToggle = true;
   bool _galleryEyedropperActive = false;

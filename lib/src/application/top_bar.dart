@@ -30,10 +30,11 @@ class BlenderApplicationMenuBar<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scaledHeight = height * theme.density.interfaceScale;
     return _BlenderApplicationTopBarSurface(
-      height: height,
+      height: scaledHeight,
       child: BlenderToolbar(
-        height: height,
+        height: scaledHeight,
         scrollable: scrollable,
         background: theme.colors.topBar,
         children: <Widget>[
@@ -146,7 +147,10 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
     if ((leading.isNotEmpty || menus.isNotEmpty) &&
         workspaces.isNotEmpty) ...<Widget>[
       SizedBox(width: theme.density.spacing * 2),
-      SizedBox(height: 22, child: ColoredBox(color: theme.colors.editorBorder)),
+      SizedBox(
+        height: 22 * theme.density.interfaceScale,
+        child: ColoredBox(color: theme.colors.editorBorder),
+      ),
       SizedBox(width: theme.density.spacing * 2),
     ],
   ];
@@ -154,9 +158,10 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scaledHeight = height * theme.density.interfaceScale;
     final prefix = _menuWidgets(theme);
     return _BlenderApplicationTopBarSurface(
-      height: height,
+      height: scaledHeight,
       child: Row(
         children: <Widget>[
           if (overflow == BlenderApplicationTopBarOverflow.workspaceOnly)

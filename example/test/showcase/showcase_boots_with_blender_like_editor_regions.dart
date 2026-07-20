@@ -54,7 +54,14 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
       find.byType(BlenderPropertyTabs),
     );
     expect(propertiesTabs.tabs[propertiesTabs.selectedIndex].label, 'Object');
-    expect(find.text('Timeline'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey<String>('bottom-editor-selector')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('timeline-window-region')),
+      findsOneWidget,
+    );
     expect(find.text('Saved "scene.blend"'), findsOneWidget);
     expect(find.text('Building Asset Preview'), findsOneWidget);
 
@@ -98,15 +105,13 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
     await tester.tap(find.text('3D Viewport'));
     await tester.pump();
 
-    await tester.ensureVisible(find.text('Timeline').last);
-    await tester.tap(
-      find.ancestor(
-        of: find.text('Timeline'),
-        matching: find.byType(BlenderButton),
-      ),
-      warnIfMissed: false,
+    final bottomSelector = find.byKey(
+      const ValueKey<String>('bottom-editor-selector'),
     );
+    await tester.ensureVisible(bottomSelector);
+    await tester.tap(bottomSelector);
     await tester.pump();
+    expect(find.text('Timeline'), findsOneWidget);
     await tester.tap(find.text('UI Catalog'));
     await tester.pump();
     expect(find.text('Core controls'), findsOneWidget);

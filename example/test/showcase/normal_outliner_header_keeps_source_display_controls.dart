@@ -29,7 +29,8 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
       find.byType(BlenderDropdown<BlenderOutlinerDisplayMode>),
       findsNWidgets(2),
     );
-    expect(find.byType(BlenderSearchField), findsNWidgets(3));
+    // The visible Timeline Channels region adds its own source search field.
+    expect(find.byType(BlenderSearchField), findsNWidgets(4));
 
     final outlinerModes = tester
         .widgetList<BlenderDropdown<BlenderOutlinerDisplayMode>>(
@@ -84,7 +85,9 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
       BlenderOutlinerDisplayMode.libraryOverrides,
     );
     await tester.pumpAndSettle();
-    expect(find.byType(BlenderSearchField), findsOneWidget);
+    // Library Overrides keeps the Outliner search; Timeline Channels owns the
+    // second search field in the independently docked bottom area.
+    expect(find.byType(BlenderSearchField), findsNWidgets(2));
     expect(
       find.descendant(
         of: mainOutliner,
@@ -103,10 +106,10 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
         .toList();
     libraryOverrideModes.first.onChanged?.call('Properties');
     await tester.pumpAndSettle();
-    expect(find.byType(BlenderSearchField), findsNWidgets(3));
+    expect(find.byType(BlenderSearchField), findsNWidgets(4));
     libraryOverrideModes.first.onChanged?.call('Hierarchies');
     await tester.pumpAndSettle();
-    expect(find.byType(BlenderSearchField), findsOneWidget);
+    expect(find.byType(BlenderSearchField), findsNWidgets(2));
 
     outlinerModes.last.onChanged?.call(BlenderOutlinerDisplayMode.unusedData);
     await tester.pumpAndSettle();

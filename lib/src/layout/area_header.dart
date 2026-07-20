@@ -17,6 +17,7 @@ class BlenderAreaHeader extends StatelessWidget {
     this.editorSelector,
     this.showBottomBorder = true,
     this.actionsScrollable = false,
+    this.splitScrollableActions = true,
   });
 
   final BlenderEditorType editorType;
@@ -36,6 +37,11 @@ class BlenderAreaHeader extends StatelessWidget {
   final Widget? editorSelector;
   final bool showBottomBorder;
   final bool actionsScrollable;
+
+  /// Keeps menu and action scroll surfaces separate when true. Timeline uses
+  /// one continuous source-ordered row because its playback controls follow
+  /// the View/Marker menus directly rather than being pinned to the far edge.
+  final bool splitScrollableActions;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +89,7 @@ class BlenderAreaHeader extends StatelessWidget {
                   SizedBox(width: selectorWidth, child: selector),
                   ...leading,
                   Expanded(
-                    child: actionsScrollable
+                    child: actionsScrollable && splitScrollableActions
                         ? Row(
                             children: <Widget>[
                               Expanded(
@@ -126,6 +132,7 @@ class BlenderAreaHeader extends StatelessWidget {
                                   for (final menu in menuDescriptors)
                                     menu.build(),
                                   ...menus,
+                                  if (actionsScrollable) ...actions,
                                 ],
                               ),
                             ),

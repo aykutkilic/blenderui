@@ -10,6 +10,7 @@ class BlenderDopeSheetEditor extends StatelessWidget {
     this.sidebar,
     this.sidebarWidth = 240,
     this.title,
+    this.currentFrameListenable,
   });
 
   final BlenderTimelineModel model;
@@ -17,6 +18,7 @@ class BlenderDopeSheetEditor extends StatelessWidget {
   final Widget? sidebar;
   final double sidebarWidth;
   final String? title;
+  final ValueListenable<double>? currentFrameListenable;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +26,8 @@ class BlenderDopeSheetEditor extends StatelessWidget {
       model: model,
       onCurrentFrameChanged: onCurrentFrameChanged,
       title: title,
+      summaryOnly: false,
+      currentFrameListenable: currentFrameListenable,
     );
     final resolvedSidebar = sidebar ?? const BlenderDopeSheetSidebar();
     return Row(

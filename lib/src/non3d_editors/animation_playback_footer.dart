@@ -50,10 +50,13 @@ class BlenderAnimationPlaybackFooter extends StatelessWidget {
     background: background,
     children: <Widget>[
       BlenderPopover(
-        child: BlenderButton(
-          key: _key('settings-button'),
-          label: 'Playback',
-          variant: BlenderButtonVariant.topBar,
+        key: _key('settings-button'),
+        child: const IgnorePointer(
+          child: BlenderButton(
+            label: 'Playback',
+            variant: BlenderButtonVariant.topBar,
+            onPressed: _noopAnimationHeaderControl,
+          ),
         ),
         popover: (context, close) =>
             _blenderAnimationPlaybackPanel(context, state, onStateChanged),
@@ -88,11 +91,14 @@ class BlenderAnimationPlaybackFooter extends StatelessWidget {
         tooltip: 'Toggle playhead snapping',
       ),
       BlenderPopover(
-        child: BlenderIconButton(
-          key: _key('playhead-snap-button'),
-          glyph: BlenderGlyph.chevronDown,
-          selected: state.playheadSnapping,
-          tooltip: 'Playhead snapping settings',
+        key: _key('playhead-snap-button'),
+        child: IgnorePointer(
+          child: BlenderIconButton(
+            glyph: BlenderGlyph.chevronDown,
+            selected: state.playheadSnapping,
+            tooltip: 'Playhead snapping settings',
+            onPressed: _noopAnimationHeaderControl,
+          ),
         ),
         popover: (context, close) =>
             _blenderAnimationPlayheadPanel(context, state, onStateChanged),

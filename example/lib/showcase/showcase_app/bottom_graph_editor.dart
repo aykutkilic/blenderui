@@ -2,70 +2,90 @@ part of '../showcase_app.dart';
 
 extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
   Widget _buildBottomEditor() {
-    final bottomLabel = switch (_bottomTab) {
-      0 => 'Timeline',
-      1 => 'Action',
-      2 => 'Shader Editor',
-      3 => 'Spreadsheet',
-      4 => 'Keymap',
-      _ => 'UI Catalog',
+    final selectorItems = const <BlenderMenuItem<int>>[
+      BlenderMenuItem<int>(value: 0, label: 'Timeline'),
+      BlenderMenuItem<int>(value: 1, label: 'Action'),
+      BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),
+      BlenderMenuItem<int>(value: 3, label: 'Spreadsheet'),
+      BlenderMenuItem<int>(value: 4, label: 'Keymap'),
+      BlenderMenuItem<int>(value: 5, label: 'UI Catalog'),
+    ];
+    final selectorGlyph = switch (_bottomTab) {
+      0 => BlenderGlyph.timeline,
+      1 => BlenderGlyph.action,
+      2 => BlenderGlyph.node,
+      3 => BlenderGlyph.spreadsheet,
+      4 => BlenderGlyph.keyCommand,
+      _ => BlenderGlyph.settings,
     };
-    final selector = BlenderMenuButton<int>(
-      label: bottomLabel,
-      items: const <BlenderMenuItem<int>>[
-        BlenderMenuItem<int>(value: 0, label: 'Timeline'),
-        BlenderMenuItem<int>(value: 1, label: 'Action'),
-        BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),
-        BlenderMenuItem<int>(value: 3, label: 'Spreadsheet'),
-        BlenderMenuItem<int>(value: 4, label: 'Keymap'),
-        BlenderMenuItem<int>(value: 5, label: 'UI Catalog'),
-      ],
-      onSelected: (value) => _update(() => _bottomTab = value),
+    final selector = BlenderPopover(
+      key: const ValueKey<String>('bottom-editor-selector'),
+      child: IgnorePointer(
+        child: BlenderButton(
+          label: '',
+          leading: BlenderIcon(selectorGlyph, size: 16),
+          trailing: const BlenderIcon(BlenderGlyph.chevronDown, size: 9),
+          variant: BlenderButtonVariant.toolbar,
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          onPressed: () {},
+        ),
+      ),
+      popover: (context, close) => BlenderMenu<int>(
+        items: selectorItems,
+        onSelected: (item) {
+          _update(() => _bottomTab = item.value);
+          close();
+        },
+      ),
     );
     final header = _bottomTab <= 1
-        ? BlenderDopeSheetEditorHeader(
-            editorType: _bottomTab == 0
-                ? BlenderEditorType.timeline
-                : BlenderEditorType.dopeSheet,
-            state: _animationHeaderState,
-            keyPrefix: 'animation',
-            playheadSnapKey: const ValueKey<String>(
-              'animation-playhead-snapping-button',
-            ),
-            overlayKey: const ValueKey<String>('animation-overlay-button'),
-            editorSelector: selector,
-            editorSelectorWidth: 132,
-            onStateChanged: (value) =>
-                _update(() => _animationHeaderState = value),
-            onCommand: _setStatus,
-            actionValue: _activeAction,
-            actionItems: const <BlenderMenuItem<String>>[
-              BlenderMenuItem<String>(value: 'CubeAction', label: 'CubeAction'),
-              BlenderMenuItem<String>(
-                value: 'CameraAction',
-                label: 'CameraAction',
+        ? BlenderPlaybackBuilder(
+            controller: _playback,
+            builder: (context, playback, child) => BlenderDopeSheetEditorHeader(
+              editorType: _bottomTab == 0
+                  ? BlenderEditorType.timeline
+                  : BlenderEditorType.dopeSheet,
+              state: _animationHeaderState,
+              keyPrefix: 'animation',
+              playheadSnapKey: const ValueKey<String>(
+                'animation-playhead-snapping-button',
               ),
-            ],
-            onActionChanged: (value) => _update(() => _activeAction = value),
-            onActionNew: () => _setStatus('New Action'),
-            onActionUnlink: () => _setStatus('Unlink Action'),
-            actionUserCount: 1,
-            playing: _playing,
-            onFirst: () => _update(() => _frame = 1),
-            onPrevious: () =>
-                _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-            onPlay: () => _update(() => _playing = !_playing),
-            onNext: () =>
-                _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
-            onLast: () => _update(() => _frame = 120),
-            onRecord: () => _setStatus('Record toggled'),
-            onTimeBackward: () =>
-                _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-            onTimeForward: () =>
-                _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
-            frame: _frame,
-            frameMax: 120,
-            onFrameChanged: (value) => _update(() => _frame = value),
+              overlayKey: const ValueKey<String>('animation-overlay-button'),
+              editorSelector: selector,
+              editorSelectorWidth: 44,
+              onStateChanged: (value) =>
+                  _update(() => _animationHeaderState = value),
+              onCommand: _setStatus,
+              actionValue: _activeAction,
+              actionItems: const <BlenderMenuItem<String>>[
+                BlenderMenuItem<String>(
+                  value: 'CubeAction',
+                  label: 'CubeAction',
+                ),
+                BlenderMenuItem<String>(
+                  value: 'CameraAction',
+                  label: 'CameraAction',
+                ),
+              ],
+              onActionChanged: (value) => _update(() => _activeAction = value),
+              onActionNew: () => _setStatus('New Action'),
+              onActionUnlink: () => _setStatus('Unlink Action'),
+              actionUserCount: 1,
+              playing: _playback.playing,
+              onFirst: _playback.jumpToStart,
+              onPrevious: _playback.stepBackward,
+              onPlay: _playback.togglePlaying,
+              onNext: _playback.stepForward,
+              onLast: _playback.jumpToEnd,
+              onRecord: () => _setStatus('Record toggled'),
+              onTimeBackward: _playback.stepBackward,
+              onTimeForward: _playback.stepForward,
+              frame: _frame,
+              frameMax: 120,
+              rangeStart: 1,
+              rangeEnd: 120,
+              onFrameChanged: _playback.seek,
+            ),
           )
         : BlenderToolbar(
             height: 30,
@@ -93,12 +113,14 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
       0 => BlenderTimeline(
         title: null,
         model: _timelineModel,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
+        currentFrameListenable: _playback,
       ),
       1 => BlenderDopeSheetEditor(
         title: 'Action',
         model: _actionModel,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
+        currentFrameListenable: _playback,
       ),
       2 => BlenderNodeEditor(
         model: _nodeGraph,

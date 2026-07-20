@@ -17,6 +17,7 @@ part 'blender_ui/operator_redo_and_property_dialog_preserve_popup.dart';
 part 'blender_ui/status_info_preserves_version_extension_and_warning.dart';
 part 'blender_ui/view3d_chrome_is_library_owned.dart';
 part 'blender_ui/context_menus_follow_blender_regions_and_targets.dart';
+part 'blender_ui/resolution_scale_scales_menu_and_tab_geometry.dart';
 
 Widget _harness(Widget child) {
   return Directionality(
@@ -49,6 +50,7 @@ void main() {
   registerStatusInfoPreservesVersionExtensionAndWarningTests();
   registerView3dChromeIsLibraryOwnedTests();
   registerContextMenusFollowBlenderRegionsAndTargetsTests();
+  registerResolutionScaleScalesMenuAndTabGeometryTests();
 }
 
 void _ignoreDouble(double value) {}

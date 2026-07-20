@@ -249,6 +249,7 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
         widget.selectedCategory ??
         (widget.categories.isEmpty ? null : widget.categories.first);
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     final visibleSections = _visibleSections(category);
     return BlenderPanel(
       title: widget.title,
@@ -257,7 +258,7 @@ class _BlenderPreferencesEditorState extends State<BlenderPreferencesEditor> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           SizedBox(
-            width: 148,
+            width: 148 * scale,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: theme.colors.surface,

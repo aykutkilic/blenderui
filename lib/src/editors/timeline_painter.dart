@@ -1,36 +1,110 @@
 part of '../editors.dart';
 
-class _BlenderTimelinePainter extends CustomPainter {
-  _BlenderTimelinePainter({
-    required this.model,
+const double _blenderTimelineScrubHeight = 28;
+
+int _timelineLowerBound<T>(
+  List<T> values,
+  double frame,
+  double Function(T value) frameOf,
+) {
+  var low = 0;
+  var high = values.length;
+  while (low < high) {
+    final middle = low + ((high - low) >> 1);
+    if (frameOf(values[middle]) < frame) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+int _timelineUpperBound<T>(
+  List<T> values,
+  double frame,
+  double Function(T value) frameOf,
+) {
+  var low = 0;
+  var high = values.length;
+  while (low < high) {
+    final middle = low + ((high - low) >> 1);
+    if (frameOf(values[middle]) <= frame) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+/// Static Timeline layer: grid, ruler, channel separators, and keyframes.
+///
+/// It deliberately excludes the playhead, so advancing one frame does not
+/// repaint or rescan animation data. Blender follows the same split through
+/// its main-region and current-frame overlay draw callbacks.
+class _BlenderTimelineStaticPainter extends CustomPainter {
+  _BlenderTimelineStaticPainter({
+    required this.renderData,
     required this.trackHeight,
     required this.colors,
     required this.textTheme,
-  });
+    required this.visibleStart,
+    required this.visibleEnd,
+    required this.summaryOnly,
+  }) : _linePaint = Paint()
+         ..color = colors.borderSubtle.withValues(alpha: .52)
+         ..strokeWidth = 1,
+       _canvasPaint = Paint()..color = colors.canvas,
+       _scrubPaint = Paint()..color = colors.surface;
 
-  final BlenderTimelineModel model;
+  final _BlenderTimelineRenderData renderData;
   final double trackHeight;
   final BlenderColorScheme colors;
   final BlenderTextTheme textTheme;
+  final double visibleStart;
+  final double visibleEnd;
+  final bool summaryOnly;
+  final Paint _linePaint;
+  final Paint _canvasPaint;
+  final Paint _scrubPaint;
+
+  double _niceTickStep(double width) {
+    final raw = (visibleEnd - visibleStart) / math.max(1, width / 90);
+    final magnitude = math
+        .pow(10, (math.log(raw) / math.ln10).floor())
+        .toDouble();
+    for (final multiplier in const <double>[1, 2, 3, 6, 10]) {
+      final candidate = multiplier * magnitude;
+      if (candidate >= raw) return candidate;
+    }
+    return 10 * magnitude;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final range = math.max(.0001, model.end - model.start);
-    const headerHeight = 28.0;
-    final linePaint = Paint()..color = colors.borderSubtle;
-    final mutedPaint = Paint()..color = colors.foregroundMuted;
-    canvas.drawLine(
-      const Offset(0, headerHeight),
-      Offset(size.width, headerHeight),
-      linePaint,
+    final range = math.max(.0001, visibleEnd - visibleStart);
+    canvas.drawRect(Offset.zero & size, _canvasPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, _blenderTimelineScrubHeight),
+      _scrubPaint,
     );
+
+    // Batch the grid and separators into one draw rather than issuing a draw
+    // call for every line.
+    final gridPath = Path()
+      ..moveTo(0, _blenderTimelineScrubHeight)
+      ..lineTo(size.width, _blenderTimelineScrubHeight);
+    final step = _niceTickStep(size.width);
     for (
-      var frame = model.start.ceilToDouble();
-      frame <= model.end;
-      frame += 10
+      var frame = (visibleStart / step).ceil() * step;
+      frame <= visibleEnd;
+      frame += step
     ) {
-      final x = (frame - model.start) / range * size.width;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
+      final x = (frame - visibleStart) / range * size.width;
+      gridPath
+        ..moveTo(x, 0)
+        ..lineTo(x, size.height);
       final textPainter = TextPainter(
         text: TextSpan(
           text: frame.toStringAsFixed(0),
@@ -38,48 +112,200 @@ class _BlenderTimelinePainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(x + 2, 5));
+      textPainter.paint(canvas, Offset(x + 3, 6));
     }
-    for (var index = 0; index < model.tracks.length; index++) {
-      final y = headerHeight + index * trackHeight;
-      canvas.drawLine(
-        Offset(0, y + trackHeight),
-        Offset(size.width, y + trackHeight),
-        linePaint,
+
+    final rowCount = summaryOnly
+        ? 1
+        : math.min(
+            renderData.tracks.length,
+            math.max(
+              0,
+              ((size.height - _blenderTimelineScrubHeight) / trackHeight)
+                  .ceil(),
+            ),
+          );
+    for (var index = 0; index < rowCount; index++) {
+      final y = _blenderTimelineScrubHeight + (index + 1) * trackHeight;
+      gridPath
+        ..moveTo(0, y)
+        ..lineTo(size.width, y);
+    }
+    canvas.drawPath(gridPath, _linePaint);
+
+    if (summaryOnly) {
+      _drawSummaryKeys(canvas, size.width, range);
+    } else {
+      _drawTrackKeys(canvas, size, range, rowCount);
+    }
+  }
+
+  void _drawSummaryKeys(Canvas canvas, double width, double range) {
+    // Do not materialize a scene-wide Summary keylist. Blender asks each
+    // prepared channel for the visible View2D range; doing the same bounds
+    // memory and work to the keys that can affect this paint.
+    final visibleFrames = <double>{};
+    for (final track in renderData.tracks) {
+      final keys = track.keyframes;
+      final startIndex = _timelineLowerBound<BlenderTimelineKeyframe>(
+        keys,
+        visibleStart,
+        (key) => key.frame,
       );
-      final labelPainter = TextPainter(
-        text: TextSpan(
-          text: model.tracks[index].label,
-          style: textTheme.caption.copyWith(color: colors.foreground),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 100);
-      labelPainter.paint(canvas, Offset(6, y + 5));
-      for (final keyframe in model.tracks[index].keyframes) {
-        final x = (keyframe.frame - model.start) / range * size.width;
-        final color = keyframe.color ?? colors.accent;
-        final keyframePaint = Paint()..color = color;
-        final points = <Offset>[
-          Offset(x, y + trackHeight / 2),
-          Offset(x + 5, y + trackHeight / 2 - 5),
-          Offset(x + 10, y + trackHeight / 2),
-          Offset(x + 5, y + trackHeight / 2 + 5),
-        ];
-        canvas.drawPath(Path()..addPolygon(points, true), keyframePaint);
+      final endIndex = _timelineUpperBound<BlenderTimelineKeyframe>(
+        keys,
+        visibleEnd,
+        (key) => key.frame,
+      );
+      for (var index = startIndex; index < endIndex; index++) {
+        visibleFrames.add(keys[index].frame);
       }
     }
-    final cursorX = (model.currentFrame - model.start) / range * size.width;
-    canvas.drawLine(
-      Offset(cursorX, 0),
-      Offset(cursorX, size.height),
-      mutedPaint..strokeWidth = 2,
-    );
+    if (visibleFrames.isEmpty) return;
+    final frames = visibleFrames.toList()..sort();
+
+    final y = _blenderTimelineScrubHeight + trackHeight / 2;
+    final path = Path();
+    for (final frame in frames) {
+      final x = (frame - visibleStart) / range * width;
+      _addDiamond(path, x, y, 4);
+    }
+    canvas.drawPath(path, Paint()..color = colors.accent);
+  }
+
+  void _drawTrackKeys(Canvas canvas, Size size, double range, int rowCount) {
+    final paths = <Color, Path>{};
+    for (var trackIndex = 0; trackIndex < rowCount; trackIndex++) {
+      final keys = renderData.tracks[trackIndex].keyframes;
+      final startIndex = _timelineLowerBound<BlenderTimelineKeyframe>(
+        keys,
+        visibleStart,
+        (key) => key.frame,
+      );
+      final endIndex = _timelineUpperBound<BlenderTimelineKeyframe>(
+        keys,
+        visibleEnd,
+        (key) => key.frame,
+      );
+      final y =
+          _blenderTimelineScrubHeight +
+          trackIndex * trackHeight +
+          trackHeight / 2;
+      for (var keyIndex = startIndex; keyIndex < endIndex; keyIndex++) {
+        final keyframe = keys[keyIndex];
+        final x = (keyframe.frame - visibleStart) / range * size.width;
+        final color = keyframe.color ?? colors.accent;
+        _addDiamond(paths.putIfAbsent(color, Path.new), x, y, 5);
+      }
+    }
+    for (final MapEntry(key: color, value: path) in paths.entries) {
+      canvas.drawPath(path, Paint()..color = color);
+    }
+  }
+
+  static void _addDiamond(Path path, double x, double y, double radius) {
+    path
+      ..moveTo(x - radius, y)
+      ..lineTo(x, y - radius)
+      ..lineTo(x + radius, y)
+      ..lineTo(x, y + radius)
+      ..close();
   }
 
   @override
-  bool shouldRepaint(_BlenderTimelinePainter oldDelegate) {
-    return model != oldDelegate.model ||
+  bool shouldRepaint(_BlenderTimelineStaticPainter oldDelegate) {
+    return renderData != oldDelegate.renderData ||
         trackHeight != oldDelegate.trackHeight ||
-        colors != oldDelegate.colors;
+        colors != oldDelegate.colors ||
+        textTheme != oldDelegate.textTheme ||
+        visibleStart != oldDelegate.visibleStart ||
+        visibleEnd != oldDelegate.visibleEnd ||
+        summaryOnly != oldDelegate.summaryOnly;
+  }
+}
+
+/// Fast-changing Timeline overlay containing only the current-frame marker.
+class _BlenderTimelinePlayheadPainter extends CustomPainter {
+  _BlenderTimelinePlayheadPainter({
+    required this.currentFrame,
+    required this.currentFrameListenable,
+    required this.colors,
+    required this.textTheme,
+    required this.visibleStart,
+    required this.visibleEnd,
+  }) : _playheadPaint = Paint()
+         ..color = colors.accent
+         ..strokeWidth = 2,
+       _labelPainter = TextPainter(
+         text: TextSpan(
+           text: (currentFrameListenable?.value ?? currentFrame)
+               .round()
+               .toString(),
+           style: textTheme.body.copyWith(color: colors.foreground),
+         ),
+         textDirection: TextDirection.ltr,
+       )..layout(),
+       super(repaint: currentFrameListenable);
+
+  final double currentFrame;
+  final ValueListenable<double>? currentFrameListenable;
+  final BlenderColorScheme colors;
+  final BlenderTextTheme textTheme;
+  final double visibleStart;
+  final double visibleEnd;
+  final Paint _playheadPaint;
+  final TextPainter _labelPainter;
+
+  double get _resolvedFrame => currentFrameListenable?.value ?? currentFrame;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final range = math.max(.0001, visibleEnd - visibleStart);
+    final frame = _resolvedFrame;
+    final x = (frame - visibleStart) / range * size.width;
+    final label = frame.round().toString();
+    if ((_labelPainter.text as TextSpan).text != label) {
+      _labelPainter.text = TextSpan(
+        text: label,
+        style: textTheme.body.copyWith(color: colors.foreground),
+      );
+      _labelPainter.layout();
+    }
+    canvas.drawLine(
+      Offset(x, _blenderTimelineScrubHeight - 1),
+      Offset(x, size.height),
+      _playheadPaint,
+    );
+
+    final boxWidth = math.max(24, _labelPainter.width + 8).toDouble();
+    final box = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(x, (_blenderTimelineScrubHeight - 6) / 2),
+        width: boxWidth,
+        height: _blenderTimelineScrubHeight - 6,
+      ),
+      const Radius.circular(3),
+    );
+    canvas.drawRRect(box, _playheadPaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(x - 5, _blenderTimelineScrubHeight - 5)
+        ..lineTo(x + 5, _blenderTimelineScrubHeight - 5)
+        ..lineTo(x, _blenderTimelineScrubHeight + 1)
+        ..close(),
+      _playheadPaint,
+    );
+    _labelPainter.paint(canvas, Offset(x - _labelPainter.width / 2, 4));
+  }
+
+  @override
+  bool shouldRepaint(_BlenderTimelinePlayheadPainter oldDelegate) {
+    return currentFrameListenable != oldDelegate.currentFrameListenable ||
+        (currentFrameListenable == null &&
+            currentFrame != oldDelegate.currentFrame) ||
+        colors != oldDelegate.colors ||
+        textTheme != oldDelegate.textTheme ||
+        visibleStart != oldDelegate.visibleStart ||
+        visibleEnd != oldDelegate.visibleEnd;
   }
 }

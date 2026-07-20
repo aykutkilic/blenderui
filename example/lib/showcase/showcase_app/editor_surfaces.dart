@@ -61,11 +61,13 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
       ),
       BlenderEditorType.timeline => BlenderTimeline(
         model: _timelineModel,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
+        currentFrameListenable: _playback,
       ),
       BlenderEditorType.dopeSheet => BlenderDopeSheetEditor(
         model: _timelineModel,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
+        currentFrameListenable: _playback,
       ),
       BlenderEditorType.graphEditor => BlenderCurveEditor(
         channels: const <BlenderCurveChannel>[
@@ -97,18 +99,16 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
           state: _animationHeaderState,
           onStateChanged: (value) =>
               _update(() => _animationHeaderState = value),
-          playing: _playing,
-          onFirst: () => _update(() => _frame = 1),
-          onPrevious: () =>
-              _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-          onPlay: () => _update(() => _playing = !_playing),
-          onNext: () =>
-              _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
-          onLast: () => _update(() => _frame = 120),
+          playing: _playback.playing,
+          onFirst: _playback.jumpToStart,
+          onPrevious: _playback.stepBackward,
+          onPlay: _playback.togglePlaying,
+          onNext: _playback.stepForward,
+          onLast: _playback.jumpToEnd,
           onRecord: () => _setStatus('Record toggled'),
           frame: _frame,
           frameMax: 120,
-          onFrameChanged: (value) => _update(() => _frame = value),
+          onFrameChanged: _playback.seek,
           keyPrefix: 'graph-playback',
         ),
       ),
@@ -117,7 +117,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         start: 1,
         end: 120,
         currentFrame: _frame,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
         footer: _buildNlaPlaybackFooter(),
       ),
       BlenderEditorType.drivers => const BlenderCurveEditor(
@@ -138,7 +138,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         start: 1,
         end: 120,
         currentFrame: _frame,
-        onCurrentFrameChanged: (value) => _update(() => _frame = value),
+        onCurrentFrameChanged: _playback.seek,
       ),
       BlenderEditorType.clipEditor => const BlenderClipEditor(
         markers: <BlenderClipMarker>[

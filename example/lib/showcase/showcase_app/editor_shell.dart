@@ -6,7 +6,15 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
     BlenderDockAreaNode<String> area,
   ) {
     return switch (area.value) {
-      'main' => _buildEditorAreaHost(_mainEditorArea, _buildMainEditor),
+      'main' => _buildEditorAreaHost(
+        _mainEditorArea,
+        () => _mainEditorUsesFrame
+            ? BlenderPlaybackBuilder(
+                controller: _playback,
+                builder: (context, playback, child) => _buildMainEditor(),
+              )
+            : _buildMainEditor(),
+      ),
       'bottom' => _buildBottomEditor(),
       'right-top' => _buildEditorAreaHost(
         _rightTopEditorArea,
@@ -19,6 +27,17 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
       _ => _buildEditorAreaHost(_mainEditorArea, _buildMainEditor),
     };
   }
+
+  bool get _mainEditorUsesFrame => switch (_mainEditorType) {
+    BlenderEditorType.timeline ||
+    BlenderEditorType.dopeSheet ||
+    BlenderEditorType.graphEditor ||
+    BlenderEditorType.drivers ||
+    BlenderEditorType.nlaEditor ||
+    BlenderEditorType.sequencer ||
+    BlenderEditorType.videoEditing => true,
+    _ => false,
+  };
 
   Widget _buildEditorAreaHost(
     BlenderEditorAreaController<BlenderEditorType> controller,
@@ -57,22 +76,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
     return Column(
       children: <Widget>[
         _buildMainEditorHeader(),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              if (_mainEditorType != BlenderEditorType.view3d &&
-                  _mainEditorType != BlenderEditorType.imageEditor &&
-                  _mainEditorType != BlenderEditorType.uvEditor &&
-                  _mainEditorType != BlenderEditorType.shaderEditor &&
-                  _mainEditorType != BlenderEditorType.geometryNodeEditor &&
-                  _mainEditorType != BlenderEditorType.compositor &&
-                  _mainEditorType != BlenderEditorType.textureNodeEditor)
-                _buildLeftSidebar(),
-              Expanded(child: _buildMainEditorSurface()),
-            ],
-          ),
-        ),
+        Expanded(child: _buildMainEditorSurface()),
       ],
     );
   }

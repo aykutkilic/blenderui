@@ -19,6 +19,7 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     return BlenderPopover(
       openOnHover: true,
       targetAnchor: Alignment.bottomRight,
@@ -30,7 +31,10 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
         tooltip: 'Show visible Properties tabs',
       ),
       popover: (context, close) => ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 238, maxHeight: 540),
+        constraints: BoxConstraints(
+          maxWidth: 238 * scale,
+          maxHeight: 540 * scale,
+        ),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: theme.colors.menuBackground,
@@ -45,7 +49,12 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            padding: EdgeInsets.fromLTRB(
+              12 * scale,
+              10 * scale,
+              12 * scale,
+              8 * scale,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,22 +65,22 @@ class BlenderPropertyTabVisibilityMenu extends StatelessWidget {
                     color: theme.colors.foregroundMuted,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6 * scale),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 475),
+                  constraints: BoxConstraints(maxHeight: 475 * scale),
                   child: SingleChildScrollView(
                     child: Column(
                       children: <Widget>[
                         for (final tab in tabs)
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            padding: EdgeInsets.symmetric(vertical: 3 * scale),
                             child: Row(
                               children: <Widget>[
                                 SizedBox(
-                                  width: 26,
+                                  width: 26 * scale,
                                   child: BlenderIcon(
                                     tab.glyph,
-                                    size: 16,
+                                    size: 16 * scale,
                                     color: _propertyTabIconColor(
                                       theme.colors,
                                       tab.glyph,
@@ -180,11 +189,12 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
   Widget build(BuildContext context) {
     final tabs = widget.tabs;
     final selectedIndex = widget.selectedIndex;
-    final width = widget.width;
-    final tileSize = widget.tileSize;
     final visibleTabIds = widget.visibleTabIds;
     final onVisibilityChanged = widget.onVisibilityChanged;
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
+    final width = widget.width * scale;
+    final tileSize = widget.tileSize * scale;
     final visibleEntries = <MapEntry<int, List<int>>>[];
     for (var index = 0; index < tabs.length; index++) {
       if (visibleTabIds != null && !visibleTabIds.contains(tabs[index].id)) {
@@ -239,7 +249,7 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
                           groupIndex < visibleEntries.length;
                           groupIndex++
                         ) ...<Widget>[
-                          if (groupIndex > 0) const SizedBox(height: 4),
+                          if (groupIndex > 0) SizedBox(height: 4 * scale),
                           DecoratedBox(
                             decoration: const BoxDecoration(
                               boxShadow: <BoxShadow>[
@@ -268,9 +278,9 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
                         ],
                         if (visibleTabIds != null &&
                             onVisibilityChanged != null) ...<Widget>[
-                          const SizedBox(height: 3),
+                          SizedBox(height: 3 * scale),
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 3),
+                            padding: EdgeInsets.only(bottom: 3 * scale),
                             child: BlenderPropertyTabVisibilityMenu(
                               tabs: tabs,
                               visibleTabIds: visibleTabIds,
@@ -287,7 +297,7 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
                       left: 0,
                       right: 0,
                       top: 0,
-                      height: 18,
+                      height: 18 * scale,
                       child: IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -308,7 +318,7 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      height: 18,
+                      height: 18 * scale,
                       child: IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -358,6 +368,7 @@ class _BlenderPropertyTabButtonState extends State<_BlenderPropertyTabButton> {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     // `wcol_tab` in Blender keeps the outline and unselected fill identical.
     // Inset the outer edge, but let the content edge meet the neighboring
     // editor so the selected tab reads as an attached surface.
@@ -378,20 +389,20 @@ class _BlenderPropertyTabButtonState extends State<_BlenderPropertyTabButton> {
             height: widget.size,
             child: Padding(
               padding: widget.selected || _hovered
-                  ? const EdgeInsets.only(left: 1, top: 1, bottom: 1)
+                  ? EdgeInsets.only(left: scale, top: scale, bottom: scale)
                   : EdgeInsets.zero,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: background,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(3),
-                    bottomLeft: Radius.circular(3),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(3 * scale),
+                    bottomLeft: Radius.circular(3 * scale),
                   ),
                 ),
                 child: Center(
                   child: BlenderIcon(
                     widget.tab.glyph,
-                    size: 15,
+                    size: 15 * scale,
                     color: _propertyTabIconColor(
                       theme.colors,
                       widget.tab.glyph,

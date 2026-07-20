@@ -5,22 +5,26 @@ class BlenderPlaybackControls extends StatelessWidget {
     super.key,
     this.onFirst,
     this.onPrevious,
+    this.onPlayReverse,
     this.onPlay,
     this.onNext,
     this.onLast,
     this.onRecord,
     this.playing = false,
     this.recording = false,
+    this.showRecord = true,
   });
 
   final VoidCallback? onFirst;
   final VoidCallback? onPrevious;
+  final VoidCallback? onPlayReverse;
   final VoidCallback? onPlay;
   final VoidCallback? onNext;
   final VoidCallback? onLast;
   final VoidCallback? onRecord;
   final bool playing;
   final bool recording;
+  final bool showRecord;
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +40,17 @@ class BlenderPlaybackControls extends StatelessWidget {
         BlenderIconButton(
           glyph: BlenderGlyph.stepBack,
           onPressed: onPrevious,
-          tooltip: 'Previous frame',
+          tooltip: 'Previous keyframe',
           size: 22,
+        ),
+        Transform.flip(
+          flipX: true,
+          child: BlenderIconButton(
+            glyph: BlenderGlyph.play,
+            onPressed: onPlayReverse,
+            tooltip: 'Play animation in reverse',
+            size: 22,
+          ),
         ),
         BlenderIconButton(
           glyph: playing ? BlenderGlyph.pause : BlenderGlyph.play,
@@ -49,7 +62,7 @@ class BlenderPlaybackControls extends StatelessWidget {
         BlenderIconButton(
           glyph: BlenderGlyph.stepForward,
           onPressed: onNext,
-          tooltip: 'Next frame',
+          tooltip: 'Next keyframe',
           size: 22,
         ),
         BlenderIconButton(
@@ -58,13 +71,14 @@ class BlenderPlaybackControls extends StatelessWidget {
           tooltip: 'Jump to last frame',
           size: 22,
         ),
-        BlenderIconButton(
-          glyph: BlenderGlyph.record,
-          onPressed: onRecord,
-          selected: recording,
-          tooltip: 'Record animation',
-          size: 22,
-        ),
+        if (showRecord)
+          BlenderIconButton(
+            glyph: BlenderGlyph.record,
+            onPressed: onRecord,
+            selected: recording,
+            tooltip: 'Record animation',
+            size: 22,
+          ),
       ],
     );
   }
@@ -105,11 +119,14 @@ class BlenderTimeJumpControls extends StatelessWidget {
           size: 22,
         ),
         BlenderPopover(
-          child: const BlenderIconButton(
-            glyph: BlenderGlyph.panelDisclosureDown,
-            tooltip: 'Time jump settings',
-            size: 22,
-            iconSize: 9,
+          child: const IgnorePointer(
+            child: BlenderIconButton(
+              glyph: BlenderGlyph.panelDisclosureDown,
+              tooltip: 'Time jump settings',
+              size: 22,
+              iconSize: 9,
+              onPressed: _noopPlaybackControl,
+            ),
           ),
           popover: popover,
         ),
@@ -117,3 +134,5 @@ class BlenderTimeJumpControls extends StatelessWidget {
     );
   }
 }
+
+void _noopPlaybackControl() {}

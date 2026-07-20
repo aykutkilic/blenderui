@@ -30,6 +30,9 @@ export 'src/advanced_controls.dart'
         BlenderPropertyTabs,
         BlenderPropertyState,
         BlenderPlaybackControls,
+        BlenderPlaybackBuilder,
+        BlenderPlaybackController,
+        BlenderPlaybackWidgetBuilder,
         BlenderTimeJumpControls,
         BlenderSegmentedControl,
         BlenderSeparator;

@@ -409,6 +409,11 @@ class BlenderDensity {
   final double panelPadding;
   final double iconSize;
 
+  /// Scale represented by this density relative to Blender's 20 px default
+  /// control unit. Popup rows, menu padding, tabs and icon hit targets use
+  /// the same UI scale as the primary density metrics.
+  double get interfaceScale => controlHeight / 20;
+
   BlenderDensity copyWith({
     double? controlHeight,
     double? rowHeight,

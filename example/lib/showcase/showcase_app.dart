@@ -642,6 +642,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     _galleryPathController.dispose();
     _importerPathController.dispose();
     _exporterPathController.dispose();
+    _playback.dispose();
     super.dispose();
   }
 

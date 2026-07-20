@@ -250,42 +250,48 @@ class BlenderMenu<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     final hasSelectionMarkers = items.any((candidate) => candidate.selected);
     final hasLeadingMarkers = items.any(
       (candidate) =>
           candidate.selected || candidate.checked || candidate.icon != null,
     );
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minWidth: 220,
-        maxWidth: 300,
-        maxHeight: 420,
+      constraints: BoxConstraints(
+        minWidth: 220 * scale,
+        maxWidth: 300 * scale,
+        maxHeight: 420 * scale,
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colors.menuBackground,
           border: Border.all(color: theme.colors.borderSubtle),
-          borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+          borderRadius: BorderRadius.circular(theme.shapes.menuRadius * scale),
         ),
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.all(4),
+          padding: EdgeInsets.all(4 * scale),
           children: <Widget>[
             if (title != null && title!.isNotEmpty) ...<Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 5, 8, 7),
+                padding: EdgeInsets.fromLTRB(
+                  8 * scale,
+                  5 * scale,
+                  8 * scale,
+                  7 * scale,
+                ),
                 child: Text(
                   title!,
                   style: theme.textTheme.body.copyWith(
                     color: theme.colors.foregroundMuted,
-                    fontSize: 11,
+                    fontSize: 11 * scale,
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding: EdgeInsets.only(bottom: 3 * scale),
                 child: SizedBox(
-                  height: 1,
+                  height: scale,
                   child: ColoredBox(color: theme.colors.borderSubtle),
                 ),
               ),
@@ -293,9 +299,9 @@ class BlenderMenu<T> extends StatelessWidget {
             for (final item in items)
               if (item.separator)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  padding: EdgeInsets.symmetric(vertical: 3 * scale),
                   child: SizedBox(
-                    height: 1,
+                    height: scale,
                     child: ColoredBox(color: theme.colors.borderSubtle),
                   ),
                 )
@@ -308,11 +314,11 @@ class BlenderMenu<T> extends StatelessWidget {
                           children: <Widget>[
                             if (hasSelectionMarkers)
                               SizedBox(
-                                width: 15,
+                                width: 15 * scale,
                                 child: item.selected
-                                    ? const BlenderIcon(
+                                    ? BlenderIcon(
                                         BlenderGlyph.check,
-                                        size: 12,
+                                        size: 12 * scale,
                                       )
                                     : null,
                               ),
@@ -320,15 +326,15 @@ class BlenderMenu<T> extends StatelessWidget {
                               _BlenderMenuCheck(enabled: item.enabled)
                             else if (item.icon != null)
                               SizedBox(
-                                width: 16,
-                                height: 16,
+                                width: 16 * scale,
+                                height: 16 * scale,
                                 child: item.icon!,
                               ),
                           ],
                         )
                       : null,
                   leadingWidth: hasLeadingMarkers
-                      ? (hasSelectionMarkers ? 35 : 18)
+                      ? (hasSelectionMarkers ? 35 * scale : 18 * scale)
                       : 0,
                   onSelected: onSelected,
                 ),
@@ -347,13 +353,14 @@ class _BlenderMenuCheck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     final color = enabled
         ? theme.colors.foreground
         : theme.colors.foregroundDisabled;
     return SizedBox(
-      width: 16,
-      height: 16,
-      child: BlenderIcon(BlenderGlyph.check, size: 15, color: color),
+      width: 16 * scale,
+      height: 16 * scale,
+      child: BlenderIcon(BlenderGlyph.check, size: 15 * scale, color: color),
     );
   }
 }
@@ -381,6 +388,7 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
 
   Widget _buildContent(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     final highlighted = widget.item.selected || _hovered || _submenuOpen;
     final foreground = widget.item.enabled
         ? theme.colors.foreground
@@ -390,8 +398,8 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
       onExit: (_) => setState(() => _hovered = false),
       child: Container(
         key: ValueKey<String>('menu-row-${widget.item.label}'),
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
+        height: 28 * scale,
+        padding: EdgeInsets.symmetric(horizontal: 7 * scale),
         decoration: BoxDecoration(
           color: highlighted ? theme.colors.menuSelection : null,
           borderRadius: BorderRadius.circular(2),
@@ -400,7 +408,7 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
           children: <Widget>[
             if (widget.leadingWidth > 0) ...<Widget>[
               SizedBox(width: widget.leadingWidth, child: widget.leading),
-              const SizedBox(width: 7),
+              SizedBox(width: 7 * scale),
             ],
             Expanded(
               child: Text(
@@ -408,31 +416,31 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.body.copyWith(
                   color: foreground,
-                  fontSize: 11,
+                  fontSize: 11 * scale,
                   height: 1.1,
                 ),
               ),
             ),
             if (widget.item.shortcut != null)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: EdgeInsets.only(left: 8 * scale),
                 child: Text(
                   widget.item.shortcut!,
                   style: theme.textTheme.caption.copyWith(
                     color: foreground,
-                    fontSize: 10,
+                    fontSize: 10 * scale,
                   ),
                 ),
               ),
             if (widget.item.submenu != null)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: EdgeInsets.only(left: 8 * scale),
                 child: BlenderIcon(
                   key: ValueKey<String>(
                     'menu-submenu-arrow-${widget.item.label}',
                   ),
                   BlenderGlyph.panelDisclosureRight,
-                  size: 9,
+                  size: 9 * scale,
                   color: foreground,
                 ),
               ),

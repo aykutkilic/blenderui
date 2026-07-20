@@ -461,3 +461,70 @@ live in [the decision records](decisions/).
 - Recorded architecture, source anchors, tool failures, render fixes, and
   verification in [`geometry-node-editor-parity.md`](geometry-node-editor-parity.md)
   and the accepted universal-editor decision.
+
+## 2026-07-20 — Rebuilt the Timeline from native editor regions
+
+- Audited `space_time.py`, `space_dopesheet.py`, `space_action.cc`, and
+  `time_scrub_ui.cc` in the local blenderapp checkout against the supplied
+  original/example captures.
+- Replaced the generic titled track chart with reusable Channels/Search/Summary
+  and Window/Scrub regions, source-density rows, padded frame mapping, adaptive
+  ruler ticks, summary keys, and Blender's numbered playhead flag and stalk.
+- Restored the source header order and scene Start/End controls, separated the
+  auto-key record control from transport, and kept Timeline menus and actions
+  in one continuous compact row.
+- Removed generic host-level View3D shelf injection; View3D, Image/UV, and Node
+  surfaces now remain responsible for their own tool regions.
+- Added geometry, ordering, scrub-mapping, collapsed-region, integration, and
+  1200x700 rendered-reference coverage. The first collapsed-dock run found a
+  fixed-row Flex overflow; native-style clipping resolved it.
+- Rebuilt the release macOS example at a controlled 1280x769 content size and
+  captured only its CoreGraphics window. The final pass confirmed the compact
+  icon selector, enabled header controls, Search/Summary split, ruler, keys,
+  and numbered playhead at application scale.
+- Browser automation again failed before page bootstrap because sandbox policy
+  metadata was absent. The failure and the source/golden/native fallback are
+  retained in the decision record.
+
+## 2026-07-20 — Removed Timeline scrubbing from the static render path
+
+- Examined `space_action.cc`, `action_draw.cc`, and `keyframes_draw.cc` for the
+  native application's overlay separation, View2D culling, prepared keylists,
+  and batched key drawing.
+- Split Timeline painting into retained static content and a current-frame
+  overlay, prepared sorted animation data only when its identity or revision
+  changes, and limited row/key construction to visible ranges.
+- Replaced example-wide frame `setState` calls with frame-scoped listenable
+  rebuilds so Timeline interaction no longer rebuilds unrelated workspace,
+  Outliner, Properties, and viewport surfaces.
+- Added regression coverage for both sides of the invalidation contract:
+  scrubbing repaints the overlay only, while an explicit data revision
+  invalidates the prepared static content.
+
+## 2026-07-20 — Extracted reusable playback state from the example
+
+- Replaced the example's local frame notifier, transport flag mutation, range
+  clamping, and generic listenable builder with public
+  `BlenderPlaybackController` and `BlenderPlaybackBuilder` contracts.
+- Added direct frame-listenable input to Timeline and Dope Sheet so the
+  playhead painter can advance without rebuilding retained editor content.
+- Migrated the example to library-owned seeking, stepping, range jumps, and
+  playback toggling while keeping scene data and animation evaluation policy
+  application-owned.
+- Added focused controller, rebuild-boundary, and direct-painter-listenable
+  tests. Analysis caught and documented an explicit Flutter foundation import;
+  the example boot suite caught two stale text-based assumptions about the
+  now-icon-only editor selector.
+
+## 2026-07-20 — Applied resolution scale to popup and tab chrome
+
+- Audited Blender's local `wm_window.cc`, `interface_intern.hh`, popup/menu
+  regions, interface style, and tree-view sources. Blender applies
+  `UI_SCALE_FAC` to menu rows, popup bounds, padding, icon hit targets, tabs,
+  separators, and header units in addition to fonts and primary controls.
+- Added a shared density-derived interface scale and applied it to menus,
+  multi-column editor menus, application bars, Properties tabs, and Preferences
+  category navigation so changing Resolution Scale updates the complete chrome.
+- Added focused regression coverage for scaled menu row/bounds and tab-bar
+  geometry. Full analyzer output still contains pre-existing unrelated
+  `ValueListenable`/playback-controller errors.

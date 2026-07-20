@@ -155,6 +155,7 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
     this.playing = false,
     this.onFirst,
     this.onPrevious,
+    this.onPlayReverse,
     this.onPlay,
     this.onNext,
     this.onLast,
@@ -164,7 +165,11 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
     this.frame = 1,
     this.frameMin = 1,
     this.frameMax = 250,
+    this.rangeStart = 1,
+    this.rangeEnd = 250,
     this.onFrameChanged,
+    this.onRangeStartChanged,
+    this.onRangeEndChanged,
     this.height = 30,
   }) : assert(
          editorType == BlenderEditorType.timeline ||
@@ -191,6 +196,7 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
   final bool playing;
   final VoidCallback? onFirst;
   final VoidCallback? onPrevious;
+  final VoidCallback? onPlayReverse;
   final VoidCallback? onPlay;
   final VoidCallback? onNext;
   final VoidCallback? onLast;
@@ -200,7 +206,11 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
   final double frame;
   final double frameMin;
   final double frameMax;
+  final double rangeStart;
+  final double rangeEnd;
   final ValueChanged<double>? onFrameChanged;
+  final ValueChanged<double>? onRangeStartChanged;
+  final ValueChanged<double>? onRangeEndChanged;
   final double height;
 
   bool get _timeline => editorType == BlenderEditorType.timeline;
@@ -228,6 +238,7 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
       editorSelector: editorSelector,
       editorSelectorWidth: editorSelectorWidth,
       actionsScrollable: true,
+      splitScrollableActions: !_timeline,
       leading: <Widget>[
         if (!_timeline && actionValue != null)
           SizedBox(
@@ -260,28 +271,34 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
 
   List<Widget> _timelineActions(BuildContext context) => <Widget>[
     BlenderPopover(
-      child: BlenderButton(
-        key: _key('playback-button'),
-        label: 'Playback',
-        variant: BlenderButtonVariant.topBar,
+      key: _key('playback-button'),
+      child: const IgnorePointer(
+        child: BlenderButton(
+          label: 'Playback',
+          variant: BlenderButtonVariant.topBar,
+          onPressed: _noopAnimationHeaderControl,
+        ),
       ),
       popover: (context, close) => _playbackPopover(context),
     ),
     BlenderIconButton(
       key: _key('autokey-toggle-button'),
-      glyph: BlenderGlyph.keyframe,
+      glyph: BlenderGlyph.record,
       selected: state.autoKeying,
       onPressed: () => _update(state.copyWith(autoKeying: !state.autoKeying)),
       tooltip: 'Toggle Auto Keying',
       size: 24,
     ),
     BlenderPopover(
-      child: BlenderIconButton(
-        key: _key('autokey-button'),
-        glyph: BlenderGlyph.chevronDown,
-        selected: state.autoKeying,
-        tooltip: 'Auto Keying settings',
-        size: 24,
+      key: _key('autokey-button'),
+      child: IgnorePointer(
+        child: BlenderIconButton(
+          glyph: BlenderGlyph.chevronDown,
+          selected: state.autoKeying,
+          tooltip: 'Auto Keying settings',
+          size: 24,
+          onPressed: _noopAnimationHeaderControl,
+        ),
       ),
       popover: (context, close) => _autoKeyingPopover(context),
     ),
@@ -289,27 +306,17 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
       playing: playing,
       onFirst: onFirst,
       onPrevious: onPrevious,
+      onPlayReverse: onPlayReverse,
       onPlay: onPlay,
       onNext: onNext,
       onLast: onLast,
-      onRecord: onRecord,
+      showRecord: false,
     ),
     BlenderTimeJumpControls(
       key: _key('time-jump-controls'),
       onBackward: onTimeBackward,
       onForward: onTimeForward,
       popover: (context, close) => _timeJumpPopover(context),
-    ),
-    SizedBox(
-      width: 92,
-      child: BlenderNumberField(
-        value: frame,
-        min: frameMin,
-        max: frameMax,
-        step: 1,
-        decimalDigits: 0,
-        onChanged: (value) => onFrameChanged?.call(value),
-      ),
     ),
     BlenderIconButton(
       key: _key('playhead-snap-toggle-button'),
@@ -321,15 +328,64 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
       size: 24,
     ),
     BlenderPopover(
-      child: BlenderIconButton(
-        key: playheadSnapKey ?? _key('playhead-snap'),
-        glyph: BlenderGlyph.chevronDown,
-        selected: state.playheadSnapping,
-        tooltip: 'Playhead snapping settings',
-        size: 24,
+      key: playheadSnapKey ?? _key('playhead-snap'),
+      child: IgnorePointer(
+        child: BlenderIconButton(
+          glyph: BlenderGlyph.chevronDown,
+          selected: state.playheadSnapping,
+          tooltip: 'Playhead snapping settings',
+          size: 24,
+          onPressed: _noopAnimationHeaderControl,
+        ),
       ),
       popover: (context, close) => _playheadPopover(context),
     ),
+    const SizedBox(width: 8),
+    SizedBox(
+      key: _key('current-frame-field'),
+      width: 92,
+      child: BlenderNumberField(
+        value: frame,
+        min: frameMin,
+        max: frameMax,
+        step: 1,
+        decimalDigits: 0,
+        onChanged: (value) => onFrameChanged?.call(value),
+      ),
+    ),
+    BlenderIconButton(
+      glyph: BlenderGlyph.timeline,
+      tooltip: 'Use preview range',
+      size: 24,
+      onPressed: () {},
+    ),
+    SizedBox(
+      key: _key('range-start-field'),
+      width: 100,
+      child: BlenderNumberField(
+        value: rangeStart,
+        min: frameMin,
+        max: rangeEnd,
+        step: 1,
+        decimalDigits: 0,
+        label: 'Start',
+        onChanged: (value) => onRangeStartChanged?.call(value),
+      ),
+    ),
+    SizedBox(
+      key: _key('range-end-field'),
+      width: 100,
+      child: BlenderNumberField(
+        value: rangeEnd,
+        min: rangeStart,
+        max: frameMax,
+        step: 1,
+        decimalDigits: 0,
+        label: 'End',
+        onChanged: (value) => onRangeEndChanged?.call(value),
+      ),
+    ),
+    const SizedBox(width: 6),
     ..._overlayControls(context),
     const BlenderIconButton(
       glyph: BlenderGlyph.more,
@@ -403,14 +459,17 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
       size: 24,
     ),
     BlenderPopover(
-      child: BlenderIconButton(
-        key:
-            overlayKey ??
-            _key(_timeline ? 'overlay-button' : 'dope-overlay-button'),
-        glyph: BlenderGlyph.chevronDown,
-        selected: state.overlays,
-        tooltip: 'Animation overlay settings',
-        size: 24,
+      key:
+          overlayKey ??
+          _key(_timeline ? 'overlay-button' : 'dope-overlay-button'),
+      child: IgnorePointer(
+        child: BlenderIconButton(
+          glyph: BlenderGlyph.chevronDown,
+          selected: state.overlays,
+          tooltip: 'Animation overlay settings',
+          size: 24,
+          onPressed: _noopAnimationHeaderControl,
+        ),
       ),
       popover: (context, close) => _overlayPopover(context),
     ),
@@ -580,3 +639,5 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
   Widget _playheadPopover(BuildContext context) =>
       _blenderAnimationPlayheadPanel(context, state, onStateChanged);
 }
+
+void _noopAnimationHeaderControl() {}

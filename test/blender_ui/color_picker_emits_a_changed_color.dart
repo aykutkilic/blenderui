@@ -182,7 +182,11 @@ void registerColorPickerEmitsAChangedColorTests() {
       ),
     );
 
-    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Summary'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('timeline-window-region')),
+      findsOneWidget,
+    );
     expect(find.text('Node Editor'), findsOneWidget);
   });
 

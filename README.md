@@ -92,6 +92,30 @@ Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
 [`ADR-0005`](doc/decisions/ADR-0005-application-services.md) for ownership and
 lifecycle decisions.
 
+### Animation playback state
+
+`BlenderPlaybackController` keeps frequently changing frame and transport
+state out of application-wide rebuilds. The host still owns animation
+evaluation and scheduling.
+
+```dart
+final playback = BlenderPlaybackController(
+  initialFrame: 24,
+  rangeStart: 1,
+  rangeEnd: 120,
+);
+
+BlenderTimeline(
+  model: timelineModel,
+  currentFrameListenable: playback,
+  onCurrentFrameChanged: playback.seek,
+);
+```
+
+Use `BlenderPlaybackBuilder` around headers or other small surfaces that read
+`playing`, `recording`, the active range, or the current frame. Dispose the
+controller with its owning application or document session.
+
 ### Node editor
 
 The node canvas is tree-agnostic. Applications own the graph document and

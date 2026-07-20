@@ -70,19 +70,22 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     return Semantics(
       label: semanticLabel ?? 'Multi-column menu',
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final width = math.min(maxWidth, constraints.maxWidth).toDouble();
+          final width = math
+              .min(maxWidth * scale, constraints.maxWidth)
+              .toDouble();
           final columnWidth =
-              groups.length * minimumColumnWidth +
-              math.max(0, groups.length - 1) * 12;
+              groups.length * minimumColumnWidth * scale +
+              math.max(0, groups.length - 1) * 12 * scale;
           final useColumns = groups.length > 1 && width >= columnWidth;
           final categories = <Widget>[
             for (final entry in groups.indexed) ...<Widget>[
-              if (entry.$1 > 0 && !useColumns) const SizedBox(height: 12),
-              if (useColumns && entry.$1 > 0) const SizedBox(width: 12),
+              if (entry.$1 > 0 && !useColumns) SizedBox(height: 12 * scale),
+              if (useColumns && entry.$1 > 0) SizedBox(width: 12 * scale),
               useColumns
                   ? Expanded(
                       child: _BlenderMultiColumnMenuCategory<T>(
@@ -109,7 +112,12 @@ class BlenderMultiColumnMenu<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: EdgeInsets.fromLTRB(
+                  10 * scale,
+                  8 * scale,
+                  10 * scale,
+                  10 * scale,
+                ),
                 child: useColumns
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,6 +152,7 @@ class _BlenderMultiColumnMenuCategory<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     return Column(
       key: menuId == null
           ? null
@@ -152,17 +161,17 @@ class _BlenderMultiColumnMenuCategory<T> extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.only(bottom: 5),
+          padding: EdgeInsets.only(bottom: 5 * scale),
           child: Text(
             group.title,
-            style: theme.textTheme.heading.copyWith(fontSize: 11),
+            style: theme.textTheme.heading.copyWith(fontSize: 11 * scale),
           ),
         ),
         SizedBox(
-          height: 1,
+          height: scale,
           child: ColoredBox(color: theme.colors.borderSubtle),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4 * scale),
         for (final item in group.items)
           _BlenderMultiColumnMenuEntry<T>(
             item: item,
@@ -205,6 +214,7 @@ class _BlenderMultiColumnMenuEntryState<T>
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     final highlighted = widget.selected || (_hovered && widget.enabled);
     return MouseRegion(
       cursor: widget.enabled ? SystemMouseCursors.click : MouseCursor.defer,
@@ -215,8 +225,8 @@ class _BlenderMultiColumnMenuEntryState<T>
         onTap: widget.enabled ? widget.onTap : null,
         child: Container(
           key: widget.itemKey,
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          height: 24 * scale,
+          padding: EdgeInsets.symmetric(horizontal: 4 * scale),
           decoration: BoxDecoration(
             color: highlighted ? theme.colors.menuSelection : null,
             borderRadius: BorderRadius.circular(2),
@@ -225,16 +235,16 @@ class _BlenderMultiColumnMenuEntryState<T>
             children: <Widget>[
               BlenderIcon(
                 widget.item.glyph,
-                size: 15,
+                size: 15 * scale,
                 color: widget.enabled ? null : theme.colors.foregroundDisabled,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6 * scale),
               Expanded(
                 child: Text(
                   widget.item.label,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.body.copyWith(
-                    fontSize: 11,
+                    fontSize: 11 * scale,
                     height: 1.1,
                     color: widget.enabled
                         ? null
@@ -245,7 +255,7 @@ class _BlenderMultiColumnMenuEntryState<T>
               if (widget.item.trailingLabel != null)
                 Text(
                   widget.item.trailingLabel!,
-                  style: theme.textTheme.caption.copyWith(fontSize: 9),
+                  style: theme.textTheme.caption.copyWith(fontSize: 9 * scale),
                 ),
             ],
           ),

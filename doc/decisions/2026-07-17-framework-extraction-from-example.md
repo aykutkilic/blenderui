@@ -37,6 +37,22 @@ BlenderUI owns reusable editor-framework contracts and presentation:
 Concrete platform channels, sample jobs/reports, cube geometry, tutorial prose,
 and source-shaped sample property values remain in the example.
 
+## 2026-07-20 playback ownership follow-up
+
+The Timeline performance pass initially left a generic `ValueNotifier<double>`,
+range-clamped stepping callbacks, transport flags, and a playback-only builder
+adapter inside the example. Those are framework behavior rather than showcase
+content and are now represented by `BlenderPlaybackController` and
+`BlenderPlaybackBuilder`.
+
+`BlenderTimeline.currentFrameListenable` and the matching Dope Sheet forwarding
+slot consume the controller through the general `ValueListenable<double>`
+contract. This keeps the canvas reusable with other state systems and allows
+the retained playhead painter to repaint without reconstructing the editor.
+The example retains its scene track fixtures, Action choices, play scheduling,
+status messages, and the decision about which docked editor areas depend on
+frame changes.
+
 ## Migration and compatibility
 
 Existing widget menu slots remain available alongside descriptor slots.
@@ -66,6 +82,14 @@ documentation path.
 - The property catalog migration was a mechanical rewrite across hundreds of
   call sites. Analysis exposed two unrelated local UI helpers with overlapping
   names; those remain explicitly example-owned under distinct names.
+- The first playback extraction relied on `flutter/widgets.dart` to expose
+  `ValueListenable`; analysis showed that the contract requires an explicit
+  `flutter/foundation.dart` import at each library entrypoint. The public API
+  remained general instead of being narrowed to the concrete controller.
+- The example boot test still searched for a visible `Timeline` button after
+  the source-matched selector became icon-only. It now identifies the selector
+  and Timeline region by stable keys and finds text only after opening the
+  selector menu.
 
 ## Verification
 

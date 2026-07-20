@@ -94,6 +94,7 @@ class BlenderCategoryNavigation<T> extends StatelessWidget {
     ].where((group) => group.items.isNotEmpty).toList();
     if (visible.isEmpty) return Center(child: Text(emptyLabel));
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     return ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: ListView(
@@ -102,7 +103,12 @@ class BlenderCategoryNavigation<T> extends StatelessWidget {
           for (final group in visible) ...<Widget>[
             if (group.label != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(6, 5, 6, 3),
+                padding: EdgeInsets.fromLTRB(
+                  6 * scale,
+                  5 * scale,
+                  6 * scale,
+                  3 * scale,
+                ),
                 child: Text(group.label!, style: theme.textTheme.heading),
               ),
             for (final item in group.items)
@@ -111,7 +117,7 @@ class BlenderCategoryNavigation<T> extends StatelessWidget {
                 selected: item.value == selected,
                 onPressed: () => onSelected(item.value),
               ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6 * scale),
           ],
         ],
       ),
@@ -133,6 +139,7 @@ class _BlenderCategoryButton<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
     return Semantics(
       selected: selected,
       button: true,
@@ -141,7 +148,10 @@ class _BlenderCategoryButton<T> extends StatelessWidget {
         onTap: onPressed,
         child: Container(
           constraints: BoxConstraints(minHeight: theme.density.rowHeight),
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: 7 * scale,
+            vertical: 4 * scale,
+          ),
           decoration: BoxDecoration(
             color: selected ? theme.colors.selection : null,
             borderRadius: BorderRadius.circular(theme.shapes.controlRadius),
@@ -149,8 +159,8 @@ class _BlenderCategoryButton<T> extends StatelessWidget {
           child: Row(
             children: <Widget>[
               if (item.glyph != null) ...<Widget>[
-                BlenderIcon(item.glyph!, size: 15),
-                const SizedBox(width: 6),
+                BlenderIcon(item.glyph!, size: 15 * scale),
+                SizedBox(width: 6 * scale),
               ],
               Expanded(
                 child: Column(

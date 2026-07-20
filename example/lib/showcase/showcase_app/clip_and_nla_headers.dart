@@ -14,18 +14,16 @@ extension _ShowcaseClipAndNlaHeaders on _ShowcaseAppState {
     return BlenderAnimationPlaybackFooter(
       state: _animationHeaderState,
       onStateChanged: (value) => _update(() => _animationHeaderState = value),
-      playing: _playing,
-      onFirst: () => _update(() => _frame = 1),
-      onPrevious: () =>
-          _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-      onPlay: () => _update(() => _playing = !_playing),
-      onNext: () =>
-          _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
-      onLast: () => _update(() => _frame = 120),
+      playing: _playback.playing,
+      onFirst: _playback.jumpToStart,
+      onPrevious: _playback.stepBackward,
+      onPlay: _playback.togglePlaying,
+      onNext: _playback.stepForward,
+      onLast: _playback.jumpToEnd,
       onRecord: () => _setStatus('Record toggled'),
       frame: _frame,
       frameMax: 120,
-      onFrameChanged: (value) => _update(() => _frame = value),
+      onFrameChanged: _playback.seek,
       keyPrefix: 'nla-playback',
       background: BlenderTheme.of(context).colors.canvas,
     );

@@ -19,22 +19,20 @@ extension _ShowcaseAnimationSequencerHeaders on _ShowcaseAppState {
       onActionNew: () => _setStatus('New Action'),
       onActionUnlink: () => _setStatus('Unlink Action'),
       actionUserCount: 1,
-      playing: _playing,
-      onFirst: () => _update(() => _frame = 1),
-      onPrevious: () =>
-          _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-      onPlay: () => _update(() => _playing = !_playing),
-      onNext: () =>
-          _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
-      onLast: () => _update(() => _frame = 120),
+      playing: _playback.playing,
+      onFirst: _playback.jumpToStart,
+      onPrevious: _playback.stepBackward,
+      onPlay: _playback.togglePlaying,
+      onNext: _playback.stepForward,
+      onLast: _playback.jumpToEnd,
       onRecord: () => _setStatus('Record toggled'),
-      onTimeBackward: () =>
-          _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
-      onTimeForward: () =>
-          _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
+      onTimeBackward: _playback.stepBackward,
+      onTimeForward: _playback.stepForward,
       frame: _frame,
       frameMax: 120,
-      onFrameChanged: (value) => _update(() => _frame = value),
+      rangeStart: 1,
+      rangeEnd: 120,
+      onFrameChanged: _playback.seek,
     );
   }
 

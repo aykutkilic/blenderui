@@ -181,3 +181,82 @@ menu construction to remain in the example app.
   native clicks did not reach Flutter reliably. Deterministic Navigator-overlay
   goldens now cover both open selector states instead of accepting an
   unverified native interaction.
+
+## Timeline region ownership
+
+- Treat Timeline as the `SACTCONT_TIMELINE` presentation of the Dope Sheet,
+  not as a generic chart. `space_action.cc` registers Header, Footer, Channels,
+  UI, and Window regions; Timeline hides the Footer and UI regions while the
+  user-toggleable Channels region remains independent from the Window region.
+- `BlenderTimeline` therefore owns its optional 240 px Channels region, the
+  28 px time-scrub strip, the Summary/channel rows, the padded View2D frame
+  mapping, and the playhead flag/stalk. The host supplies animation data and
+  frame mutations but does not reconstruct those regions.
+- View3D's tool shelf is owned by `ShowcaseViewport`. It must never be injected
+  by the generic editor host based on a broad negative type list; every editor
+  composes only its own registered tool and sidebar regions.
+- Collapsed dock extents clip fixed native region rows. They do not shrink the
+  Search and Summary rows into a vertical Flex overflow.
+
+## Timeline implementation experience
+
+- `space_time.py` established the exact header order: Playback, auto keying,
+  transport, time jump, playhead snapping, current frame, scene range, then
+  overlays. The prior split header layout incorrectly pinned playback controls
+  toward the far edge and omitted Start/End fields.
+- `time_scrub_ui.cc` established the separate scrub background and the current
+  frame's rounded number box, triangular tip, and stalk. Painting only a muted
+  vertical cursor missed the most recognizable Timeline landmark.
+- The first integration pass overflowed when a test collapsed the dock below
+  Search plus Summary height. Replacing a shrinkable Column with clipped,
+  fixed-position region rows matched Blender's region behavior and preserved
+  extreme-size safety.
+- Adding the Timeline channel search surfaced global widget-count assertions in
+  unrelated Outliner tests. Those assertions now account for independently
+  docked editor regions rather than assuming the Timeline had no search UI.
+- The in-app browser bootstrap again failed with `codex/sandbox-state-meta:
+  missing field sandboxPolicy`. Source inspection, geometry assertions,
+  deterministic goldens, and the controlled native-window workflow remain the
+  fallback evidence path.
+- The final release build was checked in a controlled 1280x769 macOS window by
+  CoreGraphics window ID. Only that application window was captured; the full
+  desktop was not included.
+
+## Timeline rendering performance
+
+- `action_main_region_draw` and `action_main_region_draw_overlay` in
+  `space_action.cc` keep stable animation content separate from the changing
+  current-frame overlay. `BlenderTimeline` now mirrors that boundary with two
+  repaint-isolated painters, so scrubbing does not repaint the grid, labels,
+  separators, or keyframes.
+- `action_draw.cc` skips channels outside the vertical View2D extent, while
+  `keyframes_draw.cc` prepares directly searchable key arrays, rejects keys
+  outside the horizontal extent, and batches visible shapes. The Flutter
+  painter now sorts keylists only when animation data changes, binary-searches
+  the visible frame interval, constructs only visible channel rows, and emits
+  grid/key geometry as batched paths.
+- Summary data is not duplicated into a scene-wide aggregate. Each static
+  paint merges only keys inside the visible interval, bounding temporary work
+  to what can appear on screen.
+- Track and keyframe lists are treated as immutable retained inputs. Replacing
+  the track list invalidates preparation automatically; hosts that deliberately
+  mutate retained storage increment `BlenderTimelineModel.dataRevision`.
+- The example previously routed every current-frame mutation through its root
+  `setState`, rebuilding the complete workspace. A frame `ValueNotifier` now
+  scopes rebuilds to the bottom animation editor and a frame-dependent main
+  editor. Package tests assert that frame-only updates leave the static painter
+  valid while repainting the playhead layer.
+- Further scaling work should be driven by profiling real caller data. A
+  scroll-aware channel viewport, persistent per-track spatial indexes for
+  frequently mutated million-key datasets, and lower-level vertex batching are
+  viable extensions, but add complexity without evidence at current scale.
+
+## Resolution-scale contract
+
+Blender's `PreferencesView.ui_scale` is consumed as `UI_SCALE_FAC` throughout
+interface layout. It is not a text-only preference: popup/menu dimensions,
+menu item unit height, popup padding and bounds, icon hit areas, separators,
+tab tiles, and header units all derive from the same scale. BlenderUI now
+exposes that relationship as `BlenderDensity.interfaceScale` and uses it for
+those previously hard-coded surfaces. This keeps custom theme density values
+composable while avoiding a second, widget-specific scaling API.

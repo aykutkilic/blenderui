@@ -357,6 +357,24 @@ void registerPhysicsPropertiesFollowsBlenderSourcePanelAnatomyTests() {
       timeline.model.tracks.map((track) => track.label),
       containsAll(<String>['Cube', 'Camera', 'Light']),
     );
+    expect(timeline.showChannels, isTrue);
+    expect(timeline.summaryOnly, isTrue);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('timeline-channels-region')),
+          )
+          .width,
+      240,
+    );
+    expect(find.text('Summary'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('timeline-channels-region')),
+        matching: find.text('Cube'),
+      ),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey<String>('animation-view-menu')),
       findsOneWidget,
@@ -394,11 +412,7 @@ void registerPhysicsPropertiesFollowsBlenderSourcePanelAnatomyTests() {
     );
 
     await tester.tap(
-      find.ancestor(
-        of: find.text('Timeline'),
-        matching: find.byType(BlenderButton),
-      ),
-      warnIfMissed: false,
+      find.byKey(const ValueKey<String>('bottom-editor-selector')),
     );
     await tester.pump();
     await tester.tap(find.text('Action'));
