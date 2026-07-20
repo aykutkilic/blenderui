@@ -7,7 +7,12 @@ class BlenderToolShelf extends StatelessWidget {
     required this.selectedIndex,
     required this.onChanged,
     this.onOptionSelected,
-    this.width = 32,
+    // blenderapp: UI_TOOLBAR_WIDTH = 16 px margin + 40 px column.
+    this.width = 56,
+    // A 40 px source column plus the row seam keeps 42 px tool rows.
+    this.buttonExtent = 42,
+    // blenderapp: ICON_DEFAULT_HEIGHT_TOOLBAR.
+    this.iconSize = 32,
     this.floating = false,
     this.buttonSpacing = 0,
     this.contextMenuItemsBuilder,
@@ -19,6 +24,8 @@ class BlenderToolShelf extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final ValueChanged<BlenderToolOption>? onOptionSelected;
   final double width;
+  final double buttonExtent;
+  final double iconSize;
 
   /// Uses Blender's viewport-overlay treatment instead of consuming an opaque
   /// editor region. Group breaks remain encoded by each tool definition.
@@ -35,6 +42,10 @@ class BlenderToolShelf extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    // blenderapp divides toolbar geometry by the region View2D aspect. That
+    // partially compensates high-DPI interface scaling; cap the portable
+    // equivalent so toolbar icons do not grow with ordinary header text.
+    final densityScale = math.min(theme.density.controlHeight / 20, 1.25);
     Widget buildTool(int index) {
       final tool = tools[index];
       final button = BlenderIconButton(
@@ -43,7 +54,9 @@ class BlenderToolShelf extends StatelessWidget {
         enabled: tool.enabled,
         onPressed: tool.options.isEmpty ? () => onChanged(index) : null,
         tooltip: tool.options.isEmpty ? tool.tooltip : null,
-        size: width - 2,
+        size: (buttonExtent - 2) * densityScale,
+        iconSize: iconSize * densityScale,
+        scaleWithDensity: false,
       );
       Widget interactive = tool.options.isEmpty
           ? button
@@ -77,25 +90,21 @@ class BlenderToolShelf extends StatelessWidget {
       }
       return Padding(
         padding: EdgeInsets.only(
-          top: tool.groupBreakBefore ? 6 : (index == 0 ? 0 : buttonSpacing),
+          top: tool.groupBreakBefore
+              ? 6 * densityScale
+              : (index == 0 ? 0 : buttonSpacing * densityScale),
         ),
-        child: SizedBox(height: width, child: interactive),
+        child: SizedBox(
+          height: buttonExtent * densityScale,
+          child: interactive,
+        ),
       );
     }
 
-    final contents = floating
-        ? Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < tools.length; index++)
-                buildTool(index),
-            ],
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: tools.length,
-            itemBuilder: (context, index) => buildTool(index),
-          );
+    // Floating shelves are normally tall enough to show their complete tool
+    // taxonomy, but docked areas can become shorter than that during window or
+    // pane resizing. Keep the same compact appearance while allowing the shelf
+    // itself to scroll instead of overflowing its editor.
     final shelf = DecoratedBox(
       decoration: BoxDecoration(
         color: floating
@@ -105,10 +114,39 @@ class BlenderToolShelf extends StatelessWidget {
         borderRadius: floating ? BorderRadius.circular(5) : BorderRadius.zero,
       ),
       child: SizedBox(
-        width: width,
+        width: width * densityScale,
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: floating ? 2 : 0),
-          child: contents,
+          padding: EdgeInsets.symmetric(
+            vertical: floating ? 2 * densityScale : 0,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (!constraints.hasBoundedHeight) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (!floating) SizedBox(height: 4 * densityScale),
+                    for (var index = 0; index < tools.length; index++)
+                      buildTool(index),
+                    if (!floating) SizedBox(height: 4 * densityScale),
+                  ],
+                );
+              }
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(
+                  context,
+                ).copyWith(scrollbars: false),
+                child: ListView.builder(
+                  primary: false,
+                  padding: EdgeInsets.symmetric(
+                    vertical: floating ? 0 : 4 * densityScale,
+                  ),
+                  itemCount: tools.length,
+                  itemBuilder: (context, index) => buildTool(index),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -126,7 +164,7 @@ class BlenderView3dToolShelf extends StatelessWidget {
     required this.selectedIndex,
     required this.onChanged,
     this.onOptionSelected,
-    this.width = 42,
+    this.width = 56,
     this.floating = true,
     this.onContextMenuSelected,
   });
@@ -198,6 +236,8 @@ class BlenderView3dToolShelf extends StatelessWidget {
     onChanged: onChanged,
     onOptionSelected: onOptionSelected,
     width: width,
+    buttonExtent: 42,
+    iconSize: 32,
     floating: floating,
     contextMenuItemsBuilder: (_, _) => BlenderContextMenuCatalog.tool(),
     onContextMenuSelected: onContextMenuSelected,

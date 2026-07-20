@@ -203,6 +203,7 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final densityScale = BlenderTheme.of(context).density.controlHeight / 20;
     BlenderMenuItem<T>? item;
     for (final candidate in widget.items) {
       if (candidate.value == widget.value) {
@@ -224,9 +225,9 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
           enabled: widget.enabled,
           onPressed: widget.enabled && widget.onChanged != null ? _open : null,
           padding: widget.compact ? EdgeInsets.zero : null,
-          trailing: const BlenderIcon(
+          trailing: BlenderIcon(
             BlenderGlyph.panelDisclosureDown,
-            size: 9,
+            size: 9 * densityScale,
           ),
         ),
       ),
@@ -277,7 +278,7 @@ class BlenderMenu<T> extends StatelessWidget {
                   title!,
                   style: theme.textTheme.body.copyWith(
                     color: theme.colors.foregroundMuted,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ),
@@ -407,7 +408,7 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.body.copyWith(
                   color: foreground,
-                  fontSize: 12,
+                  fontSize: 11,
                   height: 1.1,
                 ),
               ),

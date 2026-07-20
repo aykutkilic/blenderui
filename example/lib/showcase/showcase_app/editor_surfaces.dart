@@ -9,7 +9,6 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
           selectedObject: _selectedObject,
           showGrid: _showGrid,
           wireframe: _view3dHeaderState.shading == 'Wireframe',
-          sidebar: const BlenderViewportSidebar(),
           toolShelf: _buildLeftSidebar(floating: true),
           selectionMode: _selectionMode,
           onSelectionModeChanged: (value) =>

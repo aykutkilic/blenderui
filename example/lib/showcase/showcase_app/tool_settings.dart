@@ -133,50 +133,57 @@ extension _ShowcaseToolSettings on _ShowcaseAppState {
           Container(
             color: theme.colors.panelSubSurface,
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Text(
-                      'Affect Only',
-                      textAlign: TextAlign.right,
-                      style: theme.textTheme.body.copyWith(fontSize: 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 48) {
+                  return const SizedBox(height: 20);
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(
+                          'Affect Only',
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.body.copyWith(fontSize: 12),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _buildToolCheckbox(
-                        value: _toolAffectOrigins,
-                        label: 'Origins',
-                        onChanged: (value) =>
-                            _update(() => _toolAffectOrigins = value),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _buildToolCheckbox(
+                            value: _toolAffectOrigins,
+                            label: 'Origins',
+                            onChanged: (value) =>
+                                _update(() => _toolAffectOrigins = value),
+                          ),
+                          const SizedBox(height: 3),
+                          _buildToolCheckbox(
+                            value: _toolAffectLocations,
+                            label: 'Locations',
+                            onChanged: (value) =>
+                                _update(() => _toolAffectLocations = value),
+                          ),
+                          const SizedBox(height: 3),
+                          _buildToolCheckbox(
+                            value: _toolAffectParents,
+                            label: 'Parents',
+                            onChanged: (value) =>
+                                _update(() => _toolAffectParents = value),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      _buildToolCheckbox(
-                        value: _toolAffectLocations,
-                        label: 'Locations',
-                        onChanged: (value) =>
-                            _update(() => _toolAffectLocations = value),
-                      ),
-                      const SizedBox(height: 3),
-                      _buildToolCheckbox(
-                        value: _toolAffectParents,
-                        label: 'Parents',
-                        onChanged: (value) =>
-                            _update(() => _toolAffectParents = value),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
       ],

@@ -594,6 +594,7 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     final selectionModes = find.byKey(
       const ValueKey<String>('tool-selection-operation-group'),

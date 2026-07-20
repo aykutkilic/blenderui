@@ -68,8 +68,20 @@ live in [the decision records](decisions/).
 - Added and visually inspected deterministic 1200×700 references for all 23
   manual editor types. Flutter's Ahem glyphs are used only as stable geometry
   evidence; official manual images remain the human text/typography reference.
+- Launched BlenderUI and Blender 5.1.2 as native macOS applications, captured
+  their individual windows at matching 1280×801 bounds, and compared region
+  density, typography, colors, default context, and visible functionality.
+- Aligned shared widget/menu typography with blenderapp's 11-point
+  `UI_DEFAULT_TEXT_POINTS`, darkened the example viewport, and selected Object
+  Properties by default to match Blender's factory Layout workspace.
+- Collapsed the example 3D View sidebar at startup to match Blender's factory
+  workspace and removed the unused host sidebar input from the viewport.
+- Stress-tested native 640×420 and 420×300 windows plus horizontally and
+  vertically dragged minimum-size panes. Fixed tool-shelf/sidebar scrolling,
+  compact headers/tree/property rows, and the dock's minimum internal layout
+  canvas; retained regressions cover both window and divider resizing.
 - Final verification passed root and example analysis, the 301-file structural
-  guard, all 223 package tests, and all 70 example-app tests.
+  guard, all 225 package tests, and all 72 example-app tests.
 - Recorded browser bootstrap failure, scoped manual download fallback, contact
   sheet warning, and the local blenderapp checkout's unusual read-only Git
   presentation in the
@@ -385,6 +397,23 @@ live in [the decision records](decisions/).
 - The installed Flutter SDK may need permission to refresh its cache outside
   the repository before formatting or verification. This does not alter project
   source, but it should be surfaced when it blocks a command.
+
+## 2026-07-20 — Matched View3D control and overlay geometry
+
+- Compared the supplied Blender and example-app captures against local
+  blenderapp constants for toolbar columns, toolbar icons, widget units, and
+  navigation gizmos.
+- Replaced undersized example geometry with reusable 56/40/32 px tool-shelf
+  anatomy, density-aware header/icon sizing, an 80 px orientation gizmo, and
+  the complete Zoom/Pan/Camera/Perspective navigation stack.
+- Removed the generic panel inset from untitled editor canvases and moved the
+  selection strip, caption, Options control, tool shelf, gizmos, and collapsed
+  sidebar onto non-overlapping source-shaped anchors.
+- Rejected a global 1.8 UI-scale experiment after it broke unrelated editors
+  at minimum dock extents. View3D source geometry now remains independent from
+  the user's application-wide UI-scale preference.
+- Added fixed-geometry regression assertions and a shared collapsed-header
+  guard, then verified the rebuilt macOS window by its CoreGraphics window ID.
 
 ## 2026-07-19 — 3D Viewport editor-chrome parity
 

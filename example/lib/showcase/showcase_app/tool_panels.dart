@@ -27,36 +27,45 @@ extension _ShowcaseToolPanels on _ShowcaseAppState {
                 height: theme.density.headerHeight,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    children: <Widget>[
-                      BlenderIcon(
-                        key: ValueKey<String>(
-                          'tool-settings-panel-disclosure-$title',
-                        ),
-                        expanded
-                            ? BlenderGlyph.panelDisclosureDown
-                            : BlenderGlyph.panelDisclosureRight,
-                        size: 9,
-                        color: theme.colors.foregroundMuted,
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          title,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.body,
-                        ),
-                      ),
-                      if (headerAction != null) headerAction,
-                      BlenderIcon(
-                        key: ValueKey<String>(
-                          'tool-settings-drag-handle-$title',
-                        ),
-                        BlenderGlyph.dragHandle,
-                        size: 9,
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final showTitle = constraints.maxWidth >= 28;
+                      final showAccessories = constraints.maxWidth >= 64;
+                      return Row(
+                        children: <Widget>[
+                          BlenderIcon(
+                            key: ValueKey<String>(
+                              'tool-settings-panel-disclosure-$title',
+                            ),
+                            expanded
+                                ? BlenderGlyph.panelDisclosureDown
+                                : BlenderGlyph.panelDisclosureRight,
+                            size: 9,
+                            color: theme.colors.foregroundMuted,
+                          ),
+                          if (showTitle) const SizedBox(width: 5),
+                          if (showTitle)
+                            Expanded(
+                              child: Text(
+                                title,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.body,
+                              ),
+                            ),
+                          if (showAccessories && headerAction != null)
+                            headerAction,
+                          if (showAccessories)
+                            BlenderIcon(
+                              key: ValueKey<String>(
+                                'tool-settings-drag-handle-$title',
+                              ),
+                              BlenderGlyph.dragHandle,
+                              size: 9,
+                              color: theme.colors.foregroundMuted,
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -78,25 +87,34 @@ extension _ShowcaseToolPanels on _ShowcaseAppState {
       final active = _workspaceFilterByOwner;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.body.copyWith(
-                  color: active
-                      ? theme.colors.foreground
-                      : theme.colors.foregroundDisabled,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 16) {
+              return const SizedBox(height: 16);
+            }
+            final showLabel = constraints.maxWidth >= 40;
+            return Row(
+              children: <Widget>[
+                if (showLabel)
+                  Expanded(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.body.copyWith(
+                        color: active
+                            ? theme.colors.foreground
+                            : theme.colors.foregroundDisabled,
+                      ),
+                    ),
+                  ),
+                BlenderCheckbox(
+                  value: enabled,
+                  label: '',
+                  onChanged: active ? onChanged : null,
                 ),
-              ),
-            ),
-            BlenderCheckbox(
-              value: enabled,
-              label: '',
-              onChanged: active ? onChanged : null,
-            ),
-          ],
+              ],
+            );
+          },
         ),
       );
     },
@@ -112,29 +130,38 @@ extension _ShowcaseToolPanels on _ShowcaseAppState {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onChanged(!value),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: value
-                    ? theme.colors.buttonSelected
-                    : theme.colors.button,
-                border: Border.all(
-                  color: value
-                      ? theme.colors.buttonSelected
-                      : theme.colors.borderSubtle,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 14) {
+              return const SizedBox(height: 14);
+            }
+            final showLabel = constraints.maxWidth >= 32;
+            return Row(
+              children: <Widget>[
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: value
+                        ? theme.colors.buttonSelected
+                        : theme.colors.button,
+                    border: Border.all(
+                      color: value
+                          ? theme.colors.buttonSelected
+                          : theme.colors.borderSubtle,
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: value
+                      ? const BlenderIcon(BlenderGlyph.check, size: 13)
+                      : null,
                 ),
-                borderRadius: BorderRadius.circular(2),
-              ),
-              child: value
-                  ? const BlenderIcon(BlenderGlyph.check, size: 13)
-                  : null,
-            ),
-            const SizedBox(width: 5),
-            Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
-          ],
+                if (showLabel) const SizedBox(width: 5),
+                if (showLabel)
+                  Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+              ],
+            );
+          },
         ),
       );
     },
@@ -337,26 +364,35 @@ extension _ShowcaseToolPanels on _ShowcaseAppState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: BlenderButton(
-                  label: 'Sculpt Clay',
-                  leading: const BlenderIcon(
-                    BlenderGlyph.assetManager,
-                    size: 14,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 22) {
+                return const SizedBox(height: 22);
+              }
+              final showAsset = constraints.maxWidth >= 72;
+              return Row(
+                children: <Widget>[
+                  if (showAsset)
+                    Expanded(
+                      child: BlenderButton(
+                        label: 'Sculpt Clay',
+                        leading: const BlenderIcon(
+                          BlenderGlyph.assetManager,
+                          size: 14,
+                        ),
+                        variant: BlenderButtonVariant.toolbar,
+                        onPressed: () => _setStatus('Brush asset selected'),
+                      ),
+                    ),
+                  BlenderIconButton(
+                    glyph: BlenderGlyph.menu,
+                    size: 22,
+                    tooltip: 'Brush Asset menu',
+                    onPressed: () => _setStatus('Brush Asset menu opened'),
                   ),
-                  variant: BlenderButtonVariant.toolbar,
-                  onPressed: () => _setStatus('Brush asset selected'),
-                ),
-              ),
-              BlenderIconButton(
-                glyph: BlenderGlyph.menu,
-                size: 22,
-                tooltip: 'Brush Asset menu',
-                onPressed: () => _setStatus('Brush Asset menu opened'),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),

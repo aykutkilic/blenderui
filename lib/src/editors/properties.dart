@@ -109,43 +109,55 @@ class BlenderPropertyRow extends StatelessWidget {
     // usable as a Properties region is resized. A fixed editor width makes the
     // panel look acceptable at one size but quickly diverges from Blender on
     // narrow or wide desktop layouts.
-    final row = Padding(
-      padding: EdgeInsets.symmetric(vertical: theme.density.spacing / 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Expanded(
-            flex: 2,
-            child: labelPlacement == BlenderPropertyLabelPlacement.splitColumn
-                ? _BlenderSplitPropertyLabel(label: label, state: state)
-                : const SizedBox.shrink(),
+    final row = LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 48) {
+          return SizedBox(height: theme.density.controlHeight);
+        }
+        final compact = constraints.maxWidth < 60;
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: theme.density.spacing / 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (!compact)
+                Expanded(
+                  flex: 2,
+                  child:
+                      labelPlacement ==
+                          BlenderPropertyLabelPlacement.splitColumn
+                      ? _BlenderSplitPropertyLabel(label: label, state: state)
+                      : const SizedBox.shrink(),
+                ),
+              if (!compact) SizedBox(width: theme.density.spacing * 2),
+              Expanded(
+                flex: 3,
+                child: _BlenderPropertyValueColumn(
+                  label: label,
+                  editor: editor,
+                  showLabel:
+                      labelPlacement ==
+                      BlenderPropertyLabelPlacement.valueColumn,
+                ),
+              ),
+              if (!compact && onKeyframe != null)
+                BlenderIconButton(
+                  glyph: BlenderGlyph.keyframe,
+                  onPressed: onKeyframe,
+                  tooltip: 'Insert keyframe',
+                  size: 20,
+                ),
+              if (!compact && onReset != null)
+                BlenderIconButton(
+                  glyph: BlenderGlyph.refresh,
+                  onPressed: onReset,
+                  tooltip: 'Reset value',
+                  size: 20,
+                ),
+            ],
           ),
-          SizedBox(width: theme.density.spacing * 2),
-          Expanded(
-            flex: 3,
-            child: _BlenderPropertyValueColumn(
-              label: label,
-              editor: editor,
-              showLabel:
-                  labelPlacement == BlenderPropertyLabelPlacement.valueColumn,
-            ),
-          ),
-          if (onKeyframe != null)
-            BlenderIconButton(
-              glyph: BlenderGlyph.keyframe,
-              onPressed: onKeyframe,
-              tooltip: 'Insert keyframe',
-              size: 20,
-            ),
-          if (onReset != null)
-            BlenderIconButton(
-              glyph: BlenderGlyph.refresh,
-              onPressed: onReset,
-              tooltip: 'Reset value',
-              size: 20,
-            ),
-        ],
-      ),
+        );
+      },
     );
     return tooltip == null
         ? row

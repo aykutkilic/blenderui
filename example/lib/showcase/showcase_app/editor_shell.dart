@@ -40,7 +40,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
   Widget _buildLeftSidebar({bool floating = false}) {
     return BlenderView3dToolShelf(
       key: floating ? const ValueKey<String>('viewport-tool-shelf') : null,
-      width: floating ? 42 : 48,
+      width: floating ? 56 : 48,
       floating: floating,
       selectedIndex: _toolIndex,
       onChanged: (value) {

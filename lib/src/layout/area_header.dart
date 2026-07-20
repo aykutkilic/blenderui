@@ -40,8 +40,21 @@ class BlenderAreaHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    // Blender's compact editor selector is two UI units: one icon unit and
+    // one disclosure unit. Reserving the old 76 px slot left a conspicuous
+    // empty gap before the mode selector.
+    final densityScale = theme.density.controlHeight / 20;
+    final selectorWidth =
+        editorSelectorWidth ?? (showEditorLabel ? 132 : 32 * densityScale);
+    final selector =
+        editorSelector ??
+        BlenderEditorTypeSelector(
+          value: editorType,
+          compact: !showEditorLabel,
+          onChanged: onEditorTypeChanged,
+        );
     return Container(
-      height: height ?? theme.density.headerHeight,
+      height: math.max(height ?? 0, theme.density.headerHeight),
       padding: EdgeInsets.symmetric(horizontal: theme.density.panelPadding),
       decoration: BoxDecoration(
         color: background ?? theme.colors.surface,
@@ -49,75 +62,82 @@ class BlenderAreaHeader extends StatelessWidget {
             ? Border(bottom: BorderSide(color: theme.colors.editorBorder))
             : const Border(),
       ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // At a collapsed dock extent, preserve the editor selector and clip
+          // the rest of the header before fixed leading controls can overflow.
+          if (constraints.maxWidth <
+              selectorWidth + theme.density.controlHeight) {
+            return ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(width: constraints.maxWidth, child: selector),
+              ),
+            );
+          }
+          return Stack(
+            fit: StackFit.expand,
             children: <Widget>[
-              SizedBox(
-                width: editorSelectorWidth ?? (showEditorLabel ? 132 : 76),
-                child:
-                    editorSelector ??
-                    BlenderEditorTypeSelector(
-                      value: editorType,
-                      compact: !showEditorLabel,
-                      onChanged: onEditorTypeChanged,
-                    ),
-              ),
-              ...leading,
-              Expanded(
-                child: actionsScrollable
-                    ? Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: _blenderHeaderScrollSurface(
-                              context,
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    for (final menu in menuDescriptors)
-                                      menu.build(),
-                                    ...menus,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Flexible(
-                            child: _blenderHeaderScrollSurface(
-                              context,
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: actions,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : _blenderHeaderScrollSurface(
-                        context,
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+              Row(
+                children: <Widget>[
+                  SizedBox(width: selectorWidth, child: selector),
+                  ...leading,
+                  Expanded(
+                    child: actionsScrollable
+                        ? Row(
                             children: <Widget>[
-                              for (final menu in menuDescriptors) menu.build(),
-                              ...menus,
+                              Expanded(
+                                child: _blenderHeaderScrollSurface(
+                                  context,
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: <Widget>[
+                                        for (final menu in menuDescriptors)
+                                          menu.build(),
+                                        ...menus,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Flexible(
+                                child: _blenderHeaderScrollSurface(
+                                  context,
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: actions,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
+                          )
+                        : _blenderHeaderScrollSurface(
+                            context,
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  for (final menu in menuDescriptors)
+                                    menu.build(),
+                                  ...menus,
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                  ),
+                  if (!actionsScrollable) ...actions,
+                ],
               ),
-              if (!actionsScrollable) ...actions,
+              if (center != null) Center(child: center),
             ],
-          ),
-          if (center != null) Center(child: center),
-        ],
+          );
+        },
       ),
     );
   }

@@ -122,6 +122,11 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
 
+    expect(find.byType(BlenderViewportSidebar), findsNothing);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('viewport-sidebar-tab-Item')),
+    );
+    await tester.pumpAndSettle();
     expect(find.byType(BlenderViewportSidebar), findsOneWidget);
     expect(find.text('Transform'), findsWidgets);
     await tester.tap(
@@ -131,7 +136,13 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
     expect(find.text('Focal Length'), findsOneWidget);
     expect(find.text('View Lock'), findsOneWidget);
     expect(find.text('3D Cursor'), findsOneWidget);
-    expect(find.text('Collections'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BlenderViewportSidebar),
+        matching: find.text('Collections'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(
       find.byKey(const ValueKey<String>('viewport-sidebar-tab-Animation')),
     );
@@ -360,6 +371,7 @@ void registerNormalOutlinerHeaderKeepsSourceDisplayControlsTests() {
   ) async {
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     final selectorRect = tester.getRect(
       find.byType(BlenderEditorTypeSelector).first,

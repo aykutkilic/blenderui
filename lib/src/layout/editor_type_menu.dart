@@ -128,17 +128,27 @@ class _BlenderEditorTypeSelectorState extends State<BlenderEditorTypeSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final densityScale = BlenderTheme.of(context).density.controlHeight / 20;
+    final resolvedWidth =
+        widget.width ?? (widget.compact ? 32 * densityScale : 132.0);
     final button = BlenderButton(
       label: widget.compact ? '' : widget.value.label,
-      leading: BlenderIcon(widget.value.glyph, size: widget.compact ? 17 : 14),
-      trailing: const BlenderIcon(BlenderGlyph.panelDisclosureDown, size: 9),
+      width: resolvedWidth,
+      leading: BlenderIcon(
+        widget.value.glyph,
+        size: (widget.compact ? 17 : 14) * densityScale,
+      ),
+      trailing: BlenderIcon(
+        BlenderGlyph.panelDisclosureDown,
+        size: 9 * densityScale,
+      ),
       padding: widget.compact ? EdgeInsets.zero : null,
       selected: _open,
       variant: BlenderButtonVariant.menuTrigger,
       onPressed: widget.onChanged == null ? null : () {},
     );
     return SizedBox(
-      width: widget.width ?? (widget.compact ? 76 : 132),
+      width: resolvedWidth,
       child: BlenderPopover(
         onOpenChanged: (open) {
           if (mounted) setState(() => _open = open);

@@ -66,29 +66,39 @@ class BlenderDataBlockField<T> extends StatelessWidget {
       ),
       child: SizedBox(
         height: theme.density.controlHeight,
-        child: Row(
-          children: <Widget>[
-            const SizedBox(width: 5),
-            selected?.icon ?? BlenderIcon(icon, size: 14),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Text(
-                selected?.label ?? placeholder,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.label.copyWith(
-                  color: hasValue
-                      ? theme.colors.foreground
-                      : theme.colors.foregroundMuted,
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 18) return const SizedBox.shrink();
+            final compact = constraints.maxWidth < 48;
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 5),
+              child: Row(
+                children: <Widget>[
+                  selected?.icon ?? BlenderIcon(icon, size: 14),
+                  if (!compact) ...<Widget>[
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        selected?.label ?? placeholder,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.label.copyWith(
+                          color: hasValue
+                              ? theme.colors.foreground
+                              : theme.colors.foregroundMuted,
+                        ),
+                      ),
+                    ),
+                    BlenderIcon(
+                      BlenderGlyph.chevronDown,
+                      size: 12,
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ] else
+                    const Spacer(),
+                ],
               ),
-            ),
-            BlenderIcon(
-              BlenderGlyph.chevronDown,
-              size: 12,
-              color: theme.colors.foregroundMuted,
-            ),
-            const SizedBox(width: 5),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -195,24 +205,34 @@ class BlenderDataBlockField<T> extends StatelessWidget {
           onPressed: onUnlink,
         ),
     ];
-    final field = Row(
-      children: <Widget>[
-        Expanded(child: _browseField(context, selected)),
-        if (actions.isNotEmpty) ...<Widget>[
-          const SizedBox(width: 3),
-          ...actions,
-        ],
-      ],
-    );
-    if (label == null) return field;
-    return Row(
-      children: <Widget>[
-        SizedBox(
-          width: 88,
-          child: Text(label!, style: BlenderTheme.of(context).textTheme.label),
-        ),
-        Expanded(child: field),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showLabel = label != null && constraints.maxWidth >= 128;
+        final showActions = actions.isNotEmpty && constraints.maxWidth >= 112;
+        return Row(
+          children: <Widget>[
+            if (showLabel)
+              SizedBox(
+                width: 88,
+                child: Text(
+                  label!,
+                  overflow: TextOverflow.ellipsis,
+                  style: BlenderTheme.of(context).textTheme.label,
+                ),
+              ),
+            Expanded(child: _browseField(context, selected)),
+            if (showActions) ...<Widget>[
+              const SizedBox(width: 3),
+              Flexible(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 

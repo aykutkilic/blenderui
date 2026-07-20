@@ -1,6 +1,47 @@
 part of '../widget_test.dart';
 
 void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
+  testWidgets('showcase remains overflow-free at an extreme window size', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(420, 300);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('showcase panes remain overflow-free at minimum split extents', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 500);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('dock-divider-workspace-columns')),
+      const Offset(500, 0),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('dock-divider-main-stack')),
+      const Offset(0, 400),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('showcase boots with Blender-like editor regions', (
     tester,
   ) async {
@@ -9,7 +50,10 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
     expect(find.textContaining('Perspective'), findsOneWidget);
     expect(find.text('Scene Collection'), findsOneWidget);
     expect(find.text('Scene'), findsOneWidget);
-    expect(find.text('Select Box'), findsWidgets);
+    final propertiesTabs = tester.widget<BlenderPropertyTabs>(
+      find.byType(BlenderPropertyTabs),
+    );
+    expect(propertiesTabs.tabs[propertiesTabs.selectedIndex].label, 'Object');
     expect(find.text('Timeline'), findsWidgets);
     expect(find.text('Saved "scene.blend"'), findsOneWidget);
     expect(find.text('Building Asset Preview'), findsOneWidget);

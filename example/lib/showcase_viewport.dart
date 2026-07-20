@@ -10,7 +10,6 @@ class ShowcaseViewport extends StatefulWidget {
     required this.selectedObject,
     required this.showGrid,
     required this.wireframe,
-    this.sidebar,
     this.sidebarWidth = 240,
     this.toolShelf,
     this.selectionMode = 'Set',
@@ -21,7 +20,6 @@ class ShowcaseViewport extends StatefulWidget {
   final String selectedObject;
   final bool showGrid;
   final bool wireframe;
-  final Widget? sidebar;
   final double sidebarWidth;
   final Widget? toolShelf;
   final String selectionMode;
@@ -34,7 +32,7 @@ class ShowcaseViewport extends StatefulWidget {
 
 class _ShowcaseViewportState extends State<ShowcaseViewport> {
   late final BlenderViewportController _controller;
-  bool _sidebarExpanded = true;
+  bool _sidebarExpanded = false;
   String _sidebarCategory = 'Item';
 
   @override
@@ -59,7 +57,10 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = BlenderTheme.of(context).colors;
+    final theme = BlenderTheme.of(context);
+    final colors = theme.colors;
+    final uiScale = theme.density.controlHeight / 20;
+    final toolbarScale = math.min(uiScale, 1.25);
     const sidebarTabs = <BlenderViewportSidebarTab>[
       BlenderViewportSidebarTab(id: 'Item', label: 'Item'),
       BlenderViewportSidebarTab(id: 'Tool', label: 'Tool'),
@@ -68,8 +69,10 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
     ];
     return BlenderViewportShell(
       controller: _controller,
-      background: colors.panelBackground,
-      gizmoTop: 42,
+      background: colors.surfaceElevated,
+      gizmoTop: 42 * uiScale,
+      captionLeft: 84 * toolbarScale,
+      captionTop: 50 * toolbarScale,
       sidebar: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -98,40 +101,49 @@ class _ShowcaseViewportState extends State<ShowcaseViewport> {
             ),
         ],
       ),
-      sidebarWidth: _sidebarExpanded ? widget.sidebarWidth : 30,
+      sidebarWidth: _sidebarExpanded ? widget.sidebarWidth : 30 * uiScale,
       caption: _ViewportCaption(objectName: widget.selectedObject),
-      footer: const Text(
-        'Drag to orbit  •  Scroll to zoom  •  Double-click to reset',
-        style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 11),
-      ),
       overlays: <Widget>[
         Positioned(
-          left: 6,
-          top: 6,
+          left: 2 * uiScale,
+          top: 6 * uiScale,
           child: BlenderViewportSelectionModeBar(
             value: widget.selectionMode,
             onChanged: widget.onSelectionModeChanged ?? (_) {},
           ),
         ),
         if (widget.toolShelf != null)
-          Positioned(left: 6, top: 44, bottom: 6, child: widget.toolShelf!),
+          Positioned(
+            left: 2 * uiScale,
+            top: 50 * toolbarScale,
+            bottom: 6 * toolbarScale,
+            child: widget.toolShelf!,
+          ),
         Positioned(
-          right: 14,
-          top: 124,
+          right: 14 * uiScale,
+          top: 130 * uiScale,
           child: BlenderViewportNavigationControls(
             onZoom: () {
               _controller.zoomBy(-90);
               widget.onStatus?.call('Viewport zoom');
+            },
+            onPan: () {
+              _controller.panBy(const Offset(8, 0));
+              widget.onStatus?.call('Viewport pan');
             },
             onCamera: () => widget.onStatus?.call('Camera view toggled'),
             onPerspective: () => widget.onStatus?.call('Perspective toggled'),
           ),
         ),
         Positioned(
-          right: 8,
-          top: 6,
+          right: 8 * uiScale,
+          top: 6 * uiScale,
           child: BlenderButton(
             label: 'Options',
+            trailing: BlenderIcon(
+              BlenderGlyph.panelDisclosureDown,
+              size: 9 * theme.density.controlHeight / 20,
+            ),
             variant: BlenderButtonVariant.toolbar,
             onPressed: () => widget.onStatus?.call('Viewport options'),
           ),

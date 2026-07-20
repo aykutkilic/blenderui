@@ -101,133 +101,148 @@ class BlenderView3dEditorHeader extends StatelessWidget {
       onStateChanged?.call(value);
 
   @override
-  Widget build(BuildContext context) => BlenderAreaHeader(
-    height: height,
-    editorType: BlenderEditorType.view3d,
-    showEditorLabel: false,
-    onEditorTypeChanged: onEditorTypeChanged,
-    actionsScrollable: true,
-    leading: <Widget>[
-      SizedBox(
-        width: 118,
-        child: BlenderDropdown<String>(
-          key: const ValueKey<String>('viewport-mode'),
-          value: state.mode,
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(value: 'Object Mode', label: 'Object Mode'),
-            BlenderMenuItem<String>(value: 'Edit Mode', label: 'Edit Mode'),
-            BlenderMenuItem<String>(value: 'Sculpt Mode', label: 'Sculpt Mode'),
-          ],
-          onChanged: (value) {
-            _update(state.copyWith(mode: value));
-            onCommand?.call('$value selected');
-          },
-        ),
-      ),
-    ],
-    menuDescriptors: BlenderEditorMenuCatalog.build(
-      const <String>['View', 'Select', 'Add', 'Object'],
-      menuItems: _menuItems,
-      onSelected: onCommand,
-    ),
-    actions: <Widget>[
-      SizedBox(
-        width: 88,
-        child: BlenderDropdown<String>(
-          key: const ValueKey<String>('viewport-transform-orientation'),
-          value: state.transformOrientation,
-          compact: true,
-          items: const <BlenderMenuItem<String>>[
-            BlenderMenuItem<String>(value: 'Global', label: 'Global'),
-            BlenderMenuItem<String>(value: 'Local', label: 'Local'),
-            BlenderMenuItem<String>(value: 'Normal', label: 'Normal'),
-            BlenderMenuItem<String>(value: 'View', label: 'View'),
-            BlenderMenuItem<String>(value: 'Cursor', label: 'Cursor'),
-          ],
-          onChanged: (value) =>
-              _update(state.copyWith(transformOrientation: value)),
-        ),
-      ),
-      BlenderIconButton(
-        key: const ValueKey<String>('viewport-transform-pivot'),
-        glyph: BlenderGlyph.transform,
-        selected: state.transformPivot == 'Median Point',
-        onPressed: () => _update(
-          state.copyWith(
-            transformPivot: state.transformPivot == 'Median Point'
-                ? 'Individual Origins'
-                : 'Median Point',
+  Widget build(BuildContext context) {
+    final densityScale = BlenderTheme.of(context).density.controlHeight / 20;
+    return BlenderAreaHeader(
+      height: height,
+      editorType: BlenderEditorType.view3d,
+      showEditorLabel: false,
+      onEditorTypeChanged: onEditorTypeChanged,
+      actionsScrollable: true,
+      leading: <Widget>[
+        SizedBox(
+          width: 96 * densityScale,
+          child: BlenderDropdown<String>(
+            key: const ValueKey<String>('viewport-mode'),
+            value: state.mode,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Object Mode',
+                label: 'Object Mode',
+              ),
+              BlenderMenuItem<String>(value: 'Edit Mode', label: 'Edit Mode'),
+              BlenderMenuItem<String>(
+                value: 'Sculpt Mode',
+                label: 'Sculpt Mode',
+              ),
+            ],
+            onChanged: (value) {
+              _update(state.copyWith(mode: value));
+              onCommand?.call('$value selected');
+            },
           ),
         ),
-        tooltip: 'Pivot Point: ${state.transformPivot}',
+      ],
+      menuDescriptors: BlenderEditorMenuCatalog.build(
+        const <String>['View', 'Select', 'Add', 'Object'],
+        menuItems: _menuItems,
+        onSelected: onCommand,
       ),
-      BlenderIconButton(
-        key: const ValueKey<String>('viewport-snap'),
-        glyph: BlenderGlyph.snap,
-        selected: state.snapping,
-        onPressed: () => _update(state.copyWith(snapping: !state.snapping)),
-        tooltip: 'Snap',
-      ),
-      BlenderIconButton(
-        key: const ValueKey<String>('viewport-proportional-editing'),
-        glyph: BlenderGlyph.transform,
-        selected: state.proportionalEditing,
-        onPressed: () => _update(
-          state.copyWith(proportionalEditing: !state.proportionalEditing),
+      actions: <Widget>[
+        SizedBox(
+          // Blender keeps the orientation name readable beside its icon and
+          // disclosure affordance at enlarged UI scales.
+          width: 104 * densityScale,
+          child: BlenderDropdown<String>(
+            key: const ValueKey<String>('viewport-transform-orientation'),
+            value: state.transformOrientation,
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Global',
+                label: 'Global',
+                icon: BlenderIcon(BlenderGlyph.transform, size: 18),
+              ),
+              BlenderMenuItem<String>(value: 'Local', label: 'Local'),
+              BlenderMenuItem<String>(value: 'Normal', label: 'Normal'),
+              BlenderMenuItem<String>(value: 'View', label: 'View'),
+              BlenderMenuItem<String>(value: 'Cursor', label: 'Cursor'),
+            ],
+            onChanged: (value) =>
+                _update(state.copyWith(transformOrientation: value)),
+          ),
         ),
-        tooltip: 'Proportional Editing',
-      ),
-      BlenderIconButton(
-        key: const ValueKey<String>('viewport-object-visibility'),
-        glyph: BlenderGlyph.eye,
-        selected: state.objectVisibility,
-        onPressed: () =>
-            _update(state.copyWith(objectVisibility: !state.objectVisibility)),
-        tooltip: 'Object visibility',
-      ),
-      ..._gizmoControls(context),
-      ..._overlayControls(context),
-      BlenderIconButton(
-        key: const ValueKey<String>('viewport-xray'),
-        glyph: BlenderGlyph.xray,
-        selected: state.xray,
-        onPressed: () => _update(state.copyWith(xray: !state.xray)),
-        tooltip: 'X-Ray',
-      ),
-      for (final shading in const <String>[
-        'Wireframe',
-        'Solid',
-        'Material Preview',
-        'Rendered',
-      ])
         BlenderIconButton(
-          key: ValueKey<String>(
-            'viewport-shading-${shading.toLowerCase().replaceAll(' ', '-')}',
+          key: const ValueKey<String>('viewport-transform-pivot'),
+          glyph: BlenderGlyph.transform,
+          selected: state.transformPivot == 'Median Point',
+          onPressed: () => _update(
+            state.copyWith(
+              transformPivot: state.transformPivot == 'Median Point'
+                  ? 'Individual Origins'
+                  : 'Median Point',
+            ),
           ),
-          glyph: switch (shading) {
-            'Wireframe' => BlenderGlyph.wireframe,
-            'Solid' => BlenderGlyph.solid,
-            'Material Preview' => BlenderGlyph.materialPreview,
-            _ => BlenderGlyph.rendered,
-          },
-          selected: state.shading == shading,
-          onPressed: () => _update(state.copyWith(shading: shading)),
-          tooltip: shading,
+          tooltip: 'Pivot Point: ${state.transformPivot}',
         ),
-      BlenderPopover(
-        child: const BlenderIconButton(
-          key: ValueKey<String>('viewport-shading-options'),
-          glyph: BlenderGlyph.settings,
-          tooltip: 'Viewport shading options',
+        BlenderIconButton(
+          key: const ValueKey<String>('viewport-snap'),
+          glyph: BlenderGlyph.snap,
+          selected: state.snapping,
+          onPressed: () => _update(state.copyWith(snapping: !state.snapping)),
+          tooltip: 'Snap',
         ),
-        popover: (context, close) => _shadingPopover(context),
-      ),
-      const BlenderIconButton(
-        glyph: BlenderGlyph.more,
-        tooltip: 'Area options',
-      ),
-    ],
-  );
+        BlenderIconButton(
+          key: const ValueKey<String>('viewport-proportional-editing'),
+          glyph: BlenderGlyph.transform,
+          selected: state.proportionalEditing,
+          onPressed: () => _update(
+            state.copyWith(proportionalEditing: !state.proportionalEditing),
+          ),
+          tooltip: 'Proportional Editing',
+        ),
+        BlenderIconButton(
+          key: const ValueKey<String>('viewport-object-visibility'),
+          glyph: BlenderGlyph.eye,
+          selected: state.objectVisibility,
+          onPressed: () => _update(
+            state.copyWith(objectVisibility: !state.objectVisibility),
+          ),
+          tooltip: 'Object visibility',
+        ),
+        ..._gizmoControls(context),
+        ..._overlayControls(context),
+        BlenderIconButton(
+          key: const ValueKey<String>('viewport-xray'),
+          glyph: BlenderGlyph.xray,
+          selected: state.xray,
+          onPressed: () => _update(state.copyWith(xray: !state.xray)),
+          tooltip: 'X-Ray',
+        ),
+        for (final shading in const <String>[
+          'Wireframe',
+          'Solid',
+          'Material Preview',
+          'Rendered',
+        ])
+          BlenderIconButton(
+            key: ValueKey<String>(
+              'viewport-shading-${shading.toLowerCase().replaceAll(' ', '-')}',
+            ),
+            glyph: switch (shading) {
+              'Wireframe' => BlenderGlyph.wireframe,
+              'Solid' => BlenderGlyph.solid,
+              'Material Preview' => BlenderGlyph.materialPreview,
+              _ => BlenderGlyph.rendered,
+            },
+            selected: state.shading == shading,
+            onPressed: () => _update(state.copyWith(shading: shading)),
+            tooltip: shading,
+          ),
+        BlenderPopover(
+          child: const BlenderIconButton(
+            key: ValueKey<String>('viewport-shading-options'),
+            glyph: BlenderGlyph.settings,
+            tooltip: 'Viewport shading options',
+          ),
+          popover: (context, close) => _shadingPopover(context),
+        ),
+        const BlenderIconButton(
+          glyph: BlenderGlyph.more,
+          tooltip: 'Area options',
+        ),
+      ],
+    );
+  }
 
   List<Widget> _gizmoControls(BuildContext context) => <Widget>[
     BlenderIconButton(

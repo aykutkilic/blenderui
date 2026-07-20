@@ -11,6 +11,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     await tester.tap(
       find.byKey(
@@ -84,6 +85,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     await tester.tap(
       find.byKey(
@@ -142,6 +144,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     await tester.tap(
       find.byKey(
@@ -209,6 +212,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
 
     await tester.tap(
       find.byKey(
@@ -277,6 +281,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
 
     await tester.pumpWidget(const ShowcaseApp());
     await tester.pumpAndSettle();
+    await tapPropertyTab(tester, 'tool');
     await tester.tap(
       find.byKey(
         const ValueKey<String>('tool-settings-panel-disclosure-Workspace'),

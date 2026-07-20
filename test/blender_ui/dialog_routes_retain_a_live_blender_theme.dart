@@ -194,10 +194,9 @@ void registerDialogRoutesRetainALiveBlenderThemeTests() {
       ),
     );
 
-    expect(
-      tester.getSize(find.byType(EditableText)).height,
-      greaterThanOrEqualTo(15),
-    );
+    final textHeight = tester.getSize(find.byType(EditableText)).height;
+    expect(textHeight, greaterThanOrEqualTo(13));
+    expect(textHeight, lessThanOrEqualTo(const BlenderDensity().controlHeight));
   });
 
   testWidgets('text fields support masked preference values', (tester) async {

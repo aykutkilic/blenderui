@@ -124,6 +124,8 @@ class BlenderViewportShell extends StatelessWidget {
     this.resetEnabled = true,
     this.gizmoTop = 10,
     this.gizmoRight = 12,
+    this.captionLeft = 12,
+    this.captionTop = 10,
   });
 
   final BlenderViewportController controller;
@@ -140,6 +142,8 @@ class BlenderViewportShell extends StatelessWidget {
   final bool resetEnabled;
   final double gizmoTop;
   final double gizmoRight;
+  final double captionLeft;
+  final double captionTop;
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +174,11 @@ class BlenderViewportShell extends StatelessWidget {
                   ),
                 ),
                 if (caption != null)
-                  Positioned(left: 12, top: 10, child: caption!),
+                  Positioned(
+                    left: captionLeft,
+                    top: captionTop,
+                    child: caption!,
+                  ),
                 if (gizmoBuilder != null)
                   Positioned(
                     right: gizmoRight,
@@ -212,6 +220,7 @@ class BlenderViewportSelectionModeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final toolbarScale = math.min(theme.density.controlHeight / 20, 1.25);
     const modes = <(String, BlenderGlyph, String)>[
       ('Set', BlenderGlyph.selectBox, 'Set Selection'),
       ('Extend', BlenderGlyph.selectExtend, 'Extend Selection'),
@@ -237,7 +246,11 @@ class BlenderViewportSelectionModeBar extends StatelessWidget {
               selected: value == mode.$1,
               onPressed: () => onChanged(mode.$1),
               tooltip: mode.$3,
-              size: 30,
+              // This strip belongs to View3D toolbar chrome, not to compact
+              // property forms. Blender uses one 32 px toolbar icon unit.
+              size: 32 * toolbarScale,
+              iconSize: 20 * toolbarScale,
+              scaleWithDensity: false,
             ),
         ],
       ),
@@ -250,37 +263,48 @@ class BlenderViewportNavigationControls extends StatelessWidget {
   const BlenderViewportNavigationControls({
     super.key,
     required this.onZoom,
+    required this.onPan,
     required this.onCamera,
     required this.onPerspective,
   });
 
   final VoidCallback onZoom;
+  final VoidCallback onPan;
   final VoidCallback onCamera;
   final VoidCallback onPerspective;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      _ViewportRoundButton(
-        glyph: BlenderGlyph.zoom,
-        tooltip: 'Zoom in/out in the view',
-        onPressed: onZoom,
-      ),
-      const SizedBox(height: 4),
-      _ViewportRoundButton(
-        glyph: BlenderGlyph.camera,
-        tooltip: 'Toggle camera view',
-        onPressed: onCamera,
-      ),
-      const SizedBox(height: 4),
-      _ViewportRoundButton(
-        glyph: BlenderGlyph.grid,
-        tooltip: 'Toggle perspective/orthographic',
-        onPressed: onPerspective,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final scale = BlenderTheme.of(context).density.controlHeight / 20;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _ViewportRoundButton(
+          glyph: BlenderGlyph.zoom,
+          tooltip: 'Zoom in/out in the view',
+          onPressed: onZoom,
+        ),
+        SizedBox(height: 2 * scale),
+        _ViewportRoundButton(
+          glyph: BlenderGlyph.pan,
+          tooltip: 'Pan the view',
+          onPressed: onPan,
+        ),
+        SizedBox(height: 2 * scale),
+        _ViewportRoundButton(
+          glyph: BlenderGlyph.camera,
+          tooltip: 'Toggle camera view',
+          onPressed: onCamera,
+        ),
+        SizedBox(height: 2 * scale),
+        _ViewportRoundButton(
+          glyph: BlenderGlyph.grid,
+          tooltip: 'Toggle perspective/orthographic',
+          onPressed: onPerspective,
+        ),
+      ],
+    );
+  }
 }
 
 /// Renderer-independent axis gizmo driven by the viewport's orbit angles.
@@ -289,7 +313,7 @@ class BlenderViewportOrientationGizmo extends StatelessWidget {
     super.key,
     required this.yaw,
     required this.pitch,
-    this.size = 76,
+    this.size = 80,
   });
 
   final double yaw;
@@ -297,16 +321,19 @@ class BlenderViewportOrientationGizmo extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: size,
-    child: CustomPaint(
-      painter: _ViewportOrientationGizmoPainter(
-        yaw: yaw,
-        pitch: pitch,
-        colors: BlenderTheme.of(context).colors,
+  Widget build(BuildContext context) {
+    final scale = BlenderTheme.of(context).density.controlHeight / 20;
+    return SizedBox.square(
+      dimension: size * scale,
+      child: CustomPaint(
+        painter: _ViewportOrientationGizmoPainter(
+          yaw: yaw,
+          pitch: pitch,
+          colors: BlenderTheme.of(context).colors,
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ViewportOrientationGizmoPainter extends CustomPainter {
@@ -383,6 +410,7 @@ class _ViewportRoundButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.controlHeight / 20;
     return BlenderTooltip(
       message: tooltip,
       child: GestureDetector(
@@ -394,8 +422,8 @@ class _ViewportRoundButton extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           child: SizedBox.square(
-            dimension: 34,
-            child: Center(child: BlenderIcon(glyph, size: 20)),
+            dimension: 28 * scale,
+            child: Center(child: BlenderIcon(glyph, size: 20 * scale)),
           ),
         ),
       ),
@@ -429,13 +457,17 @@ class BlenderViewportSidebarRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        for (final tab in tabs)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: GestureDetector(
+    return SizedBox(
+      width: 29,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: ListView.separated(
+          primary: false,
+          itemCount: tabs.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 3),
+          itemBuilder: (context, index) {
+            final tab = tabs[index];
+            return GestureDetector(
               key: ValueKey<String>('viewport-sidebar-tab-${tab.id}'),
               behavior: HitTestBehavior.opaque,
               onTap: () => onSelected(tab.id),
@@ -450,7 +482,6 @@ class BlenderViewportSidebarRail extends StatelessWidget {
                   ),
                 ),
                 child: SizedBox(
-                  width: 29,
                   height: 78,
                   child: Center(
                     child: RotatedBox(
@@ -460,9 +491,10 @@ class BlenderViewportSidebarRail extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-      ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

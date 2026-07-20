@@ -286,18 +286,28 @@ class _BlenderColorPickerState extends State<BlenderColorPicker> {
               ),
             ],
             const SizedBox(height: 6),
-            Row(
-              children: <Widget>[
-                BlenderColorSwatch(color: currentColor, size: 18),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    '#${currentColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.caption,
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final showValue = constraints.maxWidth >= 30;
+                return Row(
+                  children: <Widget>[
+                    BlenderColorSwatch(
+                      color: currentColor,
+                      size: math.min(18, constraints.maxWidth),
+                    ),
+                    if (showValue) ...<Widget>[
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '#${currentColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.caption,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ],
         ),

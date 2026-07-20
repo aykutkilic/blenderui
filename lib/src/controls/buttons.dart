@@ -272,6 +272,7 @@ class BlenderIconButton extends StatelessWidget {
     this.enabled = true,
     this.size = 28,
     this.iconSize = 15,
+    this.scaleWithDensity = true,
     this.variant = BlenderButtonVariant.toolbar,
   });
 
@@ -282,19 +283,23 @@ class BlenderIconButton extends StatelessWidget {
   final bool enabled;
   final double size;
   final double iconSize;
+  final bool scaleWithDensity;
   final BlenderButtonVariant variant;
 
   @override
   Widget build(BuildContext context) {
+    final densityScale = scaleWithDensity
+        ? BlenderTheme.of(context).density.controlHeight / 20
+        : 1.0;
     Widget result = BlenderButton(
       label: '',
-      width: size,
+      width: size * densityScale,
       onPressed: onPressed,
       enabled: enabled,
       selected: selected,
       variant: variant,
       padding: EdgeInsets.zero,
-      leading: BlenderIcon(glyph, size: iconSize),
+      leading: BlenderIcon(glyph, size: iconSize * densityScale),
     );
     if (tooltip != null) {
       result = BlenderTooltip(message: tooltip!, child: result);

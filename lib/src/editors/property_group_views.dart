@@ -42,24 +42,34 @@ class _PropertiesContextCaption extends StatelessWidget {
     final theme = BlenderTheme.of(context);
     return SizedBox(
       height: 38,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Row(
-          children: <Widget>[
-            if (leading != null) ...<Widget>[
-              leading!,
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                overflow: TextOverflow.ellipsis,
-                style: titleStyle ?? theme.textTheme.body,
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 80;
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact
+                  ? math.min(horizontalPadding, constraints.maxWidth / 4)
+                  : horizontalPadding,
             ),
-            ...?actions,
-          ],
-        ),
+            child: Row(
+              children: <Widget>[
+                if (!compact && leading != null) ...<Widget>[
+                  leading!,
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle ?? theme.textTheme.body,
+                  ),
+                ),
+                if (!compact) ...?actions,
+              ],
+            ),
+          );
+        },
       ),
     );
   }

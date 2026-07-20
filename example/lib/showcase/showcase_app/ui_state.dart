@@ -30,7 +30,9 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
       const BlenderView3dEditorHeaderState();
   int _workspaceIndex = 0;
   int _toolIndex = 0;
-  int _propertyTab = 0;
+  // Match Blender's factory Layout workspace: the selected cube opens Object
+  // Properties, while Tool settings remain one click away in the same rail.
+  int _propertyTab = 7;
   String _renderEngine = 'Eevee';
   BlenderOutlinerDisplayMode _outlinerDisplayMode =
       BlenderOutlinerDisplayMode.viewLayer;

@@ -69,6 +69,18 @@ Run it from this directory with:
 flutter run -d macos
 ```
 
+For repeatable native resize verification, build once and launch the runner
+with an explicit content size:
+
+```sh
+flutter build macos --debug
+BLENDERUI_WINDOW_SIZE=420x300 \
+  ./build/macos/Build/Products/Debug/blender_ui_example.app/Contents/MacOS/blender_ui_example
+```
+
+The environment hook is limited to the example's macOS runner and disables
+window-frame restoration only for that verification launch.
+
 That command opens the realistic Blender workspace. Select the far-right
 **Components** workspace tab to open the searchable component workbench. The
 workspace header scrolls horizontally when the tabs do not fit.

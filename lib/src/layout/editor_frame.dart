@@ -14,7 +14,15 @@ class BlenderRegion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlenderPanel(title: title, headerActions: actions, child: child);
+    return BlenderPanel(
+      title: title,
+      headerActions: actions,
+      // An untitled region is an editor canvas, not panel content. Blender
+      // draws it flush to the area boundary; panel padding introduced a false
+      // gutter between the header and View3D in every host application.
+      padding: title == null ? EdgeInsets.zero : null,
+      child: child,
+    );
   }
 }
 

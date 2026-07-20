@@ -22,6 +22,9 @@
   keyed menu descriptors plus an overridable embedded-area editor selector.
 - Added one deterministic 1200×700 rendered reference for every one of the 23
   editor types documented by the Blender manual.
+- Added native matched-window and extreme-size verification, source-aligned
+  11-point typography, overflow-safe scrolling rails, compact tree/property
+  chrome, and a dock-level minimum child-layout contract.
 - Added host-owned tree range/toggle selection and keyboard navigation on top
   of the existing generic drag/drop policy.
 - Added Node Editor multi/box selection, grouped multi-node movement, optional
@@ -68,6 +71,12 @@
   the exact entity under the pointer.
 - Moved the standard grouped Object Mode tool shelf and orientation gizmo from
   the example into reusable View3D package widgets.
+- Aligned View3D chrome with blenderapp's source geometry: a 56 px toolbar,
+  40 px tool buttons, 32 px toolbar glyphs, an 80 px orientation gizmo, and
+  four 28 px navigation controls, with density-aware headers and icon buttons.
+- Removed the untitled-region inset from editor canvases, repositioned View3D
+  overlays to avoid collisions, restored the Pan control, and made collapsed
+  headers preserve their editor selector without overflowing.
 - Added the shared `BlenderPopoverPanel.settings` composition and removed
   repeated example-only editor-popover builders.
 - Replaced completed, obsolete backlog documents with a current architecture

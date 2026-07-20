@@ -56,6 +56,28 @@ menu construction to remain in the example app.
     the host. Duplicate and Cut Links produce graph transactions through
     callbacks; the package owns gesture policy and geometry, while identity
     allocation, persistence, evaluation, and undo remain host responsibilities.
+14. Treat `minimumAreaExtent` as both a gesture clamp and a child-layout
+    contract. When the complete window is smaller than the accumulated dock
+    minima, keep each leaf's internal layout at that minimum and clip it to the
+    real area instead of passing impossible constraints into editor Flex rows.
+15. Use blenderapp's 11-point UI font constants as the shared typography
+    baseline. Font assets remain independent, but editor-specific size
+    compensation is rejected in favor of one source-backed token decision.
+16. Start the example 3D View with its sidebar collapsed, matching Blender's
+    factory workspace. The viewport owns its category-specific sidebar
+    composition, so it does not expose an unused host-provided sidebar input.
+17. Derive View3D chrome dimensions from blenderapp constants rather than
+    screenshot-local magic numbers. The reusable toolbar uses the source's
+    56 px column-plus-margin width, 40 px buttons, and 32 px toolbar glyphs;
+    navigation uses the 80 px main gizmo and 28 px mini-gizmo baseline.
+18. Keep app-wide UI preferences independent from editor-specific source
+    geometry. A trial global 1.8 scale matched one Retina capture but broke
+    minimum-area contracts across unrelated editors, so the app retains its
+    user-controlled default while reusable controls scale from theme density.
+19. An untitled `BlenderRegion` is an editor canvas and must remain flush with
+    its neighboring header and borders. Panel padding is retained only for
+    titled panel regions. At collapsed dock extents, headers preserve the
+    editor selector and clip remaining chrome before fixed controls overflow.
 
 ## Consequences
 
@@ -131,3 +153,22 @@ menu construction to remain in the example app.
 - Cut Links uses the same resolved Bézier geometry as painting and samples it
   into line segments for hit testing. This keeps rendering and interaction in
   agreement without introducing a separate approximation owned by the app.
+- macOS accessibility control was unavailable, so native window IDs were read
+  through CoreGraphics and only the two requested application windows were
+  captured. A full-desktop screenshot was rejected because it could include
+  unrelated application content.
+- `flutter run` did not propagate the controlled-size environment into the
+  launched app, and state restoration initially replaced the runner's frame.
+  The example runner now applies `BLENDERUI_WINDOW_SIZE` on the next main-loop
+  turn with restoration disabled only for that verification launch.
+- The first 420×300 pass exposed fourteen horizontal Flex overflows. Fixing
+  each visible symptom alone would have left the dock contract false; enforcing
+  a minimum internal leaf canvas resolved the vertical case and compact
+  component policies resolved genuinely narrow horizontal content.
+- The screenshot-sizing pass initially raised the example's global UI scale
+  to 1.8. Native rendering looked plausible in isolation, but the full widget
+  suite exposed widespread minimum-pane failures. Keeping source-sized View3D
+  chrome separate from the user preference produced the durable solution.
+- The in-app browser again could not start because its execution context lacked
+  sandbox-policy metadata. Native validation used the already documented
+  CoreGraphics window-ID capture path and never captured the full desktop.

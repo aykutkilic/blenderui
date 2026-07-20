@@ -330,22 +330,22 @@ class BlenderColorScheme {
 class BlenderTextTheme {
   const BlenderTextTheme({
     this.body = const TextStyle(
-      fontSize: 13,
+      fontSize: 11,
       height: 1.2,
       shadows: <Shadow>[Shadow(color: Color(0x80000000), offset: Offset(0, 1))],
     ),
     this.label = const TextStyle(
-      fontSize: 12,
+      fontSize: 11,
       height: 1.15,
       shadows: <Shadow>[Shadow(color: Color(0x80000000), offset: Offset(0, 1))],
     ),
     this.caption = const TextStyle(
-      fontSize: 11,
+      fontSize: 10,
       height: 1.1,
       shadows: <Shadow>[Shadow(color: Color(0x80000000), offset: Offset(0, 1))],
     ),
     this.heading = const TextStyle(
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: FontWeight.w600,
       shadows: <Shadow>[Shadow(color: Color(0x80000000), offset: Offset(0, 1))],
     ),

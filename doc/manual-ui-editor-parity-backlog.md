@@ -121,6 +121,43 @@ Geometry Nodes uses the shared Node Editors header image.
    decisions into a dated decision record; never convert caller-owned Blender
    data/evaluation into package state merely to make a row appear complete.
 
+## Native runtime comparison and resize audit
+
+On 2026-07-20 the macOS example and Blender 5.1.2 were launched at matching
+1280×801 outer-window dimensions and captured by their individual
+CoreGraphics window IDs. The captures remain temporary comparison evidence;
+Blender screenshots are not copied into this repository.
+
+- BlenderUI had visibly larger default text and menu labels. The local source
+  defines `UI_DEFAULT_TEXT_POINTS` as 11, so the shared text tokens and menu
+  rows now use the same 11-point baseline and all 23 editor references were
+  regenerated.
+- The example viewport was lighter than Blender's factory viewport and opened
+  Tool Properties by default. It now uses the darker raised-surface token and
+  opens Object Properties for the selected cube with the 3D View sidebar
+  collapsed.
+- At a native 640×420 window, the floating View3D tool shelf and N-panel tab
+  rail overflowed vertically. Both reusable rails now scroll without injecting
+  desktop scrollbar chrome.
+- At a native 420×300 window, narrow Outliner, Properties, area-header, color,
+  and tool-panel rows overflowed horizontally. Shared headers, trees, property
+  captions/rows, and the docking minimum-layout contract now degrade through
+  progressive disclosure rather than emitting invalid Flex layouts.
+- Automated divider drags now verify both horizontal and vertical leaf areas
+  at their minimum extents. The dock keeps a minimum internal layout canvas
+  clipped to the real area, so an undersized window cannot force child editors
+  below their declared layout contract.
+- A follow-up screenshot audit aligned the 3D View's toolbar to blenderapp's
+  56 px region, 40 px buttons, and 32 px tool icons; restored the Pan mini
+  gizmo; removed the canvas gutter; and separated source geometry from the
+  user-controlled global UI scale. Collapsed headers now keep only their
+  editor selector before fixed leading controls can overflow.
+
+The remaining intentional differences are domain boundaries: BlenderUI's
+viewport is a lightweight example renderer rather than Blender's draw engine,
+Material Symbols replace GPL Blender icon assets, and operator/RNA evaluation
+remains host-owned.
+
 ## Tooling evidence and limitations
 
 - The official manual pages and their image assets were downloaded successfully
@@ -133,5 +170,5 @@ Geometry Nodes uses the shared Node Editors header image.
   matches the revision already recorded by this repository. This audit did not
   modify blenderapp.
 - Root and example `flutter analyze` pass, the structural guard passes for 301
-  Dart files, the package suite passes 223 tests (including all 23 editor
-  references), and the example suite passes 70 tests.
+  Dart files, the package suite passes 226 tests (including all 23 editor
+  references), and the example suite passes 72 tests.

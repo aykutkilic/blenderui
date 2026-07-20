@@ -101,13 +101,36 @@ class _BlenderDockingWorkspaceState<T>
     final areaKey = _areaKeys.putIfAbsent(area.id, GlobalKey.new);
     return ClipRect(
       key: areaKey,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          widget.areaBuilder(context, area),
-          for (final corner in BlenderDockCorner.values)
-            _positionCornerHandle(area.id, corner),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final layoutWidth = math.max(
+            constraints.maxWidth,
+            widget.minimumAreaExtent,
+          );
+          final layoutHeight = math.max(
+            constraints.maxHeight,
+            widget.minimumAreaExtent,
+          );
+          return OverflowBox(
+            alignment: Alignment.topLeft,
+            minWidth: layoutWidth,
+            maxWidth: layoutWidth,
+            minHeight: layoutHeight,
+            maxHeight: layoutHeight,
+            child: SizedBox(
+              width: layoutWidth,
+              height: layoutHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  widget.areaBuilder(context, area),
+                  for (final corner in BlenderDockCorner.values)
+                    _positionCornerHandle(area.id, corner),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -126,50 +126,80 @@ class BlenderPanelHeader extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: theme.density.headerHeight,
-        padding: EdgeInsets.symmetric(horizontal: theme.density.panelPadding),
         decoration: BoxDecoration(color: theme.colors.panelHeader),
-        child: Row(
-          children: <Widget>[
-            if (onTap != null)
-              BlenderIcon(
-                key: disclosureKey,
-                expanded
-                    ? BlenderGlyph.panelDisclosureDown
-                    : BlenderGlyph.panelDisclosureRight,
-                size: 9,
-                color: theme.colors.foregroundMuted,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            if (!width.isFinite || width <= 0) return const SizedBox.shrink();
+            final horizontalPadding = math.min(
+              theme.density.panelPadding,
+              width / 2,
+            );
+            final innerWidth = width - horizontalPadding * 2;
+            if (innerWidth < 9) return const SizedBox.shrink();
+
+            final showTitle = innerWidth >= (onTap == null ? 18 : 30);
+            final showLeading = showTitle && innerWidth >= 72;
+            final showActions = showTitle && innerWidth >= 40;
+            final showTrailingHandle = showTitle && innerWidth >= 52;
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: Row(
+                children: <Widget>[
+                  if (onTap != null)
+                    BlenderIcon(
+                      key: disclosureKey,
+                      expanded
+                          ? BlenderGlyph.panelDisclosureDown
+                          : BlenderGlyph.panelDisclosureRight,
+                      size: 9,
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  if (onTap != null && showTitle)
+                    SizedBox(width: theme.density.spacing / 2),
+                  if (showLeading && leading != null) ...<Widget>[
+                    leading!,
+                    SizedBox(width: theme.density.spacing),
+                  ],
+                  if (showTitle)
+                    Expanded(
+                      child: Text(
+                        title,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle ?? theme.textTheme.panelTitle,
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  if (showActions && actions != null && actions!.isNotEmpty)
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: actions!,
+                        ),
+                      ),
+                    ),
+                  if (showTrailingHandle)
+                    if (handle != null)
+                      handle!
+                    else if (showHandle)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: theme.density.spacing / 2,
+                        ),
+                        child: BlenderIcon(
+                          BlenderGlyph.dragHandle,
+                          size: 7,
+                          color: theme.colors.foreground.withAlpha(128),
+                        ),
+                      ),
+                ],
               ),
-            if (onTap != null) SizedBox(width: theme.density.spacing / 2),
-            if (leading != null) ...<Widget>[
-              leading!,
-              SizedBox(width: theme.density.spacing),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: titleStyle ?? theme.textTheme.panelTitle,
-              ),
-            ),
-            if (actions case final actions? when actions.isNotEmpty)
-              Flexible(
-                fit: FlexFit.loose,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
-                ),
-              ),
-            if (handle != null)
-              handle!
-            else if (showHandle)
-              Padding(
-                padding: EdgeInsets.only(left: theme.density.spacing / 2),
-                child: BlenderIcon(
-                  BlenderGlyph.dragHandle,
-                  size: 7,
-                  color: theme.colors.foreground.withAlpha(128),
-                ),
-              ),
-          ],
+            );
+          },
         ),
       ),
     );
