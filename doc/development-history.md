@@ -414,6 +414,14 @@ live in [the decision records](decisions/).
   the user's application-wide UI-scale preference.
 - Added fixed-geometry regression assertions and a shared collapsed-header
   guard, then verified the rebuilt macOS window by its CoreGraphics window ID.
+- Traced the mode selector to `operator_menu_enum("object.mode_set", "mode")`
+  and the orientation selector to `VIEW3D_PT_transform_orientations` in the
+  local blenderapp checkout. Replaced both generic dropdowns with reusable,
+  host-driven controls that preserve their different source anatomy.
+- Added open-state references for the six-row icon mode menu and the titled,
+  arrowed seven-row orientation panel. The first orientation implementation
+  incorrectly expanded to the overlay height; visual inspection of the
+  generated reference caught it and the panel now uses intrinsic height.
 
 ## 2026-07-19 — 3D Viewport editor-chrome parity
 

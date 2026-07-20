@@ -111,21 +111,12 @@ class BlenderView3dEditorHeader extends StatelessWidget {
       actionsScrollable: true,
       leading: <Widget>[
         SizedBox(
-          width: 96 * densityScale,
-          child: BlenderDropdown<String>(
+          // Keep the source mode label, icon, and disclosure visible. The
+          // shared area header handles truly collapsed dock extents.
+          width: 144 * densityScale,
+          child: BlenderView3dModeSelector(
             key: const ValueKey<String>('viewport-mode'),
             value: state.mode,
-            items: const <BlenderMenuItem<String>>[
-              BlenderMenuItem<String>(
-                value: 'Object Mode',
-                label: 'Object Mode',
-              ),
-              BlenderMenuItem<String>(value: 'Edit Mode', label: 'Edit Mode'),
-              BlenderMenuItem<String>(
-                value: 'Sculpt Mode',
-                label: 'Sculpt Mode',
-              ),
-            ],
             onChanged: (value) {
               _update(state.copyWith(mode: value));
               onCommand?.call('$value selected');
@@ -142,23 +133,13 @@ class BlenderView3dEditorHeader extends StatelessWidget {
         SizedBox(
           // Blender keeps the orientation name readable beside its icon and
           // disclosure affordance at enlarged UI scales.
-          width: 104 * densityScale,
-          child: BlenderDropdown<String>(
+          width: 120 * densityScale,
+          child: BlenderTransformOrientationSelector(
             key: const ValueKey<String>('viewport-transform-orientation'),
             value: state.transformOrientation,
-            items: const <BlenderMenuItem<String>>[
-              BlenderMenuItem<String>(
-                value: 'Global',
-                label: 'Global',
-                icon: BlenderIcon(BlenderGlyph.transform, size: 18),
-              ),
-              BlenderMenuItem<String>(value: 'Local', label: 'Local'),
-              BlenderMenuItem<String>(value: 'Normal', label: 'Normal'),
-              BlenderMenuItem<String>(value: 'View', label: 'View'),
-              BlenderMenuItem<String>(value: 'Cursor', label: 'Cursor'),
-            ],
             onChanged: (value) =>
                 _update(state.copyWith(transformOrientation: value)),
+            onCreate: () => onCommand?.call('Create Transform Orientation'),
           ),
         ),
         BlenderIconButton(

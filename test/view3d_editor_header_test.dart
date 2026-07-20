@@ -37,6 +37,46 @@ void main() {
       containsAll(<String>['Mesh', 'Grease Pencil', 'Light Probe', 'Camera']),
     );
 
+    await tester.tap(find.byKey(const ValueKey<String>('viewport-mode')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey<String>('view3d-mode-menu'))),
+      const Size(204, 204),
+    );
+    expect(find.text('Draw Mode'), findsOneWidget);
+    expect(find.text('Weight Paint'), findsOneWidget);
+    expect(find.text('Vertex Paint'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('view3d-mode-Sculpt Mode')),
+    );
+    await tester.pumpAndSettle();
+    expect(value.mode, 'Sculpt Mode');
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('viewport-transform-orientation')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Transform Orientations'), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('transform-orientation-panel')),
+          )
+          .width,
+      224,
+    );
+    expect(find.text('Gimbal'), findsOneWidget);
+    expect(find.text('Parent'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Create Transform Orientation'),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('transform-orientation-Local')),
+    );
+    await tester.pumpAndSettle();
+    expect(value.transformOrientation, 'Local');
+
     await tester.tap(find.byKey(const ValueKey<String>('viewport-snap')));
     await tester.pump();
     expect(value.snapping, isTrue);

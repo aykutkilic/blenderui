@@ -36,5 +36,6 @@ part 'editors/node_graph_widgets.dart';
 part 'editors/node_graph_nodes.dart';
 part 'editors/viewport_sidebar.dart';
 part 'editors/view3d_editor_header.dart';
+part 'editors/view3d_selectors.dart';
 part 'editors/node_editor_host.dart';
 part 'editors/node_editor_selection.dart';

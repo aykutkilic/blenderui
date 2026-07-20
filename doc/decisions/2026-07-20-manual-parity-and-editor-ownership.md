@@ -78,6 +78,11 @@ menu construction to remain in the example app.
     its neighboring header and borders. Panel padding is retained only for
     titled panel regions. At collapsed dock extents, headers preserve the
     editor selector and clip remaining chrome before fixed controls overflow.
+20. Do not represent every header choice with `BlenderDropdown`. Blender's
+    Object Mode control is an `operator_menu_enum` with mode icons and no
+    checkmark column; Transform Orientations is a header `Panel` with a title,
+    expanded connected rows, an anchored pointer, and a separate create
+    action. These remain distinct reusable selectors with caller-owned values.
 
 ## Consequences
 
@@ -172,3 +177,7 @@ menu construction to remain in the example app.
 - The in-app browser again could not start because its execution context lacked
   sandbox-policy metadata. Native validation used the already documented
   CoreGraphics window-ID capture path and never captured the full desktop.
+- A later popup audit hit the same missing browser metadata, and synthetic
+  native clicks did not reach Flutter reliably. Deterministic Navigator-overlay
+  goldens now cover both open selector states instead of accepting an
+  unverified native interaction.

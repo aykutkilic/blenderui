@@ -169,6 +169,6 @@ remains host-owned.
   relative to its Git index, but the requested source snapshot is readable and
   matches the revision already recorded by this repository. This audit did not
   modify blenderapp.
-- Root and example `flutter analyze` pass, the structural guard passes for 301
-  Dart files, the package suite passes 226 tests (including all 23 editor
+- Root and example `flutter analyze` pass, the structural guard passes for 303
+  Dart files, the package suite passes 228 tests (including all 23 editor
   references), and the example suite passes 72 tests.

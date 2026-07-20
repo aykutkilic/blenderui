@@ -162,6 +162,8 @@ export 'src/editors.dart'
         BlenderViewportSidebar,
         BlenderView3dEditorHeader,
         BlenderView3dEditorHeaderState,
+        BlenderView3dModeSelector,
+        BlenderTransformOrientationSelector,
         BlenderOutliner,
         BlenderOutlinerDisplayMode,
         BlenderOutlinerDisplayModePresentation,

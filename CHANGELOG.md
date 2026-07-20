@@ -77,6 +77,11 @@
 - Removed the untitled-region inset from editor canvases, repositioned View3D
   overlays to avoid collisions, restored the Pan control, and made collapsed
   headers preserve their editor selector without overflowing.
+- Replaced the generic View3D mode and transform-orientation dropdowns with
+  source-shaped selectors: the mode operator menu now carries Blender's six
+  visible mode choices and icon-only selection treatment, while Transform
+  Orientations uses a titled arrowed panel, connected property rows, and a
+  separate create-orientation action.
 - Added the shared `BlenderPopoverPanel.settings` composition and removed
   repeated example-only editor-popover builders.
 - Replaced completed, obsolete backlog documents with a current architecture
