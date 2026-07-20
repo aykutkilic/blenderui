@@ -561,3 +561,26 @@ live in [the decision records](decisions/).
   viewport culling and dense-key suppression. Interaction tests exposed
   Flutter's post-touch-slop `onPanStart`; retaining the pointer-down key target
   restored reliable compact-key dragging.
+
+## 2026-07-20 — Added Blender's 2D Animation and Storyboarding templates
+
+- Audited both app-template initialization scripts and queried Blender 5.1.2's
+  packaged startup files headlessly to recover the exact screens, regions,
+  scene ranges, GP objects/layers, brush defaults, scene strips, and auto-key
+  differences unavailable in the source checkout alone.
+- Added reusable Grease Pencil Draw header and Tool Header state, mode-aware
+  tool shelf, searchable/category Brush Asset Shelf, camera canvas with host
+  strokes and onion presentation, and Grease Pencil Dope Sheet Sidebar.
+- Expanded the Sequencer with its independent Channels region, seconds ruler,
+  strip selection semantics, and playback-isolated overlay.
+- Replaced the example splash's status-only template entries with actionable
+  startup selection and source-shaped `2D Animation`/`2D Full Canvas` and
+  `Storyboarding`/`Video Editing` workspace compositions.
+- Added focused component, playback invalidation, launch-flow, secondary
+  workspace, and full-workspace golden coverage. Visual inspection corrected
+  the initial mistake of retaining General workspace tabs in template modes.
+- Replaced the Grease Pencil brush and material dropdown approximations after
+  comparing their open states with Blender: brush selection now opens the full
+  catalog/search/asset-grid popover, material selection opens the slot and
+  stroke/fill inspector, and the shelf header has its independent catalog
+  visibility tree. Added deterministic preview fallbacks and popup goldens.

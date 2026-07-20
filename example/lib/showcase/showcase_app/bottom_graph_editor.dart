@@ -2,7 +2,10 @@ part of '../showcase_app.dart';
 
 extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
   Widget _buildBottomEditor() {
-    final selectorItems = const <BlenderMenuItem<int>>[
+    if (_templateMode != _ShowcaseTemplateMode.general) {
+      return _buildGreasePencilDopeSheetArea();
+    }
+    const selectorItems = <BlenderMenuItem<int>>[
       BlenderMenuItem<int>(value: 0, label: 'Timeline'),
       BlenderMenuItem<int>(value: 1, label: 'Action'),
       BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),

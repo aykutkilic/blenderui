@@ -69,7 +69,7 @@ than visual.
 | `space_outliner.py`, `rna_space.cc` | `BlenderOutliner` mode-specific headers plus shared range/toggle selection, arrow/Enter navigation, drag payload/acceptance hooks, and insertion markers | Presentation and interaction implemented; data mutation caller-owned |
 | `interface_template_strip_modifiers.cc` | `BlenderModifierStack` visual anatomy | Implemented |
 | `interface_template_bone_collection_tree.cc` | `BlenderBoneCollectionTree` | Implemented |
-| `interface_template_asset_shelf_popover.cc` | `BlenderAssetShelfPopover` | Implemented |
+| `interface_template_asset_shelf_popover.cc`, `asset_shelf_popover.cc`, `asset_shelf_catalog_selector.cc` | `BlenderAssetShelfPopover`, `BlenderAssetShelfCatalogSelector` with library selector, active catalog tree, catalog visibility tree, search, previews, and asset activation | Implemented; asset discovery/loading remains caller-owned |
 | `interface_template_component_menu.cc` | `BlenderComponentMenu` | Implemented |
 | `interface_template_list.cc` (compact layout) | `BlenderCompactList` | Implemented |
 | `space_file/file_panels.cc` execution panel | `BlenderFileExecutionPanel` | Implemented |
@@ -119,6 +119,7 @@ than visual.
 | `scripts/startup/bl_ui/properties_freestyle.py` | Render, View Layer, and Material Freestyle panels with source-shaped edge detection, Python style modules, line-set visibility/types, stroke chaining/splitting/sorting/selection/dashes, alpha/animation, line color/priority, and color/thickness/geometry/texture modifier families | Partial |
 | `scripts/startup/bl_ui/properties_animviz.py` | Shared Motion Paths and Display anatomy consumed by Object and Armature Properties | Implemented through host contexts |
 | `scripts/startup/bl_ui/properties_grease_pencil_common.py` | Shared Grease Pencil annotation, brush, layer, material, and snap helpers consumed by the Grease Pencil surfaces | Partial through host contexts |
+| `bl_app_templates_system/2D_Animation`, `bl_app_templates_system/Storyboarding`, packaged template `startup.blend`, `space_view3d.py`, `space_toolsystem_toolbar.py` | Actionable startup-template chooser; 2D Animation, 2D Full Canvas, Storyboarding, and Video Editing workspace compositions; reusable GP Draw Header, Tool Header, tool shelf, Brush Asset Shelf, camera canvas, Dope Sheet Sidebar, and scene-strip Sequencer regions | Presentation, workspace composition, navigation, selection, and edit intents implemented; drawing engine, datablocks, scene evaluation, undo, and persistence caller-owned |
 | `scripts/startup/bl_ui/properties_mask_common.py` | Mask Settings, Layers, Active Spline/Point, Animation, Display, Transforms, Tools, and mask menus for clip/mask editing | Implemented through Clip Editor |
 | `scripts/startup/bl_ui/properties_data_empty.py` | dynamic Empty Data context with display-as, image-display, depth, visibility, opacity, and image panels | Partial |
 | `scripts/startup/bl_ui/properties_data_lattice.py` | dynamic Lattice Data context with resolution/interpolation, outside/vertex-group, animation, and custom-property panels | Partial |

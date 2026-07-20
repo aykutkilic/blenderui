@@ -58,9 +58,14 @@ part 'showcase_app/preferences_files.dart';
 part 'showcase_app/preferences_input.dart';
 part 'showcase_app/preferences_extensions.dart';
 part 'showcase_app/preferences_developer.dart';
+part 'showcase_app/animation_templates.dart';
 
 class ShowcaseApp extends StatefulWidget {
-  const ShowcaseApp({super.key});
+  const ShowcaseApp({super.key, this.showSplash = false});
+
+  /// The runnable example enables the native-style startup splash. Widget
+  /// tests keep it opt-in so the modal surface does not obscure editor tests.
+  final bool showSplash;
 
   @override
   State<ShowcaseApp> createState() => _ShowcaseAppState();
@@ -513,34 +518,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     super.initState();
     _application = BlenderApplicationController<Object?>(
       initialState: null,
-      workspace: const BlenderDockSplitNode<String>(
-        id: 'workspace-columns',
-        direction: BlenderSplitDirection.horizontal,
-        fraction: .80,
-        first: BlenderDockSplitNode<String>(
-          id: 'main-stack',
-          direction: BlenderSplitDirection.vertical,
-          fraction: .84,
-          first: BlenderDockAreaNode<String>(id: 'main-area', value: 'main'),
-          second: BlenderDockAreaNode<String>(
-            id: 'bottom-area',
-            value: 'bottom',
-          ),
-        ),
-        second: BlenderDockSplitNode<String>(
-          id: 'right-stack',
-          direction: BlenderSplitDirection.vertical,
-          fraction: .27,
-          first: BlenderDockAreaNode<String>(
-            id: 'outliner-area',
-            value: 'right-top',
-          ),
-          second: BlenderDockAreaNode<String>(
-            id: 'properties-area',
-            value: 'right-bottom',
-          ),
-        ),
-      ),
+      workspace: _generalTemplateLayout,
       preferences: BlenderPreferencesService(
         configuration: _preferencesConfiguration,
       ),
@@ -548,9 +526,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
       themeService: _themeService,
       windowAppearanceAdapter: const ShowcaseWindowAppearanceAdapter(),
       presentation: BlenderApplicationPresentationService(
-        splash: const BlenderSplashScreenConfiguration(
+        splash: BlenderSplashScreenConfiguration(
           title: 'Blender UI showcase',
           message: 'Explore Blender-inspired editor components.',
+          width: 760,
+          showOnStartup: widget.showSplash,
+          content: _ShowcaseSplashContent(
+            onTemplateSelected: _launchStartupTemplate,
+            onStatus: _noopSplashStatus,
+          ),
         ),
         about: const BlenderAboutDialogConfiguration(
           title: 'Blender UI showcase',
@@ -675,25 +659,30 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
 
   @override
   Widget build(BuildContext context) {
-    return BlenderWorkspaceShell<Object?>(
-      title: 'Blender UI — workspace showcase',
-      navigatorKey: _navigatorKey,
-      controller: _application,
-      topBar: _buildMainToolbar(),
-      areaBuilder: _buildDockedArea,
-      workspaceContent: _workspaceIndex == 10
-          ? DemoWorkbench(onStatus: _setStatus)
-          : null,
-      cloneArea: (value) {
-        _setStatus('Area split: $value');
-        return value;
-      },
-      statusBar: ShowcaseStatusBar(
-        status: _application.status,
-        jobs: _application.jobs,
-        reports: _application.reports,
-        onStatus: _setStatus,
+    return RepaintBoundary(
+      key: const ValueKey<String>('showcase-workspace'),
+      child: BlenderWorkspaceShell<Object?>(
+        title: 'Blender UI — workspace showcase',
+        navigatorKey: _navigatorKey,
+        controller: _application,
+        topBar: _buildMainToolbar(),
+        areaBuilder: _buildDockedArea,
+        workspaceContent: _workspaceIndex == 10
+            ? DemoWorkbench(onStatus: _setStatus)
+            : null,
+        cloneArea: (value) {
+          _setStatus('Area split: $value');
+          return value;
+        },
+        statusBar: ShowcaseStatusBar(
+          status: _application.status,
+          jobs: _application.jobs,
+          reports: _application.reports,
+          onStatus: _setStatus,
+        ),
       ),
     );
   }
 }
+
+void _noopSplashStatus(String message) {}

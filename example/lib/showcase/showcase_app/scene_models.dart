@@ -164,6 +164,54 @@ extension _ShowcaseSceneModels on _ShowcaseAppState {
 
   List<BlenderTreeNode<String>> get _tree {
     final colors = BlenderTheme.of(context).colors;
+    if (_templateMode != _ShowcaseTemplateMode.general) {
+      final suffix = _templateMode == _ShowcaseTemplateMode.storyboarding
+          ? '.001'
+          : '';
+      return <BlenderTreeNode<String>>[
+        BlenderTreeNode<String>(
+          id: 'scene-collection',
+          label: 'Scene Collection',
+          icon: BlenderGlyph.collection,
+          iconColor: colors.iconCollection,
+          initiallyExpanded: true,
+          children: <BlenderTreeNode<String>>[
+            BlenderTreeNode<String>(
+              id: 'collection',
+              label: 'Collection',
+              icon: BlenderGlyph.collection,
+              iconColor: colors.iconCollection,
+              initiallyExpanded: true,
+              children: <BlenderTreeNode<String>>[
+                BlenderTreeNode<String>(
+                  id: 'camera',
+                  label: 'Camera$suffix',
+                  value: 'Camera$suffix',
+                  icon: BlenderGlyph.camera,
+                  iconColor: colors.iconObject,
+                ),
+                BlenderTreeNode<String>(
+                  id: 'stroke',
+                  label: 'Stroke$suffix',
+                  value: 'Stroke$suffix',
+                  icon: BlenderGlyph.greasepencil,
+                  iconColor: colors.iconObject,
+                  initiallyExpanded: true,
+                  children: <BlenderTreeNode<String>>[
+                    BlenderTreeNode<String>(
+                      id: 'stroke-data',
+                      label: 'Stroke$suffix',
+                      icon: BlenderGlyph.greasepencil,
+                      iconColor: colors.iconObjectData,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ];
+    }
     return <BlenderTreeNode<String>>[
       BlenderTreeNode<String>(
         id: 'scene-collection',

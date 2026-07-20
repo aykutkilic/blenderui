@@ -164,19 +164,21 @@ class _BlenderSequencerPainter extends CustomPainter {
     required this.strips,
     required this.start,
     required this.end,
-    required this.currentFrame,
     required this.selectedId,
     required this.colors,
     required this.textTheme,
+    required this.showSeconds,
+    required this.framesPerSecond,
   });
 
   final List<BlenderSequencerStrip> strips;
   final double start;
   final double end;
-  final double? currentFrame;
   final String? selectedId;
   final BlenderColorScheme colors;
   final BlenderTextTheme textTheme;
+  final bool showSeconds;
+  final double framesPerSecond;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -191,7 +193,9 @@ class _BlenderSequencerPainter extends CustomPainter {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
       final text = TextPainter(
         text: TextSpan(
-          text: frame.toStringAsFixed(0),
+          text: showSeconds
+              ? _formatSeconds(frame / math.max(.001, framesPerSecond))
+              : frame.toStringAsFixed(0),
           style: textTheme.caption.copyWith(color: colors.foregroundMuted),
         ),
         textDirection: TextDirection.ltr,
@@ -238,16 +242,12 @@ class _BlenderSequencerPainter extends CustomPainter {
         );
       }
     }
-    if (currentFrame != null) {
-      final x = (currentFrame! - start) / range * size.width;
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        Paint()
-          ..color = colors.focus
-          ..strokeWidth = 2,
-      );
-    }
+  }
+
+  String _formatSeconds(double seconds) {
+    final minutes = seconds ~/ 60;
+    final remainder = seconds - minutes * 60;
+    return '$minutes:${remainder.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   @override
@@ -255,8 +255,49 @@ class _BlenderSequencerPainter extends CustomPainter {
     return strips != oldDelegate.strips ||
         start != oldDelegate.start ||
         end != oldDelegate.end ||
-        currentFrame != oldDelegate.currentFrame ||
         selectedId != oldDelegate.selectedId ||
+        showSeconds != oldDelegate.showSeconds ||
+        framesPerSecond != oldDelegate.framesPerSecond ||
         colors != oldDelegate.colors;
   }
+}
+
+class _BlenderSequencerPlayheadPainter extends CustomPainter {
+  _BlenderSequencerPlayheadPainter({
+    required this.start,
+    required this.end,
+    required this.currentFrame,
+    required this.currentFrameListenable,
+    required this.colors,
+  }) : super(repaint: currentFrameListenable);
+
+  final double start;
+  final double end;
+  final double? currentFrame;
+  final ValueListenable<double>? currentFrameListenable;
+  final BlenderColorScheme colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final frame = currentFrameListenable?.value ?? currentFrame;
+    if (frame == null) return;
+    final range = math.max(.0001, end - start);
+    final x = (frame - start) / range * size.width;
+    canvas.drawLine(
+      Offset(x, 0),
+      Offset(x, size.height),
+      Paint()
+        ..color = colors.focus
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BlenderSequencerPlayheadPainter oldDelegate) =>
+      start != oldDelegate.start ||
+      end != oldDelegate.end ||
+      currentFrameListenable != oldDelegate.currentFrameListenable ||
+      (currentFrameListenable == null &&
+          currentFrame != oldDelegate.currentFrame) ||
+      colors != oldDelegate.colors;
 }

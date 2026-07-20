@@ -51,6 +51,8 @@ export 'src/application.dart'
         BlenderPreferencesConfiguration,
         BlenderPreferencesService,
         BlenderSplashScreenConfiguration,
+        BlenderStartupTemplateChooser,
+        BlenderStartupTemplateEntry,
         BlenderWorkspaceShell,
         showBlenderPreferencesWindow;
 export 'src/interface_preferences.dart'
@@ -106,6 +108,12 @@ export 'src/controls.dart'
         BlenderToggle,
         BlenderTooltip,
         showBlenderContextMenu;
+export 'src/asset_shelf.dart'
+    show
+        BlenderAssetCatalog,
+        BlenderAssetShelfCatalogSelector,
+        BlenderAssetShelfPopover,
+        BlenderAssetShelfPopoverItem;
 export 'src/collections.dart'
     show
         BlenderFilterBar,
@@ -142,6 +150,21 @@ export 'src/editors.dart'
         BlenderFileBrowserSortDirection,
         BlenderFileBrowserSidebar,
         BlenderFileEntry,
+        BlenderGreasePencilBrush,
+        BlenderGreasePencilBrushAssetShelf,
+        BlenderGreasePencilBrushPreview,
+        BlenderGreasePencilBrushPreviewKind,
+        BlenderGreasePencilBrushSelector,
+        BlenderGreasePencilEditorHeader,
+        BlenderGreasePencilHeaderState,
+        BlenderGreasePencilMaterial,
+        BlenderGreasePencilMaterialSelector,
+        BlenderGreasePencilStroke,
+        BlenderGreasePencilTool,
+        BlenderGreasePencilToolHeader,
+        BlenderGreasePencilToolSettings,
+        BlenderGreasePencilToolShelf,
+        BlenderGreasePencilViewport,
         BlenderGraphLink,
         BlenderGraphLinkStyle,
         BlenderGraphNode,
@@ -260,6 +283,7 @@ export 'src/non3d_editors.dart'
         BlenderGraphEditorHeader,
         BlenderGraphEditorHeaderState,
         BlenderGraphEditorSidebar,
+        BlenderGreasePencilDopeSheetSidebar,
         BlenderGraphChannelAction,
         BlenderGraphChannelActionType,
         BlenderGraphChannelKind,
@@ -388,8 +412,6 @@ export 'src/services.dart'
         BlenderThemePreset;
 export 'src/specialized_templates.dart'
     show
-        BlenderAssetShelfPopover,
-        BlenderAssetShelfPopoverItem,
         BlenderAssetLibraryPreference,
         BlenderAssetLibrariesPreferencesPanel,
         BlenderActionSelector,

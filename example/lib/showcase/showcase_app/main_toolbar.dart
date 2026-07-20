@@ -620,22 +620,14 @@ extension _ShowcaseMainToolbar on _ShowcaseAppState {
           ),
         ]),
       ],
-      workspaces: const <BlenderApplicationWorkspace<int>>[
-        BlenderApplicationWorkspace<int>(value: 0, label: 'Layout'),
-        BlenderApplicationWorkspace<int>(value: 1, label: 'Modeling'),
-        BlenderApplicationWorkspace<int>(value: 2, label: 'Sculpting'),
-        BlenderApplicationWorkspace<int>(value: 3, label: 'UV Editing'),
-        BlenderApplicationWorkspace<int>(value: 4, label: 'Texture Paint'),
-        BlenderApplicationWorkspace<int>(value: 5, label: 'Shading'),
-        BlenderApplicationWorkspace<int>(value: 6, label: 'Animation'),
-        BlenderApplicationWorkspace<int>(value: 7, label: 'Rendering'),
-        BlenderApplicationWorkspace<int>(value: 8, label: 'Compositing'),
-        BlenderApplicationWorkspace<int>(value: 9, label: 'Geometry Nodes'),
-        BlenderApplicationWorkspace<int>(value: 10, label: 'Components'),
-      ],
+      workspaces: _templateWorkspaces,
       activeWorkspace: _workspaceIndex,
       onWorkspaceSelected: (value) {
-        _selectWorkspace(value);
+        if (_templateMode == _ShowcaseTemplateMode.general) {
+          _selectWorkspace(value);
+        } else {
+          _selectTemplateWorkspace(value);
+        }
         _setStatus('Workspace changed');
       },
       workspaceActions: <Widget>[

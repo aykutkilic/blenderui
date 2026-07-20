@@ -9,6 +9,12 @@ class BlenderVideoSequencerEditor extends StatelessWidget {
     this.currentFrame,
     this.onCurrentFrameChanged,
     this.selectedId,
+    this.onStripSelected,
+    this.currentFrameListenable,
+    this.showChannels = false,
+    this.channelLabels = const <int, String>{},
+    this.showSeconds = false,
+    this.framesPerSecond = 24,
     this.title = 'Video Sequencer',
   });
 
@@ -18,6 +24,12 @@ class BlenderVideoSequencerEditor extends StatelessWidget {
   final double? currentFrame;
   final ValueChanged<double>? onCurrentFrameChanged;
   final String? selectedId;
+  final ValueChanged<BlenderSequencerStrip>? onStripSelected;
+  final ValueListenable<double>? currentFrameListenable;
+  final bool showChannels;
+  final Map<int, String> channelLabels;
+  final bool showSeconds;
+  final double framesPerSecond;
   final String? title;
 
   @override
@@ -29,6 +41,12 @@ class BlenderVideoSequencerEditor extends StatelessWidget {
       currentFrame: currentFrame,
       onCurrentFrameChanged: onCurrentFrameChanged,
       selectedId: selectedId,
+      onStripSelected: onStripSelected,
+      currentFrameListenable: currentFrameListenable,
+      showChannels: showChannels,
+      channelLabels: channelLabels,
+      showSeconds: showSeconds,
+      framesPerSecond: framesPerSecond,
       title: title,
       sidebar: const BlenderSequencerSidebar(),
     );

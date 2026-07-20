@@ -1,5 +1,16 @@
 # Changelog
 
+- Added reusable Grease Pencil Draw-mode headers, brush/tool state, source tool
+  shelf, searchable Brush Asset Shelf, camera canvas, host stroke model, and
+  Grease Pencil Dope Sheet Sidebar.
+- Added actionable 2D Animation and Storyboarding splash templates with their
+  2D Full Canvas and Video Editing workspaces in the example.
+- Expanded the Sequencer with Channels, seconds display, strip-selection
+  semantics, and a playhead-only repaint path.
+- Replaced Grease Pencil brush/material dropdown approximations with Blender's
+  reusable asset-shelf and material-slot popovers, including catalog filtering,
+  brush previews, visibility/lock actions, and stroke/fill color fields.
+
 - Rebuilt the Graph Editor as reusable Blender-shaped Channels and shared
   time/value Window regions with recursive F-curve hierarchy, keyframe and
   viewport models, Bezier/linear/constant interpolation, handles,

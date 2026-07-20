@@ -152,6 +152,9 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
     this.onActionNew,
     this.onActionUnlink,
     this.actionUserCount,
+    this.modeValue,
+    this.modeItems = const <BlenderMenuItem<String>>[],
+    this.onModeChanged,
     this.playing = false,
     this.onFirst,
     this.onPrevious,
@@ -193,6 +196,9 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
   final VoidCallback? onActionNew;
   final VoidCallback? onActionUnlink;
   final int? actionUserCount;
+  final String? modeValue;
+  final List<BlenderMenuItem<String>> modeItems;
+  final ValueChanged<String>? onModeChanged;
   final bool playing;
   final VoidCallback? onFirst;
   final VoidCallback? onPrevious;
@@ -240,6 +246,16 @@ class BlenderDopeSheetEditorHeader extends StatelessWidget {
       actionsScrollable: true,
       splitScrollableActions: !_timeline,
       leading: <Widget>[
+        if (!_timeline && modeValue != null)
+          SizedBox(
+            width: 164,
+            child: BlenderDropdown<String>(
+              key: _key('mode-selector'),
+              value: modeValue!,
+              items: modeItems,
+              onChanged: onModeChanged,
+            ),
+          ),
         if (!_timeline && actionValue != null)
           SizedBox(
             width: 220,

@@ -17,7 +17,6 @@ part 'specialized_templates/property_stacks.dart';
 part 'specialized_templates/node_interface_tree.dart';
 part 'specialized_templates/bone_collection_models.dart';
 part 'specialized_templates/bone_collection_tree_state.dart';
-part 'specialized_templates/asset_shelf_popover.dart';
 part 'specialized_templates/compact_collection_menus.dart';
 part 'specialized_templates/data_block_field.dart';
 part 'specialized_templates/action_and_crypto_selectors.dart';

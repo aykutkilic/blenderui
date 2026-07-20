@@ -16,6 +16,7 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
             : _buildMainEditor(),
       ),
       'bottom' => _buildBottomEditor(),
+      'story-sequencer' => _buildStoryboardSequencerArea(),
       'right-top' => _buildEditorAreaHost(
         _rightTopEditorArea,
         _buildRightTopArea,
@@ -73,6 +74,9 @@ extension _ShowcaseEditorShell on _ShowcaseAppState {
   }
 
   Widget _buildMainEditor() {
+    if (_templateMode != _ShowcaseTemplateMode.general) {
+      return _buildGreasePencilMainEditor();
+    }
     return Column(
       children: <Widget>[
         _buildMainEditorHeader(),

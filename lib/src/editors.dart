@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'advanced_controls.dart';
+import 'asset_shelf.dart';
 import 'collections.dart';
 import 'controls.dart';
 import 'editor_chrome.dart';
@@ -18,6 +19,7 @@ import 'property_forms.dart';
 import 'theme.dart';
 import 'templates.dart';
 import 'tree_state.dart';
+import 'viewport.dart';
 
 part 'editors/properties.dart';
 part 'editors/tree.dart';
@@ -40,3 +42,6 @@ part 'editors/view3d_editor_header.dart';
 part 'editors/view3d_selectors.dart';
 part 'editors/node_editor_host.dart';
 part 'editors/node_editor_selection.dart';
+part 'editors/grease_pencil_models.dart';
+part 'editors/grease_pencil_header.dart';
+part 'editors/grease_pencil_viewport.dart';

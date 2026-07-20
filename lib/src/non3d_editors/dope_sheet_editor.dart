@@ -93,3 +93,55 @@ class BlenderDopeSheetSidebar extends StatelessWidget {
     );
   }
 }
+
+/// Grease Pencil channel Sidebar opened by both animation templates.
+class BlenderGreasePencilDopeSheetSidebar extends StatelessWidget {
+  const BlenderGreasePencilDopeSheetSidebar({
+    super.key,
+    this.layerName = 'Lines',
+    this.blendMode = 'Regular',
+    this.opacity = 1,
+    this.useLights = false,
+    this.onCommand,
+  });
+
+  final String layerName;
+  final String blendMode;
+  final double opacity;
+  final bool useLights;
+  final ValueChanged<String>? onCommand;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(6),
+    children: <Widget>[
+      BlenderStaticPropertyField.panel('Layer', <Widget>[
+        BlenderStaticPropertyField.menu('Name', layerName, <String>[layerName]),
+        BlenderStaticPropertyField.menu('Blend', blendMode, const <String>[
+          'Regular',
+          'Hard Light',
+          'Multiply',
+          'Overlay',
+        ]),
+        BlenderStaticPropertyField.number('Opacity', opacity),
+        BlenderStaticPropertyField.checkbox('Use Lights', value: useLights),
+      ], expanded: true),
+      BlenderStaticPropertyField.panel('Masks', <Widget>[
+        BlenderButton(
+          label: 'Add Layer Mask',
+          onPressed: () => onCommand?.call('Add Layer Mask'),
+        ),
+      ]),
+      BlenderStaticPropertyField.panel('Transform', <Widget>[
+        BlenderStaticPropertyField.number('Location X', 0),
+        BlenderStaticPropertyField.number('Location Y', 0),
+        BlenderStaticPropertyField.number('Rotation', 0),
+        BlenderStaticPropertyField.number('Scale', 1),
+      ]),
+      BlenderStaticPropertyField.panel('Adjustments', <Widget>[
+        BlenderStaticPropertyField.number('Tint', 0),
+        BlenderStaticPropertyField.number('Radius Offset', 0),
+      ]),
+    ],
+  );
+}

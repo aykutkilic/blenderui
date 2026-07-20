@@ -12,6 +12,31 @@ The package is implemented as ordinary Flutter widgets wherever possible. A
 small number of dense surfaces use custom painting and viewport-aware layout so
 large outliners, timelines, and node graphs remain responsive.
 
+Grease Pencil applications can compose Blender's regions without adopting an
+example-specific document model:
+
+```dart
+Column(
+  children: [
+    BlenderGreasePencilEditorHeader(state: headerState),
+    BlenderGreasePencilToolHeader(brushes: brushes, state: toolState),
+    Expanded(
+      child: BlenderGreasePencilViewport(
+        strokes: strokes,
+        toolShelf: BlenderGreasePencilToolShelf(
+          selectedTool: activeTool,
+          onChanged: selectTool,
+        ),
+        assetShelf: BlenderGreasePencilBrushAssetShelf(brushes: brushes),
+      ),
+    ),
+  ],
+)
+```
+
+The host owns strokes, brushes, scenes, strips, undo, and persistence. BlenderUI
+owns the reusable region anatomy, controls, interaction intents, and rendering.
+
 For repository ownership, dependency direction, extension rules, and a guided
 source map, start with the [architecture guide](doc/architecture.md).
 The active screenshot/source comparison is tracked in the

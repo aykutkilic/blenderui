@@ -1,6 +1,33 @@
 part of '../showcase_app.dart';
 
 mixin _ShowcaseUiState on State<ShowcaseApp> {
+  _ShowcaseTemplateMode _templateMode = _ShowcaseTemplateMode.general;
+  bool _templateSecondaryWorkspace = false;
+  BlenderGreasePencilHeaderState _greasePencilHeaderState =
+      const BlenderGreasePencilHeaderState();
+  BlenderGreasePencilToolSettings _greasePencilToolSettings =
+      const BlenderGreasePencilToolSettings();
+  List<BlenderGreasePencilMaterial> _greasePencilMaterials =
+      const <BlenderGreasePencilMaterial>[
+        BlenderGreasePencilMaterial(id: 'Solid Stroke', label: 'Solid Stroke'),
+        BlenderGreasePencilMaterial(
+          id: 'Squares Stroke',
+          label: 'Squares Stroke',
+          strokeColor: Color(0xFFE62920),
+        ),
+        BlenderGreasePencilMaterial(
+          id: 'Solid Fill',
+          label: 'Solid Fill',
+          strokeColor: Color(0xFFB8B8B8),
+        ),
+        BlenderGreasePencilMaterial(
+          id: 'Dots Stroke',
+          label: 'Dots Stroke',
+          locked: true,
+        ),
+      ];
+  BlenderGreasePencilTool _greasePencilTool = BlenderGreasePencilTool.draw;
+  String? _selectedStoryboardStrip = 'shot-001';
   final BlenderPlaybackController _playback = BlenderPlaybackController(
     initialFrame: 24,
     rangeStart: 1,
@@ -25,10 +52,9 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
         ),
       );
   Offset _graphCursor = const Offset(24, 0);
-  Set<BlenderGraphKeyframeRef> _selectedGraphKeys =
-      <BlenderGraphKeyframeRef>{
-        const BlenderGraphKeyframeRef('location-z', 'location-z-60'),
-      };
+  Set<BlenderGraphKeyframeRef> _selectedGraphKeys = <BlenderGraphKeyframeRef>{
+    const BlenderGraphKeyframeRef('location-z', 'location-z-60'),
+  };
   String _activeGraphChannel = 'location-z';
   Set<String> _collapsedGraphNodes = <String>{};
   List<BlenderCurveChannel> _graphCurves = const <BlenderCurveChannel>[
