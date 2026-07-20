@@ -24,18 +24,22 @@ void main() {
     BlenderCurveChannel(
       id: 'x',
       label: 'Cube / Location X',
-      points: <Offset>[
-        Offset(0, .2),
-        Offset(.35, .7),
-        Offset(.7, .35),
-        Offset(1, .8),
+      keyframes: <BlenderGraphKeyframe>[
+        BlenderGraphKeyframe(id: 'x-1', frame: 1, value: .2),
+        BlenderGraphKeyframe(id: 'x-40', frame: 40, value: .7),
+        BlenderGraphKeyframe(id: 'x-82', frame: 82, value: -.35),
+        BlenderGraphKeyframe(id: 'x-120', frame: 120, value: .8),
       ],
       color: Color(0xFFFF3352),
     ),
     BlenderCurveChannel(
       id: 'y',
       label: 'Cube / Location Y',
-      points: <Offset>[Offset(0, .6), Offset(.5, .2), Offset(1, .65)],
+      keyframes: <BlenderGraphKeyframe>[
+        BlenderGraphKeyframe(id: 'y-1', frame: 1, value: -.6),
+        BlenderGraphKeyframe(id: 'y-60', frame: 60, value: .2),
+        BlenderGraphKeyframe(id: 'y-120', frame: 120, value: -.65),
+      ],
       color: Color(0xFF8BDC00),
     ),
   ];
@@ -129,6 +133,37 @@ void main() {
       const BlenderGraphEditorHeader(editorType: BlenderEditorType.graphEditor),
       const BlenderCurveEditor(
         channels: curves,
+        channelTree: <BlenderGraphChannelNode>[
+          BlenderGraphChannelNode(
+            id: 'cube',
+            label: 'Cube',
+            kind: BlenderGraphChannelKind.object,
+            children: <BlenderGraphChannelNode>[
+              BlenderGraphChannelNode(
+                id: 'action',
+                label: 'CubeAction',
+                kind: BlenderGraphChannelKind.action,
+                children: <BlenderGraphChannelNode>[
+                  BlenderGraphChannelNode(
+                    id: 'x',
+                    label: 'X Location',
+                    kind: BlenderGraphChannelKind.curve,
+                    curveId: 'x',
+                  ),
+                  BlenderGraphChannelNode(
+                    id: 'y',
+                    label: 'Y Location',
+                    kind: BlenderGraphChannelKind.curve,
+                    curveId: 'y',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+        currentFrame: 24,
+        frameRangeStart: 1,
+        frameRangeEnd: 120,
         sidebar: BlenderGraphEditorSidebar(),
       ),
     );
@@ -141,6 +176,8 @@ void main() {
       const BlenderGraphEditorHeader(editorType: BlenderEditorType.drivers),
       const BlenderCurveEditor(
         channels: curves,
+        currentFrame: 0,
+        showCursorFrame: true,
         sidebar: BlenderGraphEditorSidebar(drivers: true),
       ),
     );

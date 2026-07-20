@@ -1,7 +1,5 @@
 part of '../editors.dart';
 
-const double _blenderTimelineScrubHeight = 28;
-
 int _timelineLowerBound<T>(
   List<T> values,
   double frame,
@@ -47,6 +45,7 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
   _BlenderTimelineStaticPainter({
     required this.renderData,
     required this.trackHeight,
+    required this.scrubHeight,
     required this.colors,
     required this.textTheme,
     required this.visibleStart,
@@ -60,6 +59,7 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
 
   final _BlenderTimelineRenderData renderData;
   final double trackHeight;
+  final double scrubHeight;
   final BlenderColorScheme colors;
   final BlenderTextTheme textTheme;
   final double visibleStart;
@@ -85,16 +85,13 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final range = math.max(.0001, visibleEnd - visibleStart);
     canvas.drawRect(Offset.zero & size, _canvasPaint);
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, _blenderTimelineScrubHeight),
-      _scrubPaint,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, scrubHeight), _scrubPaint);
 
     // Batch the grid and separators into one draw rather than issuing a draw
     // call for every line.
     final gridPath = Path()
-      ..moveTo(0, _blenderTimelineScrubHeight)
-      ..lineTo(size.width, _blenderTimelineScrubHeight);
+      ..moveTo(0, scrubHeight)
+      ..lineTo(size.width, scrubHeight);
     final step = _niceTickStep(size.width);
     for (
       var frame = (visibleStart / step).ceil() * step;
@@ -119,14 +116,10 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
         ? 1
         : math.min(
             renderData.tracks.length,
-            math.max(
-              0,
-              ((size.height - _blenderTimelineScrubHeight) / trackHeight)
-                  .ceil(),
-            ),
+            math.max(0, ((size.height - scrubHeight) / trackHeight).ceil()),
           );
     for (var index = 0; index < rowCount; index++) {
-      final y = _blenderTimelineScrubHeight + (index + 1) * trackHeight;
+      final y = scrubHeight + (index + 1) * trackHeight;
       gridPath
         ..moveTo(0, y)
         ..lineTo(size.width, y);
@@ -164,7 +157,7 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
     if (visibleFrames.isEmpty) return;
     final frames = visibleFrames.toList()..sort();
 
-    final y = _blenderTimelineScrubHeight + trackHeight / 2;
+    final y = scrubHeight + trackHeight / 2;
     final path = Path();
     for (final frame in frames) {
       final x = (frame - visibleStart) / range * width;
@@ -187,10 +180,7 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
         visibleEnd,
         (key) => key.frame,
       );
-      final y =
-          _blenderTimelineScrubHeight +
-          trackIndex * trackHeight +
-          trackHeight / 2;
+      final y = scrubHeight + trackIndex * trackHeight + trackHeight / 2;
       for (var keyIndex = startIndex; keyIndex < endIndex; keyIndex++) {
         final keyframe = keys[keyIndex];
         final x = (keyframe.frame - visibleStart) / range * size.width;
@@ -216,6 +206,7 @@ class _BlenderTimelineStaticPainter extends CustomPainter {
   bool shouldRepaint(_BlenderTimelineStaticPainter oldDelegate) {
     return renderData != oldDelegate.renderData ||
         trackHeight != oldDelegate.trackHeight ||
+        scrubHeight != oldDelegate.scrubHeight ||
         colors != oldDelegate.colors ||
         textTheme != oldDelegate.textTheme ||
         visibleStart != oldDelegate.visibleStart ||
@@ -233,6 +224,7 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
     required this.textTheme,
     required this.visibleStart,
     required this.visibleEnd,
+    required this.scrubHeight,
   }) : _playheadPaint = Paint()
          ..color = colors.accent
          ..strokeWidth = 2,
@@ -253,6 +245,7 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
   final BlenderTextTheme textTheme;
   final double visibleStart;
   final double visibleEnd;
+  final double scrubHeight;
   final Paint _playheadPaint;
   final TextPainter _labelPainter;
 
@@ -261,6 +254,7 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final range = math.max(.0001, visibleEnd - visibleStart);
+    final scale = scrubHeight / 28;
     final frame = _resolvedFrame;
     final x = (frame - visibleStart) / range * size.width;
     final label = frame.round().toString();
@@ -272,7 +266,7 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
       _labelPainter.layout();
     }
     canvas.drawLine(
-      Offset(x, _blenderTimelineScrubHeight - 1),
+      Offset(x, scrubHeight - 1),
       Offset(x, size.height),
       _playheadPaint,
     );
@@ -280,22 +274,22 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
     final boxWidth = math.max(24, _labelPainter.width + 8).toDouble();
     final box = RRect.fromRectAndRadius(
       Rect.fromCenter(
-        center: Offset(x, (_blenderTimelineScrubHeight - 6) / 2),
+        center: Offset(x, (scrubHeight - 6 * scale) / 2),
         width: boxWidth,
-        height: _blenderTimelineScrubHeight - 6,
+        height: scrubHeight - 6 * scale,
       ),
-      const Radius.circular(3),
+      Radius.circular(3 * scale),
     );
     canvas.drawRRect(box, _playheadPaint);
     canvas.drawPath(
       Path()
-        ..moveTo(x - 5, _blenderTimelineScrubHeight - 5)
-        ..lineTo(x + 5, _blenderTimelineScrubHeight - 5)
-        ..lineTo(x, _blenderTimelineScrubHeight + 1)
+        ..moveTo(x - 5 * scale, scrubHeight - 5 * scale)
+        ..lineTo(x + 5 * scale, scrubHeight - 5 * scale)
+        ..lineTo(x, scrubHeight + scale)
         ..close(),
       _playheadPaint,
     );
-    _labelPainter.paint(canvas, Offset(x - _labelPainter.width / 2, 4));
+    _labelPainter.paint(canvas, Offset(x - _labelPainter.width / 2, 4 * scale));
   }
 
   @override
@@ -303,6 +297,7 @@ class _BlenderTimelinePlayheadPainter extends CustomPainter {
     return currentFrameListenable != oldDelegate.currentFrameListenable ||
         (currentFrameListenable == null &&
             currentFrame != oldDelegate.currentFrame) ||
+        scrubHeight != oldDelegate.scrubHeight ||
         colors != oldDelegate.colors ||
         textTheme != oldDelegate.textTheme ||
         visibleStart != oldDelegate.visibleStart ||

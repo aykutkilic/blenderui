@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
@@ -47,6 +48,11 @@ part 'non3d_editors/asset_shelf.dart';
 part 'non3d_editors/keymap_editor.dart';
 part 'non3d_editors/preferences_editor.dart';
 part 'non3d_editors/curve_editor.dart';
+part 'non3d_editors/curve_editor_models.dart';
+part 'non3d_editors/curve_editor_controller.dart';
+part 'non3d_editors/curve_editor_channels.dart';
+part 'non3d_editors/curve_editor_canvas.dart';
+part 'non3d_editors/curve_editor_painter.dart';
 part 'non3d_editors/dope_sheet_editor.dart';
 part 'non3d_editors/sequencer_models.dart';
 part 'non3d_editors/nla_editor.dart';

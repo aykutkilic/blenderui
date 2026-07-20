@@ -528,3 +528,36 @@ live in [the decision records](decisions/).
 - Added focused regression coverage for scaled menu row/bounds and tab-bar
   geometry. Full analyzer output still contains pre-existing unrelated
   `ValueListenable`/playback-controller errors.
+
+## 2026-07-20 — Applied Blender workspace editor presets to the example
+
+- Audited Blender's workspace model: workspace tabs select a stored screen
+  layout and its editor contexts, rather than only changing the active label.
+- Kept the example's reusable dock shell while mapping Layout, Modeling,
+  Sculpting, UV Editing, Texture Paint, Shading, Animation, Rendering,
+  Compositing, Geometry Nodes, and Components to their source-shaped primary
+  editors and companion lower editors.
+- Components continues to open the detailed UI catalog; Geometry Nodes opens
+  the library node editor and its spreadsheet companion, matching Blender's
+  inspection-oriented workflow.
+
+## 2026-07-20 — Rebuilt the Graph Editor around shared F-curve space
+
+- Audited Blender's `space_graph.cc`, `graph_draw.cc`, `graph_view.cc`,
+  `graph_select.cc`, and `space_graph.py` implementations against the supplied
+  Graph Editor reference.
+- Replaced per-curve normalized chart rows with independent searchable Channels
+  and shared time/value Window regions, recursive channel hierarchy, immutable
+  frame/value keyframes, viewport control, markers, cursor, frame range, and
+  Graph/Drivers-specific presentation.
+- Added constant, linear, and Bezier interpolation, automatic and explicit
+  handles, extrapolation, mute/lock/active rendering, key and box selection,
+  graph-space drag transactions, ruler scrubbing, focal zoom, and context-menu
+  hooks as reusable library contracts.
+- Migrated the example to application-owned F-curve mutation and channel state,
+  added a dedicated Drivers viewport, and wired the reusable Sidebar and
+  playback controller instead of adding example-local editor behavior.
+- Isolated static curve work from the live playhead overlay and added binary
+  viewport culling and dense-key suppression. Interaction tests exposed
+  Flutter's post-touch-slop `onPanStart`; retaining the pointer-down key target
+  restored reliable compact-key dragging.

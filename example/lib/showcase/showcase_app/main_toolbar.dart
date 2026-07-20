@@ -1,6 +1,44 @@
 part of '../showcase_app.dart';
 
 extension _ShowcaseMainToolbar on _ShowcaseAppState {
+  void _selectWorkspace(int index) {
+    final primaryEditor = switch (index) {
+      0 || 1 || 2 => BlenderEditorType.view3d,
+      3 => BlenderEditorType.uvEditor,
+      4 || 7 => BlenderEditorType.imageEditor,
+      5 => BlenderEditorType.shaderEditor,
+      6 => BlenderEditorType.dopeSheet,
+      8 => BlenderEditorType.compositor,
+      9 => BlenderEditorType.geometryNodeEditor,
+      _ => BlenderEditorType.view3d,
+    };
+    final lowerEditor = switch (index) {
+      5 => 2,
+      9 => 3,
+      10 => 5,
+      _ => 0,
+    };
+    final viewMode = switch (index) {
+      2 => 'Sculpt Mode',
+      4 => 'Texture Paint',
+      _ => 'Object Mode',
+    };
+    final viewShading = switch (index) {
+      5 => 'Material Preview',
+      7 => 'Rendered',
+      _ => _view3dHeaderState.shading,
+    };
+    _update(() {
+      _workspaceIndex = index;
+      _bottomTab = lowerEditor;
+      _view3dHeaderState = _view3dHeaderState.copyWith(
+        mode: viewMode,
+        shading: viewShading,
+      );
+    });
+    _mainEditorArea.select(primaryEditor);
+  }
+
   Widget _buildMainToolbarForTheme(BuildContext context) {
     BlenderApplicationMenu<String> menu(
       String label,
@@ -597,7 +635,7 @@ extension _ShowcaseMainToolbar on _ShowcaseAppState {
       ],
       activeWorkspace: _workspaceIndex,
       onWorkspaceSelected: (value) {
-        _update(() => _workspaceIndex = value);
+        _selectWorkspace(value);
         _setStatus('Workspace changed');
       },
       workspaceActions: <Widget>[

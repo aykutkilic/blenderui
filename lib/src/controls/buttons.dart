@@ -230,7 +230,7 @@ class _BlenderButtonState extends State<BlenderButton> {
                       );
                     }
 
-                    return Row(
+                    final row = Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
@@ -251,6 +251,17 @@ class _BlenderButtonState extends State<BlenderButton> {
                         ],
                       ],
                     );
+                    // Resolution scaling can make a previously fitting
+                    // header control a few pixels narrower than its label,
+                    // especially in Timeline and compact editor headers.
+                    // Blender clips/fits these controls rather than allowing
+                    // a RenderFlex overflow to escape its hit target.
+                    return constraints.maxWidth <
+                            72 * theme.density.interfaceScale
+                        ? Center(
+                            child: FittedBox(fit: BoxFit.scaleDown, child: row),
+                          )
+                        : row;
                   },
                 ),
               ),

@@ -593,6 +593,16 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
       find.byKey(const ValueKey<String>('graph-proportional-button')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey<String>('graph-channels-region')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('graph-window-region')),
+      findsOneWidget,
+    );
+    expect(find.text('CubeAction'), findsOneWidget);
+    expect(find.text('Location'), findsOneWidget);
     for (final label in <String>['View', 'Select', 'Channel', 'Key']) {
       expect(find.text(label), findsWidgets);
     }

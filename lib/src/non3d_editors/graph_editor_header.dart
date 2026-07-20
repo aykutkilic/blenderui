@@ -18,6 +18,7 @@ class BlenderGraphEditorHeaderState {
     this.proportionalEditing = false,
     this.proportionalMode = 'Connected',
     this.proportionalSize = 1,
+    this.pivotPoint = 'Bounding Box Center',
   });
 
   final bool normalize;
@@ -34,6 +35,7 @@ class BlenderGraphEditorHeaderState {
   final bool proportionalEditing;
   final String proportionalMode;
   final double proportionalSize;
+  final String pivotPoint;
 
   BlenderGraphEditorHeaderState copyWith({
     bool? normalize,
@@ -50,6 +52,7 @@ class BlenderGraphEditorHeaderState {
     bool? proportionalEditing,
     String? proportionalMode,
     double? proportionalSize,
+    String? pivotPoint,
   }) => BlenderGraphEditorHeaderState(
     normalize: normalize ?? this.normalize,
     autoNormalize: autoNormalize ?? this.autoNormalize,
@@ -65,6 +68,7 @@ class BlenderGraphEditorHeaderState {
     proportionalEditing: proportionalEditing ?? this.proportionalEditing,
     proportionalMode: proportionalMode ?? this.proportionalMode,
     proportionalSize: proportionalSize ?? this.proportionalSize,
+    pivotPoint: pivotPoint ?? this.pivotPoint,
   );
 }
 
@@ -117,12 +121,13 @@ class BlenderGraphEditorHeader extends StatelessWidget {
         onSelected: onCommand,
       ),
       actions: <Widget>[
-        BlenderIconButton(
+        BlenderButton(
           key: const ValueKey<String>('graph-normalize-button'),
-          glyph: BlenderGlyph.scale,
+          label: 'Normalize',
+          leading: const BlenderIcon(BlenderGlyph.scale, size: 14),
+          variant: BlenderButtonVariant.toolbar,
           selected: state.normalize,
           onPressed: () => _update(state.copyWith(normalize: !state.normalize)),
-          tooltip: 'Normalize F-Curves',
         ),
         BlenderIconButton(
           key: const ValueKey<String>('graph-auto-normalize-button'),
@@ -151,10 +156,30 @@ class BlenderGraphEditorHeader extends StatelessWidget {
           ),
           popover: (context, close) => _filtersPopover(context),
         ),
-        const BlenderIconButton(
-          key: ValueKey<String>('graph-pivot-button'),
-          glyph: BlenderGlyph.transform,
-          tooltip: 'Pivot Point',
+        BlenderPopover(
+          child: const BlenderIconButton(
+            key: ValueKey<String>('graph-pivot-button'),
+            glyph: BlenderGlyph.transform,
+            tooltip: 'Pivot Point',
+          ),
+          popover: (context, close) => BlenderMenu<String>(
+            title: 'Pivot Point',
+            items: const <BlenderMenuItem<String>>[
+              BlenderMenuItem<String>(
+                value: 'Bounding Box Center',
+                label: 'Bounding Box Center',
+              ),
+              BlenderMenuItem<String>(value: 'Cursor', label: '2D Cursor'),
+              BlenderMenuItem<String>(
+                value: 'Individual Origins',
+                label: 'Individual Centers',
+              ),
+            ],
+            onSelected: (item) {
+              _update(state.copyWith(pivotPoint: item.value));
+              close();
+            },
+          ),
         ),
         BlenderIconButton(
           key: const ValueKey<String>('graph-snapping-toggle-button'),

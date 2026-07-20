@@ -1,6 +1,111 @@
 part of '../showcase_app.dart';
 
 extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
+  List<BlenderGraphChannelNode> get _graphChannelTree =>
+      <BlenderGraphChannelNode>[
+        BlenderGraphChannelNode(
+          id: 'cube-object',
+          label: 'Cube',
+          kind: BlenderGraphChannelKind.object,
+          expanded: !_collapsedGraphNodes.contains('cube-object'),
+          children: <BlenderGraphChannelNode>[
+            BlenderGraphChannelNode(
+              id: 'cube-action',
+              label: 'CubeAction',
+              kind: BlenderGraphChannelKind.action,
+              expanded: !_collapsedGraphNodes.contains('cube-action'),
+              children: <BlenderGraphChannelNode>[
+                BlenderGraphChannelNode(
+                  id: 'location-group',
+                  label: 'Location',
+                  kind: BlenderGraphChannelKind.group,
+                  color: const Color(0xFF3A9A3A),
+                  expanded: !_collapsedGraphNodes.contains('location-group'),
+                  children: <BlenderGraphChannelNode>[
+                    for (final curve in _graphCurves)
+                      BlenderGraphChannelNode(
+                        id: curve.id,
+                        label: curve.label,
+                        kind: BlenderGraphChannelKind.curve,
+                        curveId: curve.id,
+                        color: curve.color,
+                        selected: curve.id == _activeGraphChannel,
+                        visible: curve.visible,
+                        muted: curve.muted,
+                        locked: curve.locked,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ];
+
+  BlenderCurveChannel get _activeGraphCurve => _graphCurves.firstWhere(
+    (curve) => curve.id == _activeGraphChannel,
+    orElse: () => _graphCurves.first,
+  );
+
+  void _selectGraphChannel(String id) {
+    _update(() {
+      _activeGraphChannel = id;
+      _graphCurves = <BlenderCurveChannel>[
+        for (final curve in _graphCurves)
+          curve.copyWith(selected: curve.id == id, active: curve.id == id),
+      ];
+    });
+  }
+
+  void _moveGraphKeyframe(BlenderGraphKeyframeMove move) {
+    _update(() {
+      _graphCurves = <BlenderCurveChannel>[
+        for (final curve in _graphCurves)
+          curve.id == move.keyframe.channelId
+              ? curve.copyWith(
+                  keyframes: <BlenderGraphKeyframe>[
+                    for (final key in curve.resolvedKeyframes)
+                      key.id == move.keyframe.keyframeId
+                          ? key.copyWith(frame: move.frame, value: move.value)
+                          : key,
+                  ],
+                )
+              : curve,
+      ];
+    });
+  }
+
+  void _applyGraphChannelAction(BlenderGraphChannelAction action) {
+    if (action.type == BlenderGraphChannelActionType.toggleExpanded) {
+      _update(() {
+        _collapsedGraphNodes = <String>{..._collapsedGraphNodes};
+        if (!_collapsedGraphNodes.remove(action.nodeId)) {
+          _collapsedGraphNodes.add(action.nodeId);
+        }
+      });
+      return;
+    }
+    _update(() {
+      _graphCurves = <BlenderCurveChannel>[
+        for (final curve in _graphCurves)
+          curve.id == action.nodeId
+              ? switch (action.type) {
+                  BlenderGraphChannelActionType.toggleVisible => curve.copyWith(
+                    visible: !curve.visible,
+                  ),
+                  BlenderGraphChannelActionType.toggleMuted => curve.copyWith(
+                    muted: !curve.muted,
+                  ),
+                  BlenderGraphChannelActionType.toggleLocked => curve.copyWith(
+                    locked: !curve.locked,
+                  ),
+                  BlenderGraphChannelActionType.toggleExpanded => curve,
+                }
+              : curve,
+      ];
+    });
+  }
+
   Widget _buildMainEditorSurface() {
     final surface = switch (_mainEditorType) {
       BlenderEditorType.view3d => BlenderRegion(
@@ -70,31 +175,46 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         currentFrameListenable: _playback,
       ),
       BlenderEditorType.graphEditor => BlenderCurveEditor(
-        channels: const <BlenderCurveChannel>[
-          BlenderCurveChannel(
-            id: 'location-x',
-            label: 'Cube / Location X',
-            points: <Offset>[
-              Offset(0, .2),
-              Offset(.35, .7),
-              Offset(.7, .35),
-              Offset(1, .8),
-            ],
-            color: Color(0xFFFF3352),
-          ),
-          BlenderCurveChannel(
-            id: 'location-y',
-            label: 'Cube / Location Y',
-            points: <Offset>[
-              Offset(0, .6),
-              Offset(.35, .2),
-              Offset(.7, .75),
-              Offset(1, .4),
-            ],
-            color: Color(0xFF8BDC00),
-          ),
+        channels: _graphCurves,
+        channelTree: _graphChannelTree,
+        viewportController: _graphViewport,
+        currentFrame: _frame,
+        currentFrameListenable: _playback,
+        cursor: _graphCursor,
+        frameRangeStart: 1,
+        frameRangeEnd: 120,
+        markers: const <BlenderGraphMarker>[
+          BlenderGraphMarker(frame: 1, label: 'Start'),
+          BlenderGraphMarker(frame: 120, label: 'End'),
         ],
-        sidebar: const BlenderGraphEditorSidebar(),
+        selectedKeyframes: _selectedGraphKeys,
+        activeChannelId: _activeGraphChannel,
+        onCurrentFrameChanged: _playback.seek,
+        onSelectionChanged: (value) =>
+            _update(() => _selectedGraphKeys = value),
+        onKeyframeMoved: _moveGraphKeyframe,
+        onChannelSelected: _selectGraphChannel,
+        onChannelAction: _applyGraphChannelAction,
+        contextMenuItems: const <BlenderMenuItem<String>>[
+          BlenderMenuItem<String>(value: 'copy', label: 'Copy'),
+          BlenderMenuItem<String>(value: 'paste', label: 'Paste'),
+          BlenderMenuItem<String>(value: 'insert', label: 'Insert Keyframe'),
+          BlenderMenuItem<String>(value: 'handle', label: 'Handle Type'),
+          BlenderMenuItem<String>(
+            value: 'interpolation',
+            label: 'Interpolation Mode',
+          ),
+          BlenderMenuItem<String>(value: 'delete', label: 'Delete'),
+        ],
+        onContextMenuSelected: _setStatus,
+        normalize: _graphHeaderState.normalize,
+        sidebar: BlenderGraphEditorSidebar(
+          cursor: _graphCursor,
+          onCursorChanged: (value) => _update(() => _graphCursor = value),
+          activeChannel: _activeGraphCurve,
+          modifiers: const <String>['Cycles'],
+          onCommand: _setStatus,
+        ),
         footer: BlenderAnimationPlaybackFooter(
           state: _animationHeaderState,
           onStateChanged: (value) =>
@@ -120,16 +240,25 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         onCurrentFrameChanged: _playback.seek,
         footer: _buildNlaPlaybackFooter(),
       ),
-      BlenderEditorType.drivers => const BlenderCurveEditor(
-        channels: <BlenderCurveChannel>[
+      BlenderEditorType.drivers => BlenderCurveEditor(
+        channels: const <BlenderCurveChannel>[
           BlenderCurveChannel(
             id: 'driver',
             label: 'Driver / Value',
-            points: <Offset>[Offset(0, .25), Offset(.45, .6), Offset(1, .4)],
+            keyframes: <BlenderGraphKeyframe>[
+              BlenderGraphKeyframe(id: 'driver-0', frame: -1, value: -.5),
+              BlenderGraphKeyframe(id: 'driver-1', frame: 0, value: 0),
+              BlenderGraphKeyframe(id: 'driver-2', frame: 1, value: .8),
+            ],
             color: Color(0xFFFFB74D),
+            active: true,
           ),
         ],
-        sidebar: BlenderGraphEditorSidebar(drivers: true),
+        viewportController: _driverViewport,
+        cursor: const Offset(0, 0),
+        showCursorFrame: true,
+        activeChannelId: 'driver',
+        sidebar: const BlenderGraphEditorSidebar(drivers: true),
       ),
       BlenderEditorType.sequencer ||
       BlenderEditorType.videoEditing => BlenderVideoSequencerEditor(

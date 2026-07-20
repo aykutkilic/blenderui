@@ -175,10 +175,14 @@ class _BlenderTimelineState extends State<BlenderTimeline> {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final scale = theme.density.interfaceScale;
+    final trackHeight = widget.trackHeight * scale;
+    final channelWidth = widget.channelWidth * scale;
+    final scrubHeight = 28 * scale;
     final rowCount = widget.summaryOnly
         ? 1
         : math.max(1, widget.model.tracks.length);
-    final minimumHeight = 28 + rowCount * widget.trackHeight;
+    final minimumHeight = scrubHeight + rowCount * trackHeight;
     final body = LayoutBuilder(
       builder: (context, constraints) {
         return SizedBox(
@@ -192,11 +196,12 @@ class _BlenderTimelineState extends State<BlenderTimeline> {
                 RepaintBoundary(
                   child: SizedBox(
                     key: const ValueKey<String>('timeline-channels-region'),
-                    width: widget.channelWidth,
+                    width: channelWidth,
                     child: _BlenderTimelineChannels(
                       searchController: _searchController,
                       labels: _renderData.labels,
-                      trackHeight: widget.trackHeight,
+                      trackHeight: trackHeight,
+                      scrubHeight: scrubHeight,
                       summaryOnly: widget.summaryOnly,
                     ),
                   ),
@@ -230,7 +235,8 @@ class _BlenderTimelineState extends State<BlenderTimeline> {
                             ),
                             painter: _BlenderTimelineStaticPainter(
                               renderData: _renderData,
-                              trackHeight: widget.trackHeight,
+                              trackHeight: trackHeight,
+                              scrubHeight: scrubHeight,
                               colors: theme.colors,
                               textTheme: theme.textTheme,
                               visibleStart: _visibleStart,
@@ -254,6 +260,7 @@ class _BlenderTimelineState extends State<BlenderTimeline> {
                               textTheme: theme.textTheme,
                               visibleStart: _visibleStart,
                               visibleEnd: _visibleEnd,
+                              scrubHeight: scrubHeight,
                             ),
                             willChange: true,
                           ),
@@ -281,12 +288,14 @@ class _BlenderTimelineChannels extends StatelessWidget {
     required this.searchController,
     required this.labels,
     required this.trackHeight,
+    required this.scrubHeight,
     required this.summaryOnly,
   });
 
   final TextEditingController searchController;
   final List<String> labels;
   final double trackHeight;
+  final double scrubHeight;
   final bool summaryOnly;
 
   @override
@@ -297,7 +306,10 @@ class _BlenderTimelineChannels extends StatelessWidget {
       builder: (context, constraints) {
         final visibleRowCount = math.min(
           visibleLabels.length,
-          math.max(0, ((constraints.maxHeight - 28) / trackHeight).ceil()),
+          math.max(
+            0,
+            ((constraints.maxHeight - scrubHeight) / trackHeight).ceil(),
+          ),
         );
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -315,8 +327,13 @@ class _BlenderTimelineChannels extends StatelessWidget {
                   right: 0,
                   child: Container(
                     key: const ValueKey<String>('timeline-channel-search'),
-                    height: 28,
-                    padding: const EdgeInsets.fromLTRB(3, 3, 3, 4),
+                    height: scrubHeight,
+                    padding: EdgeInsets.fromLTRB(
+                      3 * theme.density.interfaceScale,
+                      3 * theme.density.interfaceScale,
+                      3 * theme.density.interfaceScale,
+                      4 * theme.density.interfaceScale,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colors.surface,
                       border: Border(
@@ -342,13 +359,15 @@ class _BlenderTimelineChannels extends StatelessWidget {
                 ),
                 for (var index = 0; index < visibleRowCount; index++)
                   Positioned(
-                    top: 28 + index * trackHeight,
+                    top: scrubHeight + index * trackHeight,
                     left: 0,
                     right: 0,
                     child: Container(
                       key: ValueKey<String>('timeline-channel-$index'),
                       height: trackHeight,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 5 * theme.density.interfaceScale,
+                      ),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
                         color: index == 0

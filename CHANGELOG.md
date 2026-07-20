@@ -1,5 +1,13 @@
 # Changelog
 
+- Rebuilt the Graph Editor as reusable Blender-shaped Channels and shared
+  time/value Window regions with recursive F-curve hierarchy, keyframe and
+  viewport models, Bezier/linear/constant interpolation, handles,
+  extrapolation, markers, cursor, normalization, selection and move
+  transactions, Graph/Drivers sidebars, and a playback-isolated overlay.
+- Added viewport-culling and dense-key rendering optimizations and migrated the
+  example Graph and Drivers surfaces to the shared library contracts.
+
 ## Unreleased
 
 - Rebuilt Timeline as Blender's Dope Sheet subtype with independently clipped

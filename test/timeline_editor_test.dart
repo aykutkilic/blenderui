@@ -93,6 +93,43 @@ void main() {
     expect(x('range-start-field'), lessThan(x('range-end-field')));
   });
 
+  testWidgets('Timeline scrub and channel regions follow resolution scale', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlenderTheme(
+          data: const BlenderThemeData().copyWith(
+            density: const BlenderDensity().scaled(1.5),
+          ),
+          child: SizedBox(
+            width: 1200,
+            height: 500,
+            child: BlenderTimeline(model: model, onCurrentFrameChanged: (_) {}),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('timeline-channels-region')),
+          )
+          .width,
+      360,
+    );
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('timeline-channel-search')),
+          )
+          .height,
+      42,
+    );
+  });
+
   testWidgets('scrubbing repaints only the current-frame overlay', (
     tester,
   ) async {
