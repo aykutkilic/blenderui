@@ -23,46 +23,41 @@ class BlenderUVEditor extends StatelessWidget {
     this.edges = const <BlenderUVEdge>[],
     this.selectedId,
     this.onSelected,
+    this.toolShelf,
     this.sidebar,
+    this.assetShelf,
+    this.toolShelfWidth = 42,
     this.sidebarWidth = 240,
-    this.title = 'UV Editor',
+    this.assetShelfHeight = 144,
+    this.title,
   });
 
   final List<BlenderUVPoint> points;
   final List<BlenderUVEdge> edges;
   final String? selectedId;
   final ValueChanged<BlenderUVPoint>? onSelected;
+  final Widget? toolShelf;
   final Widget? sidebar;
+  final Widget? assetShelf;
+  final double toolShelfWidth;
   final double sidebarWidth;
-  final String title;
+  final double assetShelfHeight;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return BlenderPanel(
-      title: title,
-      padding: EdgeInsets.zero,
-      child: sidebar == null
-          ? _buildCanvas(theme)
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Expanded(child: _buildCanvas(theme)),
-                SizedBox(
-                  width: sidebarWidth,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colors.surface,
-                      border: Border(
-                        left: BorderSide(color: theme.colors.editorBorder),
-                      ),
-                    ),
-                    child: sidebar,
-                  ),
-                ),
-              ],
-            ),
+    final layout = BlenderImageEditorLayout(
+      canvas: _buildCanvas(theme),
+      toolShelf: toolShelf,
+      sidebar: sidebar,
+      assetShelf: assetShelf,
+      toolShelfWidth: toolShelfWidth,
+      sidebarWidth: sidebarWidth,
+      assetShelfHeight: assetShelfHeight,
     );
+    if (title == null) return layout;
+    return BlenderPanel(title: title, padding: EdgeInsets.zero, child: layout);
   }
 
   Widget _buildCanvas(BlenderThemeData theme) {

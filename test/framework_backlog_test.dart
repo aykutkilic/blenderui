@@ -145,6 +145,404 @@ void main() {
     expect(moved.removeNode('a').links, isEmpty);
   });
 
+  test(
+    'node graph validates exact socket endpoints and preserves metadata',
+    () {
+      const model = BlenderNodeGraphModel(
+        nodes: <BlenderGraphNode>[
+          BlenderGraphNode(
+            id: 'source',
+            title: 'Source',
+            position: Offset.zero,
+            outputs: <BlenderNodeSocketDefinition>[
+              BlenderNodeSocketDefinition(
+                id: 'geometry',
+                label: 'Geometry',
+                dataType: BlenderNodeSocketDataType.geometry,
+              ),
+            ],
+          ),
+          BlenderGraphNode(
+            id: 'target',
+            title: 'Target',
+            position: Offset(200, 0),
+            inputs: <BlenderNodeSocketDefinition>[
+              BlenderNodeSocketDefinition(
+                id: 'geometry',
+                label: 'Geometry',
+                dataType: BlenderNodeSocketDataType.geometry,
+              ),
+            ],
+          ),
+        ],
+        links: <BlenderGraphLink>[
+          BlenderGraphLink(
+            from: 'source',
+            fromSocket: 'geometry',
+            to: 'target',
+            toSocket: 'geometry',
+          ),
+        ],
+      );
+
+      expect(model.validate(), isEmpty);
+      expect(model.bounds, const Rect.fromLTWH(0, 0, 350, 90));
+      expect(model.selectNode('target').nodes.last.active, isTrue);
+      expect(
+        model
+            .copyWith(
+              links: const <BlenderGraphLink>[
+                BlenderGraphLink(
+                  from: 'source',
+                  fromSocket: 'missing',
+                  to: 'target',
+                  toSocket: 'geometry',
+                ),
+              ],
+            )
+            .validate(),
+        contains('Missing output socket: source.missing'),
+      );
+    },
+  );
+
+  test('typed socket connections normalize direction and replace inputs', () {
+    const geometryOutput = BlenderNodeSocketReference(
+      nodeId: 'source',
+      socketId: 'geometry',
+      output: true,
+    );
+    const secondOutput = BlenderNodeSocketReference(
+      nodeId: 'second',
+      socketId: 'geometry',
+      output: true,
+    );
+    const geometryInput = BlenderNodeSocketReference(
+      nodeId: 'target',
+      socketId: 'geometry',
+      output: false,
+    );
+    const floatInput = BlenderNodeSocketReference(
+      nodeId: 'target',
+      socketId: 'factor',
+      output: false,
+    );
+    const model = BlenderNodeGraphModel(
+      nodes: <BlenderGraphNode>[
+        BlenderGraphNode(
+          id: 'source',
+          title: 'Source',
+          position: Offset.zero,
+          outputs: <BlenderNodeSocketDefinition>[
+            BlenderNodeSocketDefinition(
+              id: 'geometry',
+              label: 'Geometry',
+              dataType: BlenderNodeSocketDataType.geometry,
+            ),
+          ],
+        ),
+        BlenderGraphNode(
+          id: 'second',
+          title: 'Second',
+          position: Offset.zero,
+          outputs: <BlenderNodeSocketDefinition>[
+            BlenderNodeSocketDefinition(
+              id: 'geometry',
+              label: 'Geometry',
+              dataType: BlenderNodeSocketDataType.geometry,
+            ),
+          ],
+        ),
+        BlenderGraphNode(
+          id: 'target',
+          title: 'Target',
+          position: Offset.zero,
+          inputs: <BlenderNodeSocketDefinition>[
+            BlenderNodeSocketDefinition(
+              id: 'geometry',
+              label: 'Geometry',
+              dataType: BlenderNodeSocketDataType.geometry,
+            ),
+            BlenderNodeSocketDefinition(
+              id: 'factor',
+              label: 'Factor',
+              dataType: BlenderNodeSocketDataType.floatingPoint,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final first = model.connectSockets(geometryInput, geometryOutput);
+    expect(first.links.single.from, 'source');
+    expect(first.links.single.toSocket, 'geometry');
+    final replaced = first.connectSockets(secondOutput, geometryInput);
+    expect(replaced.links, hasLength(1));
+    expect(replaced.links.single.from, 'second');
+    expect(replaced.connectSockets(geometryOutput, floatInput), same(replaced));
+  });
+
+  test('geometry node menu catalog preserves source nested categories', () {
+    final add = BlenderNodeEditorMenuCatalog.geometryAdd();
+    final curve = add.singleWhere((item) => item.label == 'Curve');
+    final read = curve.submenu!.singleWhere((item) => item.label == 'Read');
+
+    expect(
+      add.map((item) => item.label),
+      containsAll(<String>[
+        'Input',
+        'Output',
+        'Attribute',
+        'Geometry',
+        'Curve',
+        'Instances',
+        'Mesh',
+        'Simulation',
+        'Utilities',
+        'Group',
+        'Layout',
+      ]),
+    );
+    expect(
+      read.submenu!.map((item) => item.label),
+      containsAll(<String>[
+        'Curve Handle Positions',
+        'Curve Length',
+        'Spline Resolution',
+      ]),
+    );
+  });
+
+  testWidgets('node editor composes grid, frames, reroutes, and socket links', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SizedBox(
+          width: 700,
+          height: 420,
+          child: BlenderNodeEditor(
+            title: null,
+            model: BlenderNodeGraphModel(
+              nodes: <BlenderGraphNode>[
+                BlenderGraphNode(
+                  id: 'frame',
+                  title: 'Geometry Flow',
+                  position: Offset(10, 10),
+                  size: Size(600, 300),
+                  kind: BlenderGraphNodeKind.frame,
+                ),
+                BlenderGraphNode(
+                  id: 'input',
+                  title: 'Group Input',
+                  position: Offset(40, 80),
+                  outputs: <BlenderNodeSocketDefinition>[
+                    BlenderNodeSocketDefinition(
+                      id: 'geometry',
+                      label: 'Geometry',
+                      dataType: BlenderNodeSocketDataType.geometry,
+                      connected: true,
+                    ),
+                  ],
+                ),
+                BlenderGraphNode(
+                  id: 'reroute',
+                  title: 'Reroute',
+                  position: Offset(260, 110),
+                  kind: BlenderGraphNodeKind.reroute,
+                  outputs: <BlenderNodeSocketDefinition>[
+                    BlenderNodeSocketDefinition(
+                      id: 'out',
+                      label: '',
+                      dataType: BlenderNodeSocketDataType.geometry,
+                    ),
+                  ],
+                ),
+              ],
+              links: <BlenderGraphLink>[
+                BlenderGraphLink(
+                  from: 'input',
+                  fromSocket: 'geometry',
+                  to: 'reroute',
+                  toSocket: 'in',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-grid')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-links')),
+      findsOneWidget,
+    );
+    expect(find.text('Geometry Flow'), findsOneWidget);
+    expect(find.text('Group Input'), findsOneWidget);
+    expect(find.text('Geometry'), findsOneWidget);
+  });
+
+  testWidgets('node editor creates a typed link by dragging socket handles', (
+    tester,
+  ) async {
+    BlenderGraphLink? created;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 620,
+          height: 300,
+          child: BlenderNodeEditor(
+            title: null,
+            model: const BlenderNodeGraphModel(
+              nodes: <BlenderGraphNode>[
+                BlenderGraphNode(
+                  id: 'source',
+                  title: 'Source',
+                  position: Offset(30, 40),
+                  outputs: <BlenderNodeSocketDefinition>[
+                    BlenderNodeSocketDefinition(
+                      id: 'geometry',
+                      label: 'Geometry',
+                      dataType: BlenderNodeSocketDataType.geometry,
+                    ),
+                  ],
+                ),
+                BlenderGraphNode(
+                  id: 'target',
+                  title: 'Target',
+                  position: Offset(300, 40),
+                  inputs: <BlenderNodeSocketDefinition>[
+                    BlenderNodeSocketDefinition(
+                      id: 'geometry',
+                      label: 'Geometry',
+                      dataType: BlenderNodeSocketDataType.geometry,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            onLinkCreated: (link) => created = link,
+          ),
+        ),
+      ),
+    );
+
+    Finder handle(String key) => find
+        .descendant(
+          of: find.byKey(ValueKey<String>(key)),
+          matching: find.byType(GestureDetector),
+        )
+        .first;
+    final source = handle('node-socket-source-geometry-true');
+    final target = handle('node-socket-target-geometry-false');
+    final gesture = await tester.startGesture(tester.getCenter(source));
+    await gesture.moveTo(
+      tester.getCenter(target),
+      timeStamp: const Duration(milliseconds: 100),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-link-preview')),
+      findsOneWidget,
+    );
+    await gesture.up();
+    await tester.pump();
+
+    expect(created?.from, 'source');
+    expect(created?.fromSocket, 'geometry');
+    expect(created?.to, 'target');
+    expect(created?.toSocket, 'geometry');
+  });
+
+  testWidgets('node editor culls nodes outside the transformed viewport', (
+    tester,
+  ) async {
+    final controller = TransformationController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 400,
+          height: 240,
+          child: BlenderNodeEditor(
+            title: null,
+            viewportOverscan: 0,
+            transformationController: controller,
+            model: const BlenderNodeGraphModel(
+              nodes: <BlenderGraphNode>[
+                BlenderGraphNode(
+                  id: 'near',
+                  title: 'Near',
+                  position: Offset(20, 20),
+                ),
+                BlenderGraphNode(
+                  id: 'far',
+                  title: 'Far',
+                  position: Offset(1800, 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Near'), findsOneWidget);
+    expect(find.text('Far'), findsNothing);
+    controller.value = Matrix4.translationValues(-1700, 0, 0);
+    await tester.pump();
+    expect(find.text('Near'), findsNothing);
+    expect(find.text('Far'), findsOneWidget);
+  });
+
+  testWidgets('node movement commits once after transient drag updates', (
+    tester,
+  ) async {
+    var commits = 0;
+    Offset? committedPosition;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 420,
+          height: 240,
+          child: BlenderNodeEditor(
+            title: null,
+            model: const BlenderNodeGraphModel(
+              nodes: <BlenderGraphNode>[
+                BlenderGraphNode(
+                  id: 'move',
+                  title: 'Move me',
+                  position: Offset(30, 30),
+                ),
+              ],
+            ),
+            onNodeMoved: (_, position) {
+              commits++;
+              committedPosition = position;
+            },
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Move me')),
+    );
+    await gesture.moveBy(const Offset(15, 10));
+    await tester.pump();
+    await gesture.moveBy(const Offset(10, 5));
+    await tester.pump();
+    expect(commits, 0);
+    await gesture.up();
+    await tester.pump();
+    expect(commits, 1);
+    expect(committedPosition, const Offset(55, 45));
+  });
+
   test('jobs and reports have deterministic observable lifecycles', () async {
     final jobs = BlenderJobService();
     var canceled = false;

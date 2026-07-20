@@ -40,9 +40,10 @@ part 'showcase_app/editor_shell.dart';
 part 'showcase_app/clip_and_nla_headers.dart';
 part 'showcase_app/animation_and_sequencer_headers.dart';
 part 'showcase_app/node_and_utility_headers.dart';
+part 'showcase_app/node_document_interactions.dart';
+part 'showcase_app/node_graph_fixtures.dart';
 part 'showcase_app/editor_surfaces.dart';
 part 'showcase_app/properties_surface.dart';
-part 'showcase_app/animation_menus.dart';
 part 'showcase_app/bottom_graph_editor.dart';
 part 'showcase_app/gallery_controls.dart';
 part 'showcase_app/gallery_templates.dart';
@@ -85,6 +86,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   final TextEditingController _operatorSearchController =
       TextEditingController();
   final TextEditingController _layerSearchController = TextEditingController();
+  final TextEditingController _nlaCurveSearchController =
+      TextEditingController();
+  final TextEditingController _nlaCollectionSearchController =
+      TextEditingController();
   final TextEditingController _galleryPathController = TextEditingController(
     text: '/showcase/scene.blend',
   );
@@ -148,6 +153,288 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
       ],
     ),
   ];
+  final List<BlenderGraphLink> _nodeLinks = _shaderNodeLinkFixture();
+  final List<BlenderGraphNode> _geometryNodes = <BlenderGraphNode>[
+    const BlenderGraphNode(
+      id: 'scatter-frame',
+      title: 'Scatter Pebbles on Geometry',
+      position: Offset(44, 54),
+      size: Size(1360, 500),
+      kind: BlenderGraphNodeKind.frame,
+      headerColor: Color(0xFF4A4A4A),
+    ),
+    const BlenderGraphNode(
+      id: 'group-input',
+      title: 'Group Input',
+      position: Offset(92, 138),
+      size: Size(210, 196),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF496D50),
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+          description: 'Geometry supplied by the modifier.',
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'selection',
+          label: 'Selection',
+          detail: 'True',
+          dataType: BlenderNodeSocketDataType.boolean,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'distance-min',
+          label: 'Distance Min',
+          detail: '0.25 m',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'distance-max',
+          label: 'Distance Max',
+          detail: '0.60 m',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'radius',
+          label: 'Pebble Radius',
+          detail: '0.08 m',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'distribute',
+      title: 'Distribute Points on Faces',
+      label: 'Poisson Disk',
+      position: Offset(364, 104),
+      size: Size(238, 226),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF35665C),
+      selected: true,
+      active: true,
+      executionTime: '0.18 ms',
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'mesh',
+          label: 'Mesh',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'selection',
+          label: 'Selection',
+          dataType: BlenderNodeSocketDataType.boolean,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'distance-min',
+          label: 'Distance Min',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'distance-max',
+          label: 'Distance Max',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'density',
+          label: 'Density Max',
+          detail: '10.000',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+        ),
+      ],
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'points',
+          label: 'Points',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'normal',
+          label: 'Normal',
+          dataType: BlenderNodeSocketDataType.vector,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'rotation',
+          label: 'Rotation',
+          dataType: BlenderNodeSocketDataType.rotation,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'icosphere',
+      title: 'Icosphere',
+      position: Offset(382, 366),
+      size: Size(202, 134),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF4C6280),
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'radius',
+          label: 'Radius',
+          dataType: BlenderNodeSocketDataType.floatingPoint,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'subdivisions',
+          label: 'Subdivisions',
+          detail: '2',
+          dataType: BlenderNodeSocketDataType.integer,
+        ),
+      ],
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'mesh',
+          label: 'Mesh',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'instance',
+      title: 'Instance on Points',
+      position: Offset(664, 132),
+      size: Size(230, 242),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF35665C),
+      executionTime: '0.07 ms',
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'points',
+          label: 'Points',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'selection',
+          label: 'Selection',
+          detail: 'True',
+          dataType: BlenderNodeSocketDataType.boolean,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'instance',
+          label: 'Instance',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+          multiInput: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'pick-instance',
+          label: 'Pick Instance',
+          detail: 'False',
+          dataType: BlenderNodeSocketDataType.boolean,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'rotation',
+          label: 'Rotation',
+          dataType: BlenderNodeSocketDataType.rotation,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'scale',
+          label: 'Scale',
+          detail: '1.000',
+          dataType: BlenderNodeSocketDataType.vector,
+        ),
+      ],
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'instances',
+          label: 'Instances',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'realize',
+      title: 'Realize Instances',
+      position: Offset(958, 178),
+      size: Size(202, 126),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF35665C),
+      executionTime: '0.11 ms',
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'selection',
+          label: 'Selection',
+          detail: 'True',
+          dataType: BlenderNodeSocketDataType.boolean,
+        ),
+        BlenderNodeSocketDefinition(
+          id: 'realize-all',
+          label: 'Realize All',
+          detail: 'True',
+          dataType: BlenderNodeSocketDataType.boolean,
+        ),
+      ],
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'result-reroute',
+      title: 'Reroute',
+      position: Offset(1198, 226),
+      kind: BlenderGraphNodeKind.reroute,
+      parentId: 'scatter-frame',
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'input',
+          label: '',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'output',
+          label: '',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+    ),
+    const BlenderGraphNode(
+      id: 'group-output',
+      title: 'Group Output',
+      position: Offset(1262, 178),
+      size: Size(178, 94),
+      parentId: 'scatter-frame',
+      headerColor: Color(0xFF496D50),
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+          connected: true,
+        ),
+      ],
+    ),
+  ];
+  final List<BlenderGraphLink> _geometryLinks = _geometryNodeLinkFixture();
 
   double _gallerySlider = .42;
   Offset _galleryVector = const Offset(.35, .55);
@@ -350,6 +637,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     _propertiesSearchController.dispose();
     _operatorSearchController.dispose();
     _layerSearchController.dispose();
+    _nlaCurveSearchController.dispose();
+    _nlaCollectionSearchController.dispose();
     _galleryPathController.dispose();
     _importerPathController.dispose();
     _exporterPathController.dispose();
@@ -380,15 +669,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
           setState(() => _preferenceCategory = category);
         },
       );
-
-  void _moveNode(BlenderGraphNode node, Offset position) {
-    setState(() {
-      final updated = _nodeGraph.moveNode(node.id, position);
-      _nodes
-        ..clear()
-        ..addAll(updated.nodes);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {

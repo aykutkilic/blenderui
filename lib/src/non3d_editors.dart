@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
 import 'advanced_controls.dart';
 import 'category_browser.dart';
@@ -10,7 +11,10 @@ import 'icons.dart';
 import 'editors.dart';
 import 'layout.dart';
 import 'overlay_host.dart';
+import 'editor_chrome.dart';
+import 'popover_panel.dart';
 import 'property_forms.dart';
+import 'specialized_templates.dart';
 import 'templates.dart';
 import 'theme.dart';
 
@@ -24,6 +28,19 @@ part 'non3d_editors/clip_editor.dart';
 part 'non3d_editors/text_editor.dart';
 part 'non3d_editors/spreadsheet_editor.dart';
 part 'non3d_editors/image_editor.dart';
+part 'non3d_editors/image_editor_header.dart';
+part 'non3d_editors/image_editor_header_menus.dart';
+part 'non3d_editors/image_editor_regions.dart';
+part 'non3d_editors/graph_editor_header.dart';
+part 'non3d_editors/graph_editor_sidebar.dart';
+part 'non3d_editors/nla_editor_header.dart';
+part 'non3d_editors/dope_sheet_editor_header.dart';
+part 'non3d_editors/dope_sheet_editor_header_menus.dart';
+part 'non3d_editors/animation_playback_footer.dart';
+part 'non3d_editors/sequencer_editor_header.dart';
+part 'non3d_editors/sequencer_editor_header_menus.dart';
+part 'non3d_editors/clip_editor_header.dart';
+part 'non3d_editors/spreadsheet_editor_header.dart';
 part 'non3d_editors/image_editor_state.dart';
 part 'non3d_editors/asset_shelf.dart';
 part 'non3d_editors/keymap_editor.dart';

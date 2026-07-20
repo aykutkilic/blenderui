@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart'
         BoxDecoration,
         CustomPaint,
         DecoratedBox,
+        GestureDetector,
         Offset,
         Scrollable,
         Size,

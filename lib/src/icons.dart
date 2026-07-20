@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 
 import 'theme.dart';
 
@@ -12,6 +13,7 @@ part 'icons/viewport.dart';
 part 'icons/transforms.dart';
 part 'icons/actions.dart';
 part 'icons/window_feedback_and_files.dart';
+part 'icons/material_symbols.dart';
 
 enum BlenderGlyph {
   menu,
@@ -176,9 +178,20 @@ class BlenderIcon extends StatelessWidget {
         iconTheme.color ??
         DefaultTextStyle.of(context).style.color ??
         const Color(0xFFE6E6E6);
-    return CustomPaint(
-      size: Size.square(effectiveSize),
-      painter: _BlenderIconPainter(glyph, effectiveColor),
+    if (iconTheme.renderer == BlenderIconRenderer.blenderVector) {
+      return CustomPaint(
+        size: Size.square(effectiveSize),
+        painter: _BlenderIconPainter(glyph, effectiveColor),
+      );
+    }
+    return Icon(
+      _materialSymbolFor(glyph),
+      size: effectiveSize,
+      color: effectiveColor,
+      fill: _materialSymbolIsFilled(glyph) ? 1 : iconTheme.fill,
+      weight: iconTheme.weight,
+      grade: iconTheme.grade,
+      opticalSize: iconTheme.opticalSize,
     );
   }
 }

@@ -4,6 +4,108 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-20 — Established manual-wide UI/editor parity backlog
+
+- Fetched the current Blender 4.5 LTS User Interface and Editors indexes,
+  followed all 23 editor entries to their representative screenshots, and
+  inspected the images in contact sheets.
+- Cross-referenced every editor family with the local blenderapp source
+  snapshot and the current reusable BlenderUI surface. Added the active
+  [manual parity backlog](manual-ui-editor-parity-backlog.md), including one
+  row per top-level interface topic and editor type.
+- Accepted a strict ownership rule: shared chrome, controls, descriptors,
+  models, layout, and interactions stay in the library; the example app keeps
+  sample data, app state, callbacks, domain rendering, and composition.
+- Moved the menu-descriptor factory used by nine app-owned header families into
+  the public `BlenderEditorMenuCatalog` and added focused API coverage. This is
+  the first extraction in the planned editor-family header migration.
+- Added `BlenderUtilityEditorHeader` so Text, Console, Info, Outliner,
+  File/Asset Browser, Spreadsheet, Project, Properties, and Preferences menu
+  anatomy no longer lives in the example app. Data API mode and command
+  execution remain app inputs.
+- Closed the manual's generic Eyedropper gap with a reusable active/disabled
+  `BlenderEyedropper`; screen sampling and document mutation remain host-owned.
+- Added the public `BlenderImageEditorHeader` and immutable header state. It
+  owns the source-conditioned Image/UV menus and separates each persistent
+  toggle from its settings popover; the example now supplies state and command
+  callbacks instead of duplicating the header.
+- Added shared Image/UV region geometry and mode-aware tool shelves based on
+  `space_toolsystem_toolbar.py`. Removed the unrelated View3D shelf from those
+  editors, attached the brush asset shelf only in Paint mode, and removed the
+  redundant internal editor-title row.
+- Added deterministic 1200×700 Image and UV rendered references plus focused
+  source-taxonomy, state-lifecycle, region-size, and app-integration coverage.
+- Extracted immutable public header/state widgets for View3D, Dope
+  Sheet/Timeline, Graph/Drivers, NLA, Sequencer, Clip, and Spreadsheet. Added
+  keyed menu descriptors and an `editorSelector` override so embedded areas can
+  reuse the same headers without losing application-specific area switching.
+- Deleted the obsolete 557-line example `animation_menus.dart` and replaced
+  the large app-owned animation, sequencer, clip, spreadsheet, and View3D
+  header builders with concise state/callback wiring. Stable menu catalogs were
+  split beside their owning library headers rather than weakening the
+  repository's per-file architecture limit.
+- Added reusable Graph/Drivers sidebars and driver-variable panels, the shared
+  animation playback footer, and nullable body titles so extracted headers do
+  not leave duplicate internal title bars.
+- Added selected/query filtering, sortable columns, row selection/numeric
+  alignment, row indices, and external horizontal/vertical controllers to the
+  Spreadsheet. Visual review caught and fixed narrow tables centering in wide
+  viewports.
+- Added File Browser Name/Date/Size/Type sorting with folder-first semantics,
+  structured metadata, and caller-supplied Asset Browser preview builders.
+- Extended the existing generic tree drag/drop policy with host-owned
+  range/toggle selection and arrow/Enter keyboard navigation. Extended the
+  Node Editor with host-owned multi/box selection, grouped move transactions,
+  and optional grid snapping, plus graph-model helpers that apply those
+  transactions without putting documents in widget state.
+- Completed reusable Node editing/group workflows with an overflow-safe
+  immutable group breadcrumb path, host-generated subgraph duplication, a
+  sampled Bézier cut-link operation, and a Cut Links canvas-tool stroke wired
+  by the example app.
+- Replaced repeated Node, Sequencer, and Clip annotation rows with one immutable
+  `BlenderAnnotationSettingsPanel`. Added a Text status footer, Console command
+  history navigation, and selectable/severity-filtered Info rows.
+- Added and visually inspected deterministic 1200×700 references for all 23
+  manual editor types. Flutter's Ahem glyphs are used only as stable geometry
+  evidence; official manual images remain the human text/typography reference.
+- Final verification passed root and example analysis, the 301-file structural
+  guard, all 223 package tests, and all 70 example-app tests.
+- Recorded browser bootstrap failure, scoped manual download fallback, contact
+  sheet warning, and the local blenderapp checkout's unusual read-only Git
+  presentation in the
+  [decision record](decisions/2026-07-20-manual-parity-and-editor-ownership.md).
+
+## 2026-07-20 — Optimized node rendering, enabled port links, and unified icons
+
+- Revisited blenderapp's node drawing and View2D implementation after the
+  Geometry Node Editor showed poor interactive rendering. The audit confirmed
+  view-rectangle rejection for nodes and frames, viewport-counted adaptive
+  grid points, and batched socket/link submission.
+- Replaced whole-document Flutter composition with viewport node culling,
+  link-path rejection, viewport-only adaptive grid painting, per-node and
+  wire-layer repaint boundaries, and transient editor-owned dragging that
+  commits to the host once on release.
+- Removed `InteractiveViewer` from gesture ownership after focused tests proved
+  its scale recognizer competed with node and socket pans. The canvas now uses
+  Blender-style middle-button panning and pointer-wheel zoom, leaving the
+  primary button to node movement and socket connections.
+- Added stable socket references, typed connection validation, single-input
+  replacement, multi-input preservation, snapped link previews, and normalized
+  output-to-input callbacks. The example now persists mutable link lists and a
+  widget test performs a real Geometry Nodes reconnection.
+- Researched current Material icon options and adopted the maintained Material
+  Symbols package as the default semantic icon backend. A full
+  `BlenderGlyph` mapping revamps existing application icons without copying
+  Blender's GPL assets; variable font axes provide the compact outlined style,
+  and the independent vector backend remains opt-in.
+- Recorded source evidence, licensing boundaries, interaction failures, test
+  corrections, and verification in
+  [`2026-07-20-node-performance-connections-and-symbol-icons.md`](decisions/2026-07-20-node-performance-connections-and-symbol-icons.md).
+- The example web server launched for a final visual inspection, but the in-app
+  browser was unavailable because sandbox-policy metadata was missing. The
+  server was stopped; full Flutter render/layout tests remained the verification
+  source instead of switching to an unapproved browser surface.
+
 ## 2026-07-19 — Added source-shaped, target-aware context menus
 
 - Traced blenderapp's common button popup assembly, region context operator,
@@ -283,6 +385,7 @@ live in [the decision records](decisions/).
 - The installed Flutter SDK may need permission to refresh its cache outside
   the repository before formatting or verification. This does not alter project
   source, but it should be surfaced when it blocks a command.
+
 ## 2026-07-19 — 3D Viewport editor-chrome parity
 
 - Audited the example app against the local `blenderapp` View3D header, tool
@@ -306,3 +409,18 @@ live in [the decision records](decisions/).
   which contained obsolete paths and duplicated accepted decisions.
 - Consolidated current ownership rules, rejected abstractions, size limits,
   and verification expectations in a single decision record.
+
+## 2026-07-19 — Made the Geometry Node Editor universal
+
+- Audited `space_node.py`, `node_add_menu_geometry.py`, and the Node Editor C++
+  draw/relationship implementation in the local blenderapp checkout.
+- Extended the public graph model with typed ports, exact socket links, node
+  kinds, overlays, validation, selection, deletion, and frame-child movement.
+- Rebuilt the reusable canvas with Blender-shaped grid, layered Bézier wires,
+  frames, reroutes, node states, callbacks, header menus, tool shelf, and
+  active-node sidebar data.
+- Replaced the example's shader stand-in with an app-owned eight-node
+  `Scatter Pebbles` Geometry Nodes modifier and eleven precise links.
+- Recorded architecture, source anchors, tool failures, render fixes, and
+  verification in [`geometry-node-editor-parity.md`](geometry-node-editor-parity.md)
+  and the accepted universal-editor decision.

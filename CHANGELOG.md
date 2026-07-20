@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+- Added a manual-facing parity backlog for all 33 top-level interface topics
+  and 23 documented editor types, and moved shared editor menu construction
+  from the example app into the public `BlenderEditorMenuCatalog`.
+- Added `BlenderUtilityEditorHeader` for library-owned Text, Console, Info,
+  Outliner, File/Asset Browser, Spreadsheet, Project, Properties, and
+  Preferences menu anatomy.
+- Added a reusable active/disabled `BlenderEyedropper` control while keeping
+  platform sampling and document mutation host-owned.
+- Added a reusable, source-conditioned Image/UV header with immutable
+  host-owned state, full Select/Image/UV menu taxonomy, and independent
+  snapping, proportional, pin, gizmo, and overlay controls.
+- Added shared Image/UV region geometry and mode-aware tool shelves, including
+  a Paint-only brush asset shelf and committed 1200×700 rendered references.
+- Added reusable immutable headers for View3D, Dope Sheet/Timeline,
+  Graph/Drivers, NLA, Sequencer, Movie Clip, and Spreadsheet editors; the
+  example now owns only their state, callbacks, and composition.
+- Added Graph/Drivers sidebars, a shared animation playback footer, and stable
+  keyed menu descriptors plus an overridable embedded-area editor selector.
+- Added one deterministic 1200×700 rendered reference for every one of the 23
+  editor types documented by the Blender manual.
+- Added host-owned tree range/toggle selection and keyboard navigation on top
+  of the existing generic drag/drop policy.
+- Added Node Editor multi/box selection, grouped multi-node movement, optional
+  scene-grid snapping, and graph-model helpers for applying host-owned
+  selection and movement transactions.
+- Added immutable nested-node-group breadcrumb navigation, selected-subgraph
+  duplication with host-generated IDs, and a Bézier-sampled Cut Links canvas
+  workflow.
+- Added sortable File Browser Name/Date/Size/Type columns, structured file
+  metadata, folder-first ordering, and caller-supplied Asset Browser previews.
+- Added Spreadsheet selected/query filtering, sortable columns, row selection,
+  numeric alignment, row indices, and hostable synchronized scroll state.
+- Added a shared immutable Annotation settings panel, Text Editor status
+  footer, Console command-history navigation, and selectable/severity-filtered
+  Info rows.
+- Optimized the universal Node Editor with viewport node/link culling,
+  zoom-adaptive viewport-only grid painting, repaint isolation, cached link
+  lookup per paint, and editor-local transient node movement.
+- Added typed drag-to-connect sockets, connection validation, single- versus
+  multi-input link policy, snapped wire previews, reverse input-to-output
+  dragging, and example-owned persistent graph mutation.
+- Replaced the application-wide hand-painted default icon backend with compact
+  outlined Material Symbols while preserving the vector renderer as an
+  explicit theme compatibility option.
+- Rebuilt the generic Node Editor around typed, socket-specific graph data,
+  resolved Bézier links, grid navigation, frames, reroutes, selection,
+  collapsed/muted nodes, warnings, and evaluation overlays.
+- Added reusable Node Editor headers, tree-specific nested menu catalogs,
+  Geometry Nodes taxonomy, floating tools, and an active-node-aware sidebar.
+- Replaced the example's shared shader fixture with a detailed, interactive
+  Geometry Nodes modifier graph while keeping document state and commands in
+  the example app.
 - Added Blender-style `Area Options` context menus to dock dividers with
   centered vertical/horizontal splits, directional joins, and content swaps.
 - Added atomic dock-controller join and swap operations plus nested-edge leaf

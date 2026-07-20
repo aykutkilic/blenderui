@@ -14,6 +14,8 @@ large outliners, timelines, and node graphs remain responsive.
 
 For repository ownership, dependency direction, extension rules, and a guided
 source map, start with the [architecture guide](doc/architecture.md).
+The active screenshot/source comparison is tracked in the
+[manual UI and editor parity backlog](doc/manual-ui-editor-parity-backlog.md).
 
 The public API includes Blender-style control variants, property decorators,
 color/curve/property templates, matrices, scopes, attribute and layer
@@ -25,6 +27,9 @@ and dedicated non-3D surfaces for files, text, console, image, UV, animation,
 nodes, sequencing, clips, spreadsheets, keymaps, reports, and Preferences.
 It also includes optional observable state, undo/redo, scoped dependency, and
 command services for applications that do not need a larger framework.
+All 23 editor types in the current Blender manual have a committed 1200×700
+region/density reference under `test/goldens`; Blender runtime data,
+evaluation, operators, and persistence intentionally remain host-owned.
 
 ## Status
 
@@ -86,6 +91,61 @@ Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
 `BlenderStateScope.read<T>(context)` in event handlers. See
 [`ADR-0005`](doc/decisions/ADR-0005-application-services.md) for ownership and
 lifecycle decisions.
+
+### Node editor
+
+The node canvas is tree-agnostic. Applications own the graph document and
+commands; BlenderUI owns typed sockets, resolved links, node presentation,
+click/box-selection gestures, and grouped movement transactions.
+
+```dart
+var graph = BlenderNodeGraphModel(
+  nodes: const <BlenderGraphNode>[
+    BlenderGraphNode(
+      id: 'input',
+      title: 'Group Input',
+      position: Offset(40, 80),
+      outputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+        ),
+      ],
+    ),
+    BlenderGraphNode(
+      id: 'output',
+      title: 'Group Output',
+      position: Offset(360, 80),
+      inputs: <BlenderNodeSocketDefinition>[
+        BlenderNodeSocketDefinition(
+          id: 'geometry',
+          label: 'Geometry',
+          dataType: BlenderNodeSocketDataType.geometry,
+        ),
+      ],
+    ),
+  ],
+  links: const <BlenderGraphLink>[
+    BlenderGraphLink(
+      from: 'input',
+      fromSocket: 'geometry',
+      to: 'output',
+      toSocket: 'geometry',
+    ),
+  ],
+);
+
+BlenderNodeEditor(
+  model: graph,
+  onNodeMoved: (node, position) {
+    graph = graph.moveNode(node.id, position);
+  },
+);
+```
+
+See the detailed example and source-audit notes in
+[`geometry-node-editor-parity.md`](doc/geometry-node-editor-parity.md).
 
 ### Application framework
 
@@ -304,10 +364,12 @@ flutter run -d macos -t lib/components_demo.dart
 
 ## Icon rendering
 
-BlenderUI renders its own built-in vector glyphs. The package does not locate,
-load, bundle, or expose Blender source icon assets. The example application may
-use external reference artwork independently when that is useful for a visual
-comparison, but it is not part of the library's public API or runtime.
+BlenderUI maps its semantic `BlenderGlyph` catalog to the outlined Material
+Symbols font by default. The compact default uses variable weight, grade, fill,
+and optical-size axes through `BlenderIconThemeData`; applications can opt into
+the original independently drawn vector renderer with
+`BlenderIconRenderer.blenderVector` for compatibility. The package does not
+locate, load, bundle, or expose Blender source icon assets.
 
 ## Reference and licensing
 

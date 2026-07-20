@@ -10,49 +10,23 @@ class _BlenderImageEditorState extends State<BlenderImageEditor> {
     super.dispose();
   }
 
-  void _resetView() {
-    _transformationController.value = Matrix4.identity();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final layout = BlenderImageEditorLayout(
+      canvas: _buildCanvas(theme),
+      toolShelf: widget.toolShelf,
+      sidebar: widget.sidebar,
+      assetShelf: widget.assetShelf,
+      toolShelfWidth: widget.toolShelfWidth,
+      sidebarWidth: widget.sidebarWidth,
+      assetShelfHeight: widget.assetShelfHeight,
+    );
+    if (widget.title == null) return layout;
     return BlenderPanel(
       title: widget.title,
       padding: EdgeInsets.zero,
-      headerActions: <Widget>[
-        BlenderIconButton(
-          glyph: BlenderGlyph.refresh,
-          onPressed: _resetView,
-          tooltip: 'Reset view',
-          size: 22,
-        ),
-        const BlenderIconButton(
-          glyph: BlenderGlyph.maximize,
-          tooltip: 'Fit image',
-          size: 22,
-        ),
-      ],
-      child: widget.sidebar == null
-          ? _buildCanvas(theme)
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Expanded(child: _buildCanvas(theme)),
-                SizedBox(
-                  width: widget.sidebarWidth,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colors.surface,
-                      border: Border(
-                        left: BorderSide(color: theme.colors.editorBorder),
-                      ),
-                    ),
-                    child: widget.sidebar,
-                  ),
-                ),
-              ],
-            ),
+      child: layout,
     );
   }
 

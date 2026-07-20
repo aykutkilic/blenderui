@@ -9,14 +9,14 @@ class BlenderDopeSheetEditor extends StatelessWidget {
     required this.onCurrentFrameChanged,
     this.sidebar,
     this.sidebarWidth = 240,
-    this.title = 'Dope Sheet',
+    this.title,
   });
 
   final BlenderTimelineModel model;
   final ValueChanged<double> onCurrentFrameChanged;
   final Widget? sidebar;
   final double sidebarWidth;
-  final String title;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {

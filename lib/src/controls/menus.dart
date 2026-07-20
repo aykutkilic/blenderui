@@ -65,6 +65,7 @@ abstract interface class BlenderMenuDescriptorWidget {
 
 class BlenderMenuDescriptor<T> implements BlenderMenuDescriptorWidget {
   const BlenderMenuDescriptor({
+    this.key,
     required this.label,
     required this.items,
     this.onSelected,
@@ -72,6 +73,7 @@ class BlenderMenuDescriptor<T> implements BlenderMenuDescriptorWidget {
     this.variant = BlenderButtonVariant.topBar,
   });
 
+  final Key? key;
   final String label;
   final List<BlenderMenuItem<T>> items;
   final ValueChanged<T>? onSelected;
@@ -79,6 +81,7 @@ class BlenderMenuDescriptor<T> implements BlenderMenuDescriptorWidget {
   final BlenderButtonVariant variant;
 
   Widget build() => BlenderMenuButton<T>(
+    key: key,
     label: label,
     items: items,
     onSelected: onSelected,

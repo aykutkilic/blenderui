@@ -12,7 +12,7 @@ class BlenderSequencerEditor extends StatelessWidget {
     this.footer,
     this.sidebar,
     this.sidebarWidth = 240,
-    this.title = 'Video Sequencer',
+    this.title,
   });
 
   final List<BlenderSequencerStrip> strips;
@@ -24,7 +24,7 @@ class BlenderSequencerEditor extends StatelessWidget {
   final Widget? footer;
   final Widget? sidebar;
   final double sidebarWidth;
-  final String title;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {

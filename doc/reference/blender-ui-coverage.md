@@ -8,6 +8,10 @@ package implements Blender's data model or operator behavior. The source
 paths identify the Blender surfaces that determine geometry, density, state
 appearance, and composition.
 
+The manual-facing status and next implementation step for every documented UI
+topic and editor type live in the
+[manual UI and editor parity backlog](../manual-ui-editor-parity-backlog.md).
+
 ## Reading the coverage status
 
 `Partial` means that the visible Blender source anatomy is represented, while
@@ -48,7 +52,7 @@ than visual.
 | `interface_template_light_linking.cc` | `BlenderLightLinkingCollection` | Implemented |
 | `interface_template_grease_pencil_layer_tree.cc`, `interface_template_grease_pencil_layer_search.cc` | `BlenderGreasePencilLayerTree` | Implemented |
 | `interface_template_id.cc` | `BlenderDataBlockField`, `BlenderActionSelector` plus compact `BlenderDataBlockGroup` | Implemented |
-| `interface_template_icon.cc` | `BlenderIcon`, `BlenderIconView`, `BlenderPreviewTile` | Implemented |
+| `UI_icons.hh`, `interface_template_icon.cc` | Semantic `BlenderGlyph` catalog rendered with Apache-licensed Material Symbols by default, independently drawn vector compatibility backend, `BlenderIconView`, and `BlenderPreviewTile`; no Blender icon assets copied | Implemented |
 | `interface_template_layers.cc` | `BlenderLayerSelector` | Implemented |
 | `interface_template_keymap.cc` | `BlenderKeymapItemProperties` | Implemented |
 | `interface_template_matrix.cc` | `BlenderMatrixTransformPanel`, `BlenderMatrixField` | Implemented |
@@ -62,7 +66,7 @@ than visual.
 | `interface_template_search_operator.cc` | `BlenderSearchMenu` | Implemented |
 | `interface_template_status.cc`, `space_statusbar.py` | `BlenderInputStatus`, `BlenderStatusContextBar`, `BlenderStatusBar`, `BlenderStatusInfo`, `BlenderInfoEditor`, `BlenderReportBanner`, and `BlenderRunningJobsPanel` with source-ordered input/report/job/status-info regions | Partial |
 | `space_topbar.py` | Source-shaped Blender, File (including External Data/Clean Up submenus), Edit (including undo/redo states, history submenu, Operator Search, shortcuts, toggle, and temporary Preferences action), Render, Window, Help, workspace, scene, and view-layer top-bar families | Partial |
-| `space_outliner.py`, `rna_space.cc` | `BlenderOutliner` mode-specific headers: source-aware filter text, DATA API keying-set/keyframe controls, Video Sequencer sync, Blender File/Unused Data ID filters, Library Overrides view mode, View Layer collection creation, and Unused Data purge | Partial |
+| `space_outliner.py`, `rna_space.cc` | `BlenderOutliner` mode-specific headers plus shared range/toggle selection, arrow/Enter navigation, drag payload/acceptance hooks, and insertion markers | Presentation and interaction implemented; data mutation caller-owned |
 | `interface_template_strip_modifiers.cc` | `BlenderModifierStack` visual anatomy | Implemented |
 | `interface_template_bone_collection_tree.cc` | `BlenderBoneCollectionTree` | Implemented |
 | `interface_template_asset_shelf_popover.cc` | `BlenderAssetShelfPopover` | Implemented |
@@ -72,12 +76,12 @@ than visual.
 | `space_file/file_panels.cc` operator panel | `BlenderFileOperatorPanel` | Implemented |
 | `space_file/file_panels.cc` asset-catalog panel | `BlenderFileAssetCatalogPanel` composed into the Asset Browser Tools region | Partial |
 | `space_file/file_draw.cc` asset-browser and library availability hints | `BlenderFileBrowserHint`, `BlenderFileBrowserLibraryPathHint`, `BlenderFileBrowserUnreadableLibraryHint` | Implemented |
-| `space_filebrowser.py` | `BlenderFileBrowser` source-shaped navigation/action header (Back, Forward, Parent Directory, Refresh, New Folder, display/filter popovers) plus `BlenderFileBrowserSidebar` with File Browser Directory Path, Volumes, System, Bookmarks, Recent, Advanced Filter, and Asset Browser Library, Catalog, Asset, Metadata, Import, Preview, and Tags panels | Partial |
-| `space_view3d.py`, `space_view3d_sidebar.py`, `space_view3d_toolbar.py` | `BlenderViewportSidebar` with View, View Lock, 3D Cursor, Collections, Item/Transform, and Global Transform families; source-shaped View3D header controls; and Tool Properties Options/Transform, Workspace, Brush Asset, nested Brush Settings paint families, mode-specific Edit/Armature Edit/Pose/Sculpt/Curves Sculpt/Paint/Particle panels, Texture Paint slots/canvas/data and masking families, and Grease Pencil Draw/Sculpt/Weight/Vertex Paint families | Partial |
-| `space_node.py` | Context-aware Node Editor/Shader/Geometry/Compositor/Texture header with expanded View/Select/Add/Node menu families, tree context/data-block, pin, compositor backdrop/gizmo, snapping, overlay controls, and `BlenderNodeEditorSidebar` sibling panel families | Partial |
-| `space_image.py` | Source-shaped Image/UV header with nested View/Select/Image/UVs menu families, UV sync/mode, Snapping and Proportional Editing popovers, pin/gizmo/overlay controls, and `BlenderImageEditorSidebar` Image, View, scope, brush, mask, and UV-related panel families | Partial |
-| `space_sequencer.py` | Source-shaped Sequencer/Preview header with View/Select/Marker/Add/Strip/Image menus, view-mode, scene, overlap, snapping, display, channel, gizmo, and overlay controls, plus `BlenderSequencerSidebar` with source Cache/Proxy/View/Annotation nesting and Strip families | Partial |
-| `space_nla.py` | Source-shaped NLA header with View/Select/Marker/Add/Track/Strip menus, inline selected/hidden/missing/error filters, Filters and Snapping popovers, a separate playback footer, and `BlenderSequencerSidebar(nlaEditor: true)` with source Strip/Action and Slot families | Partial |
+| `space_filebrowser.py` | `BlenderFileBrowser` navigation/actions, folder-first sortable Name/Date/Size/Type columns, caller preview builder, and source File/Asset sidebars | Presentation and interaction implemented; IO/catalog persistence caller-owned |
+| `space_view3d.py`, `space_view3d_sidebar.py`, `space_view3d_toolbar.py` | `BlenderView3dEditorHeader`, viewport shell/sidebar, grouped tool shelf, orientation gizmo, and source-shaped tool/property families | Presentation and navigation implemented; rendering and operators caller-owned |
+| `space_node.py`, `node_add_menu_geometry.py`, `node_draw.cc`, `drawnode.cc`, `view2d.cc` | Universal Node Editor/Shader/Geometry/Compositor/Texture header and canvas with nested menus, typed links, culling, node variants, shared annotation/sidebar regions, immutable node-group breadcrumbs, host-owned multi/box selection, grouped transforms, snapping, duplicate transactions, and cut-link strokes | Presentation and interaction implemented; evaluation/undo caller-owned |
+| `space_image.py` | Source-shaped Image/UV header, menus, immutable state, shared toolbar/sidebar/asset-shelf regions, and mode-specific canvas anatomy | Presentation and interaction implemented; image/UV mutation caller-owned |
+| `space_sequencer.py` | `BlenderSequencerEditorHeader`, Sequencer/Preview branches, menus/state, sidebar families, shared annotation panel, strip canvas and playback footer | Presentation and interaction implemented; media evaluation caller-owned |
+| `space_nla.py` | `BlenderNlaEditorHeader`, menus/filter/snap state, playback footer, strip canvas and NLA sidebar families | Presentation and interaction implemented; animation data caller-owned |
 | `space_userpref/userpref_asset_libraries_list.cc` | `BlenderAssetLibrariesPreferencesPanel` | Partial |
 | `space_userpref.py` | `BlenderPreferencesEditor` and temporary `BlenderPreferencesWindow` with source-ordered Interface, Editing, Animation, System, Viewport, Themes, File Paths, Save & Load, Input, Navigation, Keymap, Extensions, Add-ons, Assets, Lights, Developer Tools, and Experimental categories; Animation Timeline, Keyframes, and F-Curves; and nested Transparent Checkerboard and Auto Run Python Scripts panels | Partial |
 | `space_buttons/buttons_texture.cc` | `BlenderTextureUserSelector` in Texture Properties and the reusable texture-user surface | Partial |
@@ -120,14 +124,14 @@ than visual.
 | `scripts/startup/bl_ui/properties_data_lattice.py` | dynamic Lattice Data context with resolution/interpolation, outside/vertex-group, animation, and custom-property panels | Partial |
 | `scripts/startup/bl_ui/properties_data_metaball.py` | dynamic Metaball Data context with metaball, texture-space, active-element, animation, and custom-property panels | Partial |
 | `scripts/startup/bl_ui/properties_data_armature.py` | dynamic Armature Data context with pose, viewport, bone-collection, IK, motion-path, selection-set, animation, and custom-property panels | Partial |
-| `space_action`, `space_dopesheet.py`, `space_time.py` | `BlenderTimeline`, `BlenderDopeSheetEditor`, and `BlenderDopeSheetSidebar` with source-conditional main/bottom Timeline playback, auto-key, transport, frame, playhead, and overlay controls; Dope Sheet Filters, Snapping, Proportional Editing, Action selection, and Action View/Select/Marker/Channel/Key/Action menus; and Action, Slot, View, Shape Key, and Custom Properties families | Partial |
-| `space_graph.py` | Source-shaped Graph Editor and Drivers headers with View/Select/Marker/Channel/Key menus, normalization, ghost curves, filters, pivot, snapping, and proportional controls | Partial |
-| `space_text.py` | `BlenderTextEditorSidebar` with Text Properties and Find & Replace panels, including margin, font, indentation, search, and replacement controls | Partial |
+| `space_action`, `space_dopesheet.py`, `space_time.py` | Shared immutable Dope/Timeline header state, source menus/popovers, timeline/key canvas, Action sidebar and playback footer | Presentation and interaction implemented; animation data caller-owned |
+| `space_graph.py` | `BlenderGraphEditorHeader`, Graph/Drivers immutable state, curve/channel canvas, Graph and driver-variable sidebars, playback footer | Presentation and interaction implemented; curve/driver evaluation caller-owned |
+| `space_text.py` | Utility header, `BlenderTextEditor`, Text/Find sidebar, and reusable line/column/syntax/insert-mode footer | Presentation implemented; document IO/execution caller-owned |
 | `space_project.py` | `BlenderProjectEditor` with Navigation, General/Project settings, No Project, and Save Project surfaces | Partial |
-| `space_clip.py` | Source-shaped Tracking/Mask and Clip/Graph/Dope Sheet header with View/Select/Clip/Track/Reconstruction or Add/Mask menus, gizmo/overlay/proportional controls, plus `BlenderClipEditorSidebar` families | Partial |
-| `space_spreadsheet.py` | Source-shaped Spreadsheet header with View menu, Only Selected, and Use Filter controls, plus `BlenderSpreadsheetEditor` grid and Internal Attributes surface | Partial |
-| `space_console.py` | Python Console header with source View/Console command families | Partial |
-| `space_info.py` | Info header with source View/Info selection and report commands | Partial |
+| `space_clip.py` | `BlenderClipEditorHeader`, Tracking/Mask and Clip/Graph/Dope branches, menus/state, tracking canvas/sidebar, mask properties, and shared annotation settings | Presentation and interaction implemented; tracking/solving caller-owned |
+| `space_spreadsheet.py` | Immutable header state plus left-aligned filterable/sortable table, row selection, numeric alignment, row indices, and hostable horizontal/vertical controllers | Presentation and interaction implemented; data extraction caller-owned |
+| `space_console.py` | Python Console utility header, typed line states, prompt, and caller-owned command-history navigation | Presentation and interaction implemented; execution caller-owned |
+| `space_info.py` | Info utility header plus severity filtering, row selection, timestamps, dismissal, and notice state | Presentation and interaction implemented; report lifetime caller-owned |
 
 ## Editor and pane surfaces
 
@@ -162,20 +166,23 @@ The local `space_*` sources used for the current shell pass are:
   follows Blender's transform, gizmo, overlay, X-ray, and four-mode shading
   sequence with anchored visual popovers; viewport state, object transforms,
   collections, shading evaluation, and animation operators remain caller-owned.
-- `space_node.py` for the node-editor header menus and sidebar families. The
-  reusable Node Editor header now follows the source Shader/Geometry/
-  Compositor/Texture branches with View/Select/Add/Node menus, context and
-  data-block controls, compositor backdrop/gizmo controls, snapping, and
-  nested overlay options. Its sidebar exposes Tool, Node, View, Options, and
-  Group panels with their nested source labels; node-tree evaluation,
-  selection, and operators remain caller-owned.
-- `space_image.py` for Image/UV Editor header, tool, image, view, scope, UV,
-  paint, and mask families. The example now follows the shared Image/UV
-  header branches with View/Select/Image/UVs menus, UV sync/mode, snapping,
-  proportional, pin, gizmo, and overlay controls. The reusable Image Editor
-  sidebar is wired into both Image and UV surfaces and preserves the source
-  panel order; image loading, paint operations, UV editing, scopes, and mask
-  data remain caller-owned.
+- `space_node.py`, `node_add_menu_geometry.py`, `node_draw.cc`, and
+  `drawnode.cc` for the universal node-editor surface. The reusable editor now
+  follows Shader/Geometry/Compositor/Texture header branches, nested Geometry
+  Nodes Add categories, typed socket geometry, socket-specific layered Bézier
+  links, frames, reroutes, collapsed/muted/selected nodes, warnings, timings,
+  named-attribute overlays, floating tools, and active-node sidebar families.
+  The canvas owns click/extend/toggle and box-selection gestures, grouped move
+  transactions, and optional grid snapping while selected IDs, node-tree
+  evaluation, undo, persistence, and operators remain caller-owned.
+- `space_image.py` and `space_toolsystem_toolbar.py` for Image/UV Editor header,
+  tool, image, view, scope, UV, paint, and mask families. The reusable
+  `BlenderImageEditorHeader` owns source-conditioned View/Select/Image/UV menu
+  taxonomy, UV modes, snapping, proportional, pin, gizmo, and overlay state.
+  `BlenderImageEditorLayout` and `BlenderImageEditorToolShelf` share the 42 px
+  toolbar, 240 px sidebar, Paint-only asset shelf, and mode-specific tools
+  across Image and UV surfaces. Image loading, paint operations, UV editing,
+  scopes, and mask data remain caller-owned.
 - `space_sequencer.py` and `space_nla.py` for Sequencer/NLA headers and sidebar
   panel families. The reusable Sequencer sidebar now covers cache, proxy,
   preview/view, safe-area, composition-guide, annotation, strip, action, and
@@ -193,13 +200,14 @@ The local `space_*` sources used for the current shell pass are:
   popovers; keyframe editing, action datablocks, and playback settings remain
   caller-owned.
 - `space_graph.py` for Graph Editor and Drivers headers, curve controls, and
-  footer behavior. The example now exposes the source menu families and
-  normalization, ghost-curve, filter, pivot, snapping, and proportional
-  controls; curve evaluation, driver execution, and playback remain
+  footer behavior. `BlenderGraphEditorHeader`, immutable state, the shared
+  curve editor, Graph/driver-variable sidebars, and playback footer expose the
+  source families; curve evaluation, driver execution, and playback remain
   caller-owned.
 - `space_text.py` for Text Editor header, footer, Text Properties, and Find &
-  Replace panels. The reusable Text Editor sidebar now exposes margin, font,
-  tab/indentation, search, replacement, and search-option surfaces; text
+  Replace panels. The reusable Text Editor sidebar exposes margin, font,
+  tab/indentation, search, replacement, and search-option surfaces, while the
+  footer exposes cursor, selection, syntax, and insert/overwrite state; text
   datablocks, editing, and search execution remain caller-owned.
 - `space_project.py` for the Project editor header, Navigation section,
   General/Project settings, No Project state, and Save Project execution
@@ -221,9 +229,10 @@ The local `space_*` sources used for the current shell pass are:
   properties stay composable with the tracking sidebar; clip loading,
   tracking, solving, and mask operations remain caller-owned.
 - `space_spreadsheet.py` for Spreadsheet header filters and the tabular data
-  region. The example now follows the source View-only menu row and exposes
-  Only Selected, Use Filter, and Internal Attributes state surfaces; data
-  extraction and filtering remain caller-owned.
+  region. The immutable header and table expose Only Selected/query filtering,
+  sortable columns, numeric alignment, row selection, row indices, and
+  hostable synchronized scroll controllers; data extraction remains
+  caller-owned.
 - `space_buttons/space_buttons.cc` and `buttons_context.cc` for the
   Properties header, context rail, and panel ownership.
 - `space_statusbar.py` and `interface_template_status.cc` for the status-bar
@@ -554,8 +563,8 @@ without coupling the package to Blender source or data structures.
 ## Verification notes
 
 - `flutter analyze` passes for the package and example.
-- Package widget and service suite passes with 88 tests; the example smoke and
-  golden suite passes with 36 tests.
+- Package widget and service suite passes with 170 tests; the example smoke and
+  golden suite passes with 70 tests.
 - The Flutter SDK can emit non-fatal SVG parser warnings for the existing
   custom glyph test fixtures.
 - The configured Flutter/Dart tools may need permission to update SDK cache

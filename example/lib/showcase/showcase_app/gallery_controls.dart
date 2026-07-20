@@ -39,6 +39,17 @@ extension _ShowcaseGalleryControls on _ShowcaseAppState {
           onPressed: () => _setStatus('Icon pressed'),
           tooltip: 'Catalog icon button',
         ),
+        BlenderEyedropper(
+          active: _galleryEyedropperActive,
+          onPressed: () => _update(() {
+            _galleryEyedropperActive = !_galleryEyedropperActive;
+            _setStatus(
+              _galleryEyedropperActive
+                  ? 'Eyedropper sampling'
+                  : 'Eyedropper canceled',
+            );
+          }),
+        ),
         BlenderButton(label: 'Alert dialog', onPressed: _showCatalogAlert),
         BlenderButton(
           label: 'Property dialog',

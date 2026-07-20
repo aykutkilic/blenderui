@@ -131,15 +131,18 @@ void registerDialogRoutesRetainALiveBlenderThemeTests() {
     expect(locks, <bool>[false, true]);
   });
 
-  testWidgets('icons always use BlenderUI built-in vector painters', (
+  testWidgets('icons use the application-wide Material Symbols renderer', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(const BlenderIcon(BlenderGlyph.plus)));
 
-    expect(find.byType(CustomPaint), findsOneWidget);
+    final icon = tester.widget<Icon>(find.byType(Icon));
+    expect(icon.icon?.fontFamily, 'MaterialSymbolsOutlined');
+    expect(icon.weight, 400);
+    expect(icon.grade, -25);
   });
 
-  testWidgets('disclosure arrows use normalized built-in geometry', (
+  testWidgets('disclosure arrows share compact symbol geometry', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -153,7 +156,27 @@ void registerDialogRoutesRetainALiveBlenderThemeTests() {
       ),
     );
 
-    expect(find.byType(CustomPaint), findsNWidgets(2));
+    expect(find.byType(Icon), findsNWidgets(2));
+  });
+
+  testWidgets('legacy vector icons remain an explicit compatibility option', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlenderTheme(
+          data: BlenderThemeData(
+            iconTheme: BlenderIconThemeData(
+              renderer: BlenderIconRenderer.blenderVector,
+            ),
+          ),
+          child: BlenderIcon(BlenderGlyph.plus),
+        ),
+      ),
+    );
+
+    expect(find.byType(CustomPaint), findsOneWidget);
   });
 
   testWidgets('single-line search text fits its compact field', (tester) async {

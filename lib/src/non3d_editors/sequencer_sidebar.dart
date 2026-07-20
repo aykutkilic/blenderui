@@ -145,19 +145,9 @@ class BlenderSequencerSidebar extends StatelessWidget {
                 BlenderStaticPropertyField.checkbox('Center', value: false),
                 BlenderStaticPropertyField.checkbox('Diagonal', value: false),
               ]),
-              BlenderStaticPropertyField.panel('Annotation', <Widget>[
-                BlenderStaticPropertyField.checkbox(
-                  'Show Annotation',
-                  value: false,
-                ),
-                BlenderStaticPropertyField.panel('Onion Skin', <Widget>[
-                  BlenderStaticPropertyField.checkbox(
-                    'Use Onion Skin',
-                    value: false,
-                  ),
-                  BlenderStaticPropertyField.number('Opacity', .5),
-                ]),
-              ]),
+              const BlenderAnnotationSettingsPanel(
+                state: BlenderAnnotationSettings(visible: false),
+              ),
             ], expanded: true),
             BlenderStaticPropertyField.panel('Strip', <Widget>[
               BlenderStaticPropertyField.panel('Custom Properties', <Widget>[

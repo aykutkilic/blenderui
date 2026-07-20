@@ -18,7 +18,7 @@ class BlenderVideoSequencerEditor extends StatelessWidget {
   final double? currentFrame;
   final ValueChanged<double>? onCurrentFrameChanged;
   final String? selectedId;
-  final String title;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {

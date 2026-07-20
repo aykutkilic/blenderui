@@ -26,15 +26,8 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
   bool _fileExtensions = true;
   bool _cacheResult = false;
   final bool _showGrid = true;
-  bool _wireframe = false;
-  String _viewportShading = 'Solid';
-  bool _showGizmos = true;
-  bool _showOverlays = true;
-  bool _showXray = false;
-  String _transformOrientation = 'Global';
-  String _transformPivot = 'Median Point';
-  bool _snapEnabled = false;
-  bool _proportionalEditing = false;
+  BlenderView3dEditorHeaderState _view3dHeaderState =
+      const BlenderView3dEditorHeaderState();
   int _workspaceIndex = 0;
   int _toolIndex = 0;
   int _propertyTab = 0;
@@ -71,52 +64,38 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
   };
   int _bottomTab = 0;
   String _activeAction = 'CubeAction';
-  bool _animationOverlays = true;
-  final bool _animationAutoKeying = false;
-  final bool _animationPlayheadSnap = false;
-  final bool _animationProportional = false;
-  bool _animationSelectedOnly = true;
-  bool _animationShowErrors = false;
-  bool _animationShowSeconds = false;
-  bool _animationShowLockedTime = false;
-  bool _graphNormalize = false;
-  bool _graphAutoNormalize = false;
-  bool _graphGhostCurves = false;
-  final bool _graphSnap = false;
-  final bool _graphProportional = false;
+  BlenderDopeSheetEditorHeaderState _animationHeaderState =
+      const BlenderDopeSheetEditorHeaderState();
+  BlenderGraphEditorHeaderState _graphHeaderState =
+      const BlenderGraphEditorHeaderState();
   String _nodeTreeContext = 'Object';
   bool _nodeShowBackdrop = false;
   bool _nodeGizmos = false;
   bool _nodeSnap = false;
   bool _nodeOverlays = true;
-  bool _nlaSnap = false;
-  bool _nlaSelectedOnly = true;
-  bool _nlaShowHidden = false;
-  bool _nlaShowMissing = false;
-  bool _nlaShowErrors = false;
-  String _clipMode = 'Tracking';
-  String _clipView = 'Clip';
-  bool _clipGizmos = true;
-  bool _clipOverlays = true;
-  bool _clipProportional = false;
-  bool _imageUvSync = false;
-  bool _imageSnap = false;
-  bool _imageProportional = false;
-  bool _imageGizmos = true;
-  bool _imageOverlays = true;
-  bool _spreadsheetOnlySelected = false;
-  bool _spreadsheetFilter = false;
-  String _sequencerViewType = 'Sequencer & Preview';
-  String _sequencerDisplayMode = 'Image';
-  String _sequencerOverlapMode = 'Overwrite';
-  bool _sequencerSnap = false;
-  bool _sequencerGizmos = true;
-  bool _sequencerOverlays = true;
+  bool _nodePinned = false;
+  bool _nodeWireColors = true;
+  bool _nodeShowNamedAttributes = true;
+  bool _nodeShowTimings = true;
+  int _nodeToolIndex = 0;
+  String? _selectedNodeId;
+  BlenderNlaEditorHeaderState _nlaHeaderState =
+      const BlenderNlaEditorHeaderState();
+  BlenderClipEditorHeaderState _clipHeaderState =
+      const BlenderClipEditorHeaderState();
+  BlenderImageEditorHeaderState _imageHeaderState =
+      const BlenderImageEditorHeaderState();
+  int _imageToolIndex = 0;
+  BlenderSpreadsheetEditorHeaderState _spreadsheetHeaderState =
+      const BlenderSpreadsheetEditorHeaderState();
+  BlenderSequencerEditorHeaderState _sequencerHeaderState =
+      const BlenderSequencerEditorHeaderState();
   String _preferenceCategory = 'Interface';
   bool _lockObjectModes = true;
   bool _playing = false;
   bool _fileGrid = false;
   bool _galleryToggle = true;
+  bool _galleryEyedropperActive = false;
   String _galleryMode = 'Regular';
   int _galleryListIndex = 0;
   String _frameRate = '24 fps';

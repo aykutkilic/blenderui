@@ -103,6 +103,121 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('Geometry Node Editor composes the detailed reusable graph', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 980);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ShowcaseApp());
+    await tester.pumpAndSettle();
+
+    final selector = find.byType(BlenderEditorTypeSelector).first;
+    await tester.tapAt(tester.getRect(selector).topLeft + const Offset(12, 11));
+    await tester.pump();
+    await tester.tap(find.text('Geometry Node Editor'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BlenderNodeEditorHeader), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-tool-shelf')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-grid')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-links')),
+      findsOneWidget,
+    );
+    expect(find.text('Scatter Pebbles on Geometry'), findsOneWidget);
+    expect(find.text('Group Input'), findsOneWidget);
+    expect(find.text('Distribute Points on Faces'), findsWidgets);
+    expect(find.text('Instance on Points'), findsOneWidget);
+
+    final editor = tester.widget<BlenderNodeEditor>(
+      find.byType(BlenderNodeEditor),
+    );
+    expect(editor.model.nodes, hasLength(8));
+    expect(editor.model.links, hasLength(11));
+    expect(editor.model.validate(), isEmpty);
+    expect(
+      editor.model.nodes.map((node) => node.kind),
+      containsAll(<BlenderGraphNodeKind>[
+        BlenderGraphNodeKind.frame,
+        BlenderGraphNodeKind.reroute,
+      ]),
+    );
+
+    final addMenu = tester.widget<BlenderMenuButton<String>>(
+      find
+          .ancestor(
+            of: find.text('Add').first,
+            matching: find.byType(BlenderMenuButton<String>),
+          )
+          .first,
+    );
+    expect(
+      addMenu.items.map((item) => item.label),
+      containsAll(<String>[
+        'Attribute',
+        'Geometry',
+        'Curve',
+        'Instances',
+        'Mesh',
+        'Simulation',
+        'Utilities',
+      ]),
+    );
+    final curve = addMenu.items.firstWhere((item) => item.label == 'Curve');
+    expect(
+      curve.submenu!.map((item) => item.label),
+      containsAll(<String>['Read', 'Sample', 'Write', 'Operations']),
+    );
+
+    Finder socketHandle(String key) => find
+        .descendant(
+          of: find.byKey(ValueKey<String>(key)),
+          matching: find.byType(GestureDetector),
+        )
+        .first;
+    final source = socketHandle('node-socket-group-input-geometry-true');
+    final target = socketHandle('node-socket-instance-points-false');
+    final gesture = await tester.startGesture(tester.getCenter(source));
+    await gesture.moveTo(
+      tester.getCenter(target),
+      timeStamp: const Duration(milliseconds: 100),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('node-editor-link-preview')),
+      findsOneWidget,
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+    final connectedEditor = tester.widget<BlenderNodeEditor>(
+      find.byType(BlenderNodeEditor),
+    );
+    expect(
+      connectedEditor.model.links,
+      contains(
+        isA<BlenderGraphLink>()
+            .having((link) => link.from, 'from', 'group-input')
+            .having((link) => link.fromSocket, 'from socket', 'geometry')
+            .having((link) => link.to, 'to', 'instance')
+            .having((link) => link.toSocket, 'to socket', 'points'),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('node-overlay-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Named Attributes'), findsWidgets);
+    expect(find.text('Timings'), findsOneWidget);
+  });
+
   testWidgets('Image and UV Editors expose source sidebar families', (
     tester,
   ) async {
@@ -122,6 +237,8 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
 
     final imageSidebar = find.byType(BlenderImageEditorSidebar);
     expect(imageSidebar, findsOneWidget);
+    expect(find.byType(BlenderImageEditorToolShelf), findsOneWidget);
+    expect(find.byType(BlenderView3dToolShelf), findsNothing);
     expect(
       find.descendant(of: imageSidebar, matching: find.text('Brush Settings')),
       findsOneWidget,
@@ -140,7 +257,7 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
     );
     expect(
       find.byKey(const ValueKey<String>('image-snap-button')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey<String>('image-pin-button')),
@@ -157,20 +274,19 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
 
     final imageViewMenu = tester.widget<BlenderMenuButton<String>>(
       find
-          .ancestor(
-            of: find.text('View').first,
-            matching: find.byType(BlenderMenuButton<String>),
+          .byWidgetPredicate(
+            (widget) =>
+                widget is BlenderMenuButton<String> && widget.label == 'View',
           )
           .first,
     );
     expect(
       imageViewMenu.items.map((item) => item.label),
-      containsAll(<String>[
-        'Use Realtime Update',
-        'Show Metadata',
-        'Render Border',
-        'Render Slot Cycle Next',
-      ]),
+      containsAll(<String>['Use Realtime Update', 'Show Metadata']),
+    );
+    expect(
+      imageViewMenu.items.map((item) => item.label),
+      isNot(contains('Render Border')),
     );
     final zoomMenu = imageViewMenu.items.firstWhere(
       (item) => item.label == 'Zoom',
@@ -180,13 +296,14 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
       containsAll(<String>['100% (1:1)', 'Zoom to Fit', 'Zoom Region...']),
     );
 
-    await tester.tap(find.byKey(const ValueKey<String>('image-snap-button')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('image-display-source')),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Snap Target'), findsOneWidget);
-    expect(find.text('Snap Base'), findsOneWidget);
-    expect(find.text('Move'), findsWidgets);
-    await tester.tapAt(const Offset(500, 500));
+    await tester.tap(find.text('Paint').last);
     await tester.pumpAndSettle();
+    expect(find.byType(BlenderAssetShelf), findsOneWidget);
+    expect(find.text('Brush Assets'), findsOneWidget);
 
     await tester.tapAt(tester.getRect(selector).topLeft + const Offset(12, 11));
     await tester.pump();
@@ -197,15 +314,16 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
       find.byKey(const ValueKey<String>('image-uv-sync-button')),
       findsOneWidget,
     );
+    expect(find.byType(BlenderImageEditorToolShelf), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('image-proportional-button')),
       findsOneWidget,
     );
     final uvMenu = tester.widget<BlenderMenuButton<String>>(
       find
-          .ancestor(
-            of: find.text('UVs').first,
-            matching: find.byType(BlenderMenuButton<String>),
+          .byWidgetPredicate(
+            (widget) =>
+                widget is BlenderMenuButton<String> && widget.label == 'UV',
           )
           .first,
     );
@@ -217,6 +335,7 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
         'Unwrap',
         'Pack Islands',
         'Show/Hide Faces',
+        'Reset',
       ]),
     );
 
@@ -443,8 +562,6 @@ void registerNodeEditorExposesSourceSidebarFamiliesTests() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BlenderSpreadsheetEditor), findsOneWidget);
-    expect(find.text('Only Selected'), findsOneWidget);
-    expect(find.textContaining('Internal Attributes'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('spreadsheet-only-selected-button')),
       findsOneWidget,

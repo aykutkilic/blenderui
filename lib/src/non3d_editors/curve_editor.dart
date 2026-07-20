@@ -19,16 +19,22 @@ class BlenderCurveEditor extends StatelessWidget {
   const BlenderCurveEditor({
     super.key,
     required this.channels,
-    this.title = 'Graph Editor',
+    this.sidebar,
+    this.sidebarWidth = 240,
+    this.footer,
+    this.title,
   });
 
   final List<BlenderCurveChannel> channels;
-  final String title;
+  final Widget? sidebar;
+  final double sidebarWidth;
+  final Widget? footer;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return BlenderPanel(
+    final canvas = BlenderPanel(
       title: title,
       padding: EdgeInsets.zero,
       child: CustomPaint(
@@ -39,6 +45,23 @@ class BlenderCurveEditor extends StatelessWidget {
         ),
         child: const SizedBox.expand(),
       ),
+    );
+    final content = sidebar == null
+        ? canvas
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(child: canvas),
+              SizedBox(width: sidebarWidth, child: sidebar),
+            ],
+          );
+    if (footer == null) return content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(child: content),
+        footer!,
+      ],
     );
   }
 }

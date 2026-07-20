@@ -485,12 +485,15 @@ extension _ShowcaseSceneModels on _ShowcaseAppState {
   }
 
   BlenderNodeGraphModel get _nodeGraph {
+    if (_mainEditorType == BlenderEditorType.geometryNodeEditor) {
+      return BlenderNodeGraphModel(
+        nodes: List<BlenderGraphNode>.unmodifiable(_geometryNodes),
+        links: List<BlenderGraphLink>.unmodifiable(_geometryLinks),
+      );
+    }
     return BlenderNodeGraphModel(
       nodes: List<BlenderGraphNode>.unmodifiable(_nodes),
-      links: const <BlenderGraphLink>[
-        BlenderGraphLink(from: 'texture', to: 'shader'),
-        BlenderGraphLink(from: 'shader', to: 'output'),
-      ],
+      links: List<BlenderGraphLink>.unmodifiable(_nodeLinks),
     );
   }
 

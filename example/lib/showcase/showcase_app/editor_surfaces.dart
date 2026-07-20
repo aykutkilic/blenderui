@@ -8,7 +8,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         child: ShowcaseViewport(
           selectedObject: _selectedObject,
           showGrid: _showGrid,
-          wireframe: _wireframe,
+          wireframe: _view3dHeaderState.shading == 'Wireframe',
           sidebar: const BlenderViewportSidebar(),
           toolShelf: _buildLeftSidebar(floating: true),
           selectionMode: _selectionMode,
@@ -17,24 +17,48 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
           onStatus: _setStatus,
         ),
       ),
-      BlenderEditorType.imageEditor => const BlenderImageEditor(
+      BlenderEditorType.imageEditor => BlenderImageEditor(
         label: 'Image Editor',
-        sidebar: BlenderImageEditorSidebar(),
+        toolShelf: BlenderImageEditorToolShelf(
+          mode: _imageHeaderState.mode,
+          selectedIndex: _imageToolIndex,
+          onChanged: (value) => _update(() => _imageToolIndex = value),
+          onOptionSelected: (option) => _setStatus(option.label),
+        ),
+        sidebar: const BlenderImageEditorSidebar(),
+        assetShelf: _imageHeaderState.mode == BlenderImageEditorMode.paint
+            ? BlenderAssetShelf(
+                title: 'Brush Assets',
+                assets: const <BlenderAssetTile>[
+                  BlenderAssetTile(id: 'draw', label: 'Draw'),
+                  BlenderAssetTile(id: 'soften', label: 'Soften'),
+                  BlenderAssetTile(id: 'smear', label: 'Smear'),
+                  BlenderAssetTile(id: 'clone', label: 'Clone'),
+                ],
+                onSelected: (asset) => _setStatus('Brush: ${asset.label}'),
+              )
+            : null,
       ),
-      BlenderEditorType.uvEditor => const BlenderUVEditor(
-        points: <BlenderUVPoint>[
+      BlenderEditorType.uvEditor => BlenderUVEditor(
+        points: const <BlenderUVPoint>[
           BlenderUVPoint(id: 'a', position: Offset(.18, .2)),
           BlenderUVPoint(id: 'b', position: Offset(.78, .2)),
           BlenderUVPoint(id: 'c', position: Offset(.78, .78)),
           BlenderUVPoint(id: 'd', position: Offset(.18, .78)),
         ],
-        edges: <BlenderUVEdge>[
+        edges: const <BlenderUVEdge>[
           BlenderUVEdge(from: 0, to: 1),
           BlenderUVEdge(from: 1, to: 2),
           BlenderUVEdge(from: 2, to: 3),
           BlenderUVEdge(from: 3, to: 0),
         ],
-        sidebar: BlenderImageEditorSidebar(uvEditor: true),
+        toolShelf: BlenderImageEditorToolShelf(
+          mode: BlenderImageEditorMode.uv,
+          selectedIndex: _imageToolIndex,
+          onChanged: (value) => _update(() => _imageToolIndex = value),
+          onOptionSelected: (option) => _setStatus(option.label),
+        ),
+        sidebar: const BlenderImageEditorSidebar(uvEditor: true),
       ),
       BlenderEditorType.timeline => BlenderTimeline(
         model: _timelineModel,
@@ -44,8 +68,8 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         model: _timelineModel,
         onCurrentFrameChanged: (value) => _update(() => _frame = value),
       ),
-      BlenderEditorType.graphEditor => const BlenderCurveEditor(
-        channels: <BlenderCurveChannel>[
+      BlenderEditorType.graphEditor => BlenderCurveEditor(
+        channels: const <BlenderCurveChannel>[
           BlenderCurveChannel(
             id: 'location-x',
             label: 'Cube / Location X',
@@ -69,6 +93,25 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
             color: Color(0xFF8BDC00),
           ),
         ],
+        sidebar: const BlenderGraphEditorSidebar(),
+        footer: BlenderAnimationPlaybackFooter(
+          state: _animationHeaderState,
+          onStateChanged: (value) =>
+              _update(() => _animationHeaderState = value),
+          playing: _playing,
+          onFirst: () => _update(() => _frame = 1),
+          onPrevious: () =>
+              _update(() => _frame = (_frame - 1).clamp(1, 120).toDouble()),
+          onPlay: () => _update(() => _playing = !_playing),
+          onNext: () =>
+              _update(() => _frame = (_frame + 1).clamp(1, 120).toDouble()),
+          onLast: () => _update(() => _frame = 120),
+          onRecord: () => _setStatus('Record toggled'),
+          frame: _frame,
+          frameMax: 120,
+          onFrameChanged: (value) => _update(() => _frame = value),
+          keyPrefix: 'graph-playback',
+        ),
       ),
       BlenderEditorType.nlaEditor => BlenderNLAEditor(
         strips: _sequenceStrips,
@@ -87,9 +130,11 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
             color: Color(0xFFFFB74D),
           ),
         ],
+        sidebar: BlenderGraphEditorSidebar(drivers: true),
       ),
       BlenderEditorType.sequencer ||
       BlenderEditorType.videoEditing => BlenderVideoSequencerEditor(
+        title: null,
         strips: _sequenceStrips,
         start: 1,
         end: 120,
@@ -107,9 +152,12 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
       ),
       BlenderEditorType.pythonConsole => BlenderConsoleEditor(
         lines: _consoleLines,
+        history: const <String>['bpy.context.scene', 'print("Hello")'],
+        title: null,
         onCommand: (command) => _setStatus('Ran: $command'),
       ),
       BlenderEditorType.infoEditor => const BlenderInfoEditor(
+        title: null,
         reports: <BlenderInfoReport>[
           BlenderInfoReport(
             id: 'saved',
@@ -126,13 +174,18 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         ],
       ),
       BlenderEditorType.textEditor => const BlenderTextEditor(
+        title: null,
         text: '# Blender UI text editor\nprint("Hello from Flutter")',
         sidebar: BlenderTextEditorSidebar(),
+        footer: BlenderTextEditorFooter(line: 2, column: 28),
       ),
       BlenderEditorType.project => const BlenderProjectEditor(),
       BlenderEditorType.spreadsheet => BlenderSpreadsheetEditor(
         columns: _spreadsheetColumns,
         rows: _spreadsheetRows,
+        showOnlySelected: _spreadsheetHeaderState.onlySelected,
+        useFilter: _spreadsheetHeaderState.useFilter,
+        title: null,
       ),
       BlenderEditorType.outliner => BlenderOutliner<String>(
         roots: _outlinerRoots,
@@ -185,6 +238,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         sections: _preferenceSections,
       ),
       BlenderEditorType.fileBrowser => BlenderFileBrowser(
+        title: null,
         entries: const <BlenderFileEntry>[
           BlenderFileEntry(
             path: '/showcase/assets',
@@ -227,6 +281,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
         onPathSelected: (index) => _setStatus('Path segment $index'),
       ),
       BlenderEditorType.assetBrowser => BlenderFileBrowser(
+        title: null,
         entries: const <BlenderFileEntry>[
           BlenderFileEntry(
             path: '/showcase/assets',
@@ -307,16 +362,60 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
       BlenderEditorType.compositor ||
       BlenderEditorType.textureNodeEditor => BlenderNodeEditor(
         model: _nodeGraph,
+        title: null,
+        showGrid: _nodeOverlays,
+        wireColors: _nodeWireColors,
+        toolbar: BlenderNodeToolShelf(
+          key: const ValueKey<String>('node-editor-tool-shelf'),
+          selectedIndex: _nodeToolIndex,
+          onChanged: (value) {
+            _update(() => _nodeToolIndex = value);
+            _setStatus(
+              'Node tool: ${BlenderNodeToolShelf.tools[value].tooltip}',
+            );
+          },
+          onOptionSelected: (option) =>
+              _setStatus('Node tool: ${option.label}'),
+        ),
         sidebar: BlenderNodeEditorSidebar(
           geometryNodeEditor:
               _mainEditorType == BlenderEditorType.geometryNodeEditor,
           compositor: _mainEditorType == BlenderEditorType.compositor,
+          activeNode: _selectedNodeId == null
+              ? _nodeGraph.nodes.where((node) => node.active).firstOrNull
+              : _nodeGraph.nodeById(_selectedNodeId!),
+          treeName: _mainEditorType == BlenderEditorType.geometryNodeEditor
+              ? 'Scatter Pebbles'
+              : 'Node Group',
+          showNamedAttributes: _nodeShowNamedAttributes,
+          showTimings: _nodeShowTimings,
         ),
-        onNodeSelected: (node) => _setStatus('Selected node ${node.title}'),
-        onNodeMoved: _moveNode,
+        onNodeSelected: _selectNode,
+        selectedNodeIds: <String>{
+          for (final node in _nodeGraph.nodes)
+            if (node.selected) node.id,
+        },
+        onNodeSelectionChanged: _selectNodes,
+        onNodesMoved: _moveNodes,
+        linkCutting: _nodeToolIndex == 2,
+        onLinksCut: _cutNodeLinks,
+        snapIncrement: _nodeSnap ? 20 : null,
+        onNodeCollapseChanged: (node, collapsed) {
+          final target = _mainEditorType == BlenderEditorType.geometryNodeEditor
+              ? _geometryNodes
+              : _nodes;
+          final index = target.indexWhere(
+            (candidate) => candidate.id == node.id,
+          );
+          if (index == -1) return;
+          _update(() => target[index] = node.copyWith(collapsed: collapsed));
+        },
+        onSocketPressed: (node, socket, output) => _setStatus(
+          '${output ? 'Output' : 'Input'}: ${node.title} / ${socket.label}',
+        ),
+        onLinkCreated: _connectNodeSockets,
         contextMenuItemsBuilder: (_) => BlenderContextMenuCatalog.node(),
-        onContextMenuSelected: (node, action) =>
-            _setStatus('$action: ${node.title}'),
+        onContextMenuSelected: _handleNodeContextCommand,
       ),
     };
     final contextTitle = switch (_mainEditorType) {
@@ -433,7 +532,9 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
             editorType: editorType,
             showEditorLabel: false,
             onEditorTypeChanged: onChanged,
-            menuDescriptors: _editorMenuDescriptors(<String>['View']),
+            menuDescriptors: BlenderEditorMenuCatalog.build(<String>[
+              'View',
+            ], onSelected: _setStatus),
             actions: const <Widget>[
               BlenderIconButton(
                 glyph: BlenderGlyph.more,

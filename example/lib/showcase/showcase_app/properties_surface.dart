@@ -560,7 +560,9 @@ extension _ShowcasePropertiesSurface on _ShowcaseAppState {
                           ),
                           const SizedBox(height: 4),
                           BlenderSegmentedControl<String>(
-                            value: _wireframe ? 'Wire' : 'Solid',
+                            value: _view3dHeaderState.shading == 'Wireframe'
+                                ? 'Wire'
+                                : 'Solid',
                             items: const <BlenderMenuItem<String>>[
                               BlenderMenuItem<String>(
                                 value: 'Solid',
@@ -571,8 +573,14 @@ extension _ShowcasePropertiesSurface on _ShowcaseAppState {
                                 label: 'Wire',
                               ),
                             ],
-                            onChanged: (value) =>
-                                _update(() => _wireframe = value == 'Wire'),
+                            onChanged: (value) => _update(
+                              () => _view3dHeaderState = _view3dHeaderState
+                                  .copyWith(
+                                    shading: value == 'Wire'
+                                        ? 'Wireframe'
+                                        : 'Solid',
+                                  ),
+                            ),
                           ),
                           const SizedBox(height: 6),
                           BlenderColorField(

@@ -474,17 +474,45 @@ class BlenderShapeTheme {
   }
 }
 
+enum BlenderIconRenderer { materialSymbols, blenderVector }
+
 @immutable
 class BlenderIconThemeData {
-  const BlenderIconThemeData({this.color, this.size = 16});
+  const BlenderIconThemeData({
+    this.color,
+    this.size = 16,
+    this.renderer = BlenderIconRenderer.materialSymbols,
+    this.fill = 0,
+    this.weight = 400,
+    this.grade = -25,
+    this.opticalSize = 20,
+  });
 
   final Color? color;
   final double size;
+  final BlenderIconRenderer renderer;
+  final double fill;
+  final double weight;
+  final double grade;
+  final double opticalSize;
 
-  BlenderIconThemeData copyWith({Color? color, double? size}) {
+  BlenderIconThemeData copyWith({
+    Color? color,
+    double? size,
+    BlenderIconRenderer? renderer,
+    double? fill,
+    double? weight,
+    double? grade,
+    double? opticalSize,
+  }) {
     return BlenderIconThemeData(
       color: color ?? this.color,
       size: size ?? this.size,
+      renderer: renderer ?? this.renderer,
+      fill: fill ?? this.fill,
+      weight: weight ?? this.weight,
+      grade: grade ?? this.grade,
+      opticalSize: opticalSize ?? this.opticalSize,
     );
   }
 }

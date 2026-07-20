@@ -1,5 +1,37 @@
 part of '../advanced_controls.dart';
 
+/// Compact host-driven color sampling control matching Blender's eyedropper.
+///
+/// The package owns the active, disabled, tooltip, and icon presentation. The
+/// embedding application owns screen sampling, cancellation, and the sampled
+/// value because those depend on the host platform and document model.
+class BlenderEyedropper extends StatelessWidget {
+  const BlenderEyedropper({
+    super.key,
+    this.active = false,
+    this.enabled = true,
+    this.onPressed,
+    this.tooltip = 'Eyedropper',
+    this.size = 22,
+  });
+
+  final bool active;
+  final bool enabled;
+  final VoidCallback? onPressed;
+  final String tooltip;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => BlenderIconButton(
+    glyph: BlenderGlyph.eyedropper,
+    selected: active,
+    enabled: enabled,
+    onPressed: onPressed,
+    tooltip: tooltip,
+    size: size,
+  );
+}
+
 class BlenderColorSwatch extends StatelessWidget {
   const BlenderColorSwatch({
     super.key,

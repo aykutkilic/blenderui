@@ -8,6 +8,7 @@ class BlenderTextEditor extends StatefulWidget {
     this.readOnly = false,
     this.sidebar,
     this.sidebarWidth = 240,
+    this.footer,
     this.title = 'Text Editor',
   });
 
@@ -16,7 +17,8 @@ class BlenderTextEditor extends StatefulWidget {
   final bool readOnly;
   final Widget? sidebar;
   final double sidebarWidth;
-  final String title;
+  final Widget? footer;
+  final String? title;
 
   @override
   State<BlenderTextEditor> createState() => _BlenderTextEditorState();
@@ -52,56 +54,66 @@ class _BlenderTextEditorState extends State<BlenderTextEditor> {
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final lineCount = '\n'.allMatches(_controller.text).length + 1;
-    final editor = BlenderPanel(
-      title: widget.title,
-      padding: EdgeInsets.zero,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Container(
-            width: 42,
-            padding: const EdgeInsets.only(top: 8, right: 8),
-            color: theme.colors.textField,
-            child: DefaultTextStyle(
-              style: theme.textTheme.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  for (var line = 1; line <= lineCount; line++)
-                    SizedBox(height: 18, child: Text('$line')),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              color: theme.colors.textField,
-              padding: const EdgeInsets.all(8),
-              child: EditableText(
-                controller: _controller,
-                focusNode: _focusNode,
-                style: theme.textTheme.body.copyWith(
-                  color: theme.colors.foreground,
-                  fontFamily: 'monospace',
+    final body = Column(
+      children: <Widget>[
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Container(
+                width: 42,
+                padding: const EdgeInsets.only(top: 8, right: 8),
+                color: theme.colors.textField,
+                child: DefaultTextStyle(
+                  style: theme.textTheme.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      for (var line = 1; line <= lineCount; line++)
+                        SizedBox(height: 18, child: Text('$line')),
+                    ],
+                  ),
                 ),
-                cursorColor: theme.colors.cursor,
-                backgroundCursorColor: theme.colors.foregroundMuted,
-                selectionColor: theme.colors.selection,
-                onChanged: (value) {
-                  setState(() {});
-                  widget.onChanged?.call(value);
-                },
-                readOnly: widget.readOnly,
-                maxLines: null,
-                expands: true,
               ),
-            ),
+              Expanded(
+                child: Container(
+                  color: theme.colors.textField,
+                  padding: const EdgeInsets.all(8),
+                  child: EditableText(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    style: theme.textTheme.body.copyWith(
+                      color: theme.colors.foreground,
+                      fontFamily: 'monospace',
+                    ),
+                    cursorColor: theme.colors.cursor,
+                    backgroundCursorColor: theme.colors.foregroundMuted,
+                    selectionColor: theme.colors.selection,
+                    onChanged: (value) {
+                      setState(() {});
+                      widget.onChanged?.call(value);
+                    },
+                    readOnly: widget.readOnly,
+                    maxLines: null,
+                    expands: true,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        if (widget.footer != null) widget.footer!,
+      ],
     );
+    final editor = widget.title == null
+        ? body
+        : BlenderPanel(
+            title: widget.title!,
+            padding: EdgeInsets.zero,
+            child: body,
+          );
     if (widget.sidebar == null) return editor;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,6 +121,68 @@ class _BlenderTextEditorState extends State<BlenderTextEditor> {
         Expanded(child: editor),
         SizedBox(width: widget.sidebarWidth, child: widget.sidebar),
       ],
+    );
+  }
+}
+
+/// Text Editor status region modeled after `space_text.py`.
+class BlenderTextEditorFooter extends StatelessWidget {
+  const BlenderTextEditorFooter({
+    super.key,
+    this.line = 1,
+    this.column = 1,
+    this.selectionCharacters = 0,
+    this.syntax = 'Python',
+    this.overwrite = false,
+    this.onOverwriteChanged,
+    this.height = 24,
+  });
+
+  final int line;
+  final int column;
+  final int selectionCharacters;
+  final String syntax;
+  final bool overwrite;
+  final ValueChanged<bool>? onOverwriteChanged;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.panelHeader,
+        border: Border(top: BorderSide(color: theme.colors.editorBorder)),
+      ),
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            children: <Widget>[
+              Text('Ln $line, Col $column', style: theme.textTheme.caption),
+              if (selectionCharacters > 0) ...<Widget>[
+                const SizedBox(width: 10),
+                Text(
+                  '$selectionCharacters selected',
+                  style: theme.textTheme.caption,
+                ),
+              ],
+              const Spacer(),
+              Text(syntax, style: theme.textTheme.caption),
+              const SizedBox(width: 8),
+              BlenderButton(
+                label: overwrite ? 'OVR' : 'INS',
+                variant: BlenderButtonVariant.toolbar,
+                selected: overwrite,
+                onPressed: onOverwriteChanged == null
+                    ? null
+                    : () => onOverwriteChanged!(!overwrite),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

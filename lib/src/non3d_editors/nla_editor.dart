@@ -29,7 +29,7 @@ class BlenderNLAEditor extends StatelessWidget {
       currentFrame: currentFrame,
       onCurrentFrameChanged: onCurrentFrameChanged,
       selectedId: selectedId,
-      title: 'NLA Editor',
+      title: null,
       sidebar: const BlenderSequencerSidebar(nlaEditor: true),
       footer: footer,
     );

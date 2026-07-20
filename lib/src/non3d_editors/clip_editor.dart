@@ -123,8 +123,10 @@ class BlenderClipEditorSidebar extends StatelessWidget {
         BlenderStaticPropertyField.panel('View', <Widget>[
           BlenderStaticPropertyField.number('Cursor X', 0),
           BlenderStaticPropertyField.number('Cursor Y', 0),
-          BlenderStaticPropertyField.checkbox('Show Annotation', value: false),
         ]),
+        const BlenderAnnotationSettingsPanel(
+          state: BlenderAnnotationSettings(visible: false),
+        ),
         BlenderStaticPropertyField.panel('Footage', <Widget>[
           BlenderStaticPropertyField.menu('Clip', 'Footage.mov', <String>[
             'Footage.mov',

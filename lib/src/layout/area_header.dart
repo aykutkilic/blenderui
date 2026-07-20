@@ -14,6 +14,7 @@ class BlenderAreaHeader extends StatelessWidget {
     this.height,
     this.showEditorLabel = true,
     this.editorSelectorWidth,
+    this.editorSelector,
     this.showBottomBorder = true,
     this.actionsScrollable = false,
   });
@@ -29,6 +30,10 @@ class BlenderAreaHeader extends StatelessWidget {
   final double? height;
   final bool showEditorLabel;
   final double? editorSelectorWidth;
+
+  /// Replaces the standard editor-type selector for embedded or host-specific
+  /// editor switchers while preserving the rest of the area-header anatomy.
+  final Widget? editorSelector;
   final bool showBottomBorder;
   final bool actionsScrollable;
 
@@ -51,11 +56,13 @@ class BlenderAreaHeader extends StatelessWidget {
             children: <Widget>[
               SizedBox(
                 width: editorSelectorWidth ?? (showEditorLabel ? 132 : 76),
-                child: BlenderEditorTypeSelector(
-                  value: editorType,
-                  compact: !showEditorLabel,
-                  onChanged: onEditorTypeChanged,
-                ),
+                child:
+                    editorSelector ??
+                    BlenderEditorTypeSelector(
+                      value: editorType,
+                      compact: !showEditorLabel,
+                      onChanged: onEditorTypeChanged,
+                    ),
               ),
               ...leading,
               Expanded(
