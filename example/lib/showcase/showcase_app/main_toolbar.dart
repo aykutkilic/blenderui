@@ -48,7 +48,18 @@ extension _ShowcaseMainToolbar on _ShowcaseAppState {
       return BlenderApplicationMenu<String>(
         label: label,
         items: items,
-        onSelected: onSelected ?? _setStatus,
+        onSelected:
+            onSelected ??
+            (value) {
+              if (value == 'Quit') {
+                _requestQuit();
+              } else if (value == 'Save' || value == 'Save As') {
+                _hasUnsavedChanges = false;
+                _setStatus('Saved "Untitled.blend"');
+              } else {
+                _setStatus(value);
+              }
+            },
       );
     }
 
@@ -511,6 +522,8 @@ extension _ShowcaseMainToolbar on _ShowcaseAppState {
                 );
               case 'Preferences...':
                 _showPreferencesWindow();
+              case 'Menu Search...' || 'Operator Search...':
+                _showMenuSearch();
               default:
                 _setStatus(value);
             }

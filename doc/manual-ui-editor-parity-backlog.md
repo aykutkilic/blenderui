@@ -30,6 +30,22 @@ their representative screenshots, and the next concrete parity work.
 
 ## User Interface backlog
 
+## Example-only surface audit
+
+The example contains both a Blender-shaped application workspace and an
+interactive component showcase. These surfaces must not be mistaken for
+Blender regions when reviewing screenshots or adding library APIs.
+
+| Surface | Evidence | Decision | Follow-up |
+| --- | --- | --- | --- |
+| Properties “Quick Controls” split pane | `example/lib/showcase/showcase_app/properties_surface.dart` previously placed a vertical `BlenderSplitter` below the Properties editor with unrelated modifier, keyframe, viewport, color, progress, and shortcut controls. Blender’s `space_properties.py` registers only the header, navigation bar, header popovers, and context panels. | **Removed 2026-07-21** | Keep the Properties area as one source-shaped editor region. |
+| Components workspace | `animation_templates.dart` labels workspace `10` as `Components`; it hosts `DemoWorkbench`, not a Blender startup workspace. | Intentional documentation surface | Keep available as an explicit example-only workspace; do not use it as parity evidence. |
+| UI Catalog surface | `gallery_controls.dart` builds a catalog of reusable controls, dialogs, importers, and property templates. No corresponding Blender editor exists. | Intentional documentation surface | Keep isolated from the default Blender workspace and document it in screenshots/tests. |
+| Bottom “UI Catalog” selector item | `bottom_graph_editor.dart` exposes the catalog beside Timeline, Action, Shader Editor, Spreadsheet, and Keymap. Blender's editor selector contains editor types only. | **Aligned 2026-07-21** | The item is now visible only while the explicit Components workspace is active. |
+| Bottom “Keymap” selector item | The example exposed the Preferences Keymap editor beside timeline/node editors. Blender registers Keymap under the Preferences window, not as an editor type. | **Aligned 2026-07-21** | The item is now visible only in the explicit Components workspace; the reusable Keymap editor remains available to documentation surfaces. |
+| Showcase splash branding/content | `animation_templates.dart` supplies custom BlenderUI branding and template cards. Blender’s splash is a native startup screen with Blender release artwork and recent-file/template data. | Approximation with host-owned branding | Recheck artwork, recent-file rows, and spacing against `wm_splash_screen.cc` before claiming exact parity. |
+| Synthetic status/job fixtures | `showcase_status_bar.dart` supplies sample jobs, reports, and messages. Blender has the same status-bar families, but these values are not Blender runtime state. | Host fixture, not a pane mismatch | Keep data host-owned; compare only region anatomy and ordering. |
+
 | Manual surface | Current reusable surface | Status | Remaining work |
 | --- | --- | --- | --- |
 | Window System / Introduction | `BlenderWorkspaceShell`, `BlenderEditorFrame` | Covered | Keep window composition host-owned. |

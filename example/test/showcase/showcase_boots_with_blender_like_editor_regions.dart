@@ -112,6 +112,18 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
     await tester.tap(bottomSelector);
     await tester.pump();
     expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('UI Catalog'), findsNothing);
+    expect(find.text('Keymap'), findsNothing);
+    await tester.tapAt(const Offset(700, 50));
+    await tester.pump();
+
+    final components = find.widgetWithText(BlenderButton, 'Components');
+    await tester.ensureVisible(components);
+    await tester.tap(components);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(bottomSelector);
+    await tester.tap(bottomSelector);
+    await tester.pump();
     await tester.tap(find.text('UI Catalog'));
     await tester.pump();
     expect(find.text('Core controls'), findsOneWidget);

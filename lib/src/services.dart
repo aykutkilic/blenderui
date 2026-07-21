@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+
+import 'icons.dart';
 
 part 'services/interface_preferences.dart';
 part 'services/persistence_coordinator.dart';

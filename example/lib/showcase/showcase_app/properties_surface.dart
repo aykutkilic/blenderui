@@ -470,157 +470,64 @@ extension _ShowcasePropertiesSurface on _ShowcaseAppState {
                 },
               ),
               Expanded(
-                child: BlenderSplitter(
-                  direction: BlenderSplitDirection.vertical,
-                  initialFraction: .72,
-                  first: BlenderPropertiesEditor(
-                    groups: _visiblePropertyGroups,
-                    searchController: _propertiesSearchController,
-                    topContent:
-                        _propertyTab == 1 ||
-                            _propertyTab == 4 ||
-                            _propertyTab == 5 ||
-                            _propertyTab == 7 ||
-                            _propertyTab == 13 ||
-                            _propertyTab == 16 ||
-                            _propertyTab == 3 ||
-                            _propertyTab == 6 ||
-                            _propertyTab == 17 ||
-                            _propertyTab == 10 ||
-                            _propertyTab == 14
-                        ? _propertyTopContent
-                        : null,
-                    body: _propertyTab == 18
-                        ? const BlenderStripProperties()
-                        : _propertyTab == 15
-                        ? _buildConstraintPropertiesBody(
-                            title: 'Bone Constraints',
-                          )
-                        : _propertyTab == 12
-                        ? _buildConstraintPropertiesBody()
-                        : _propertyTab == 9
-                        ? _buildShaderFxPropertiesBody()
-                        : _propertyTab == 19
-                        ? _buildModifierPropertiesBody(title: 'Strip Modifiers')
-                        : _propertyTab == 8
-                        ? _buildModifierPropertiesBody()
-                        : _propertyTab == 0
-                        ? _buildToolSettingsBody()
-                        : null,
-                    joinNavigationRail: true,
-                    title: _propertiesContextTitle,
-                    headerLeading: BlenderIcon(
-                      _propertiesContextGlyph,
-                      size: 18,
-                      color: _propertyTab == 0 ? const Color(0xFFFFB84A) : null,
-                    ),
-                    headerActions: _propertyTab == 0
-                        ? null
-                        : <Widget>[
-                            BlenderIconButton(
-                              glyph: BlenderGlyph.pin,
-                              selected: false,
-                              onPressed: () => _setStatus('Properties pinned'),
-                              tooltip: 'Pin Properties context',
-                              size: 24,
-                            ),
-                          ],
-                    contextMenuItemsBuilder: (property) =>
-                        BlenderContextMenuCatalog.property(
-                          animated:
-                              property.state != BlenderPropertyState.normal,
-                        ),
-                    onContextMenuSelected: (property, action) =>
-                        _setStatus('$action: ${property.label}'),
+                child: BlenderPropertiesEditor(
+                  groups: _visiblePropertyGroups,
+                  searchController: _propertiesSearchController,
+                  topContent:
+                      _propertyTab == 1 ||
+                          _propertyTab == 4 ||
+                          _propertyTab == 5 ||
+                          _propertyTab == 7 ||
+                          _propertyTab == 13 ||
+                          _propertyTab == 16 ||
+                          _propertyTab == 3 ||
+                          _propertyTab == 6 ||
+                          _propertyTab == 17 ||
+                          _propertyTab == 10 ||
+                          _propertyTab == 14
+                      ? _propertyTopContent
+                      : null,
+                  body: _propertyTab == 18
+                      ? const BlenderStripProperties()
+                      : _propertyTab == 15
+                      ? _buildConstraintPropertiesBody(
+                          title: 'Bone Constraints',
+                        )
+                      : _propertyTab == 12
+                      ? _buildConstraintPropertiesBody()
+                      : _propertyTab == 9
+                      ? _buildShaderFxPropertiesBody()
+                      : _propertyTab == 19
+                      ? _buildModifierPropertiesBody(title: 'Strip Modifiers')
+                      : _propertyTab == 8
+                      ? _buildModifierPropertiesBody()
+                      : _propertyTab == 0
+                      ? _buildToolSettingsBody()
+                      : null,
+                  joinNavigationRail: true,
+                  title: _propertiesContextTitle,
+                  headerLeading: BlenderIcon(
+                    _propertiesContextGlyph,
+                    size: 18,
+                    color: _propertyTab == 0 ? const Color(0xFFFFB84A) : null,
                   ),
-                  second: BlenderPanel(
-                    title: 'Quick Controls',
-                    child: BlenderScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          BlenderButton(
-                            label: 'Apply Modifier',
-                            onPressed: () => _setStatus('Modifier applied'),
-                          ),
-                          const SizedBox(height: 6),
-                          BlenderButton(
-                            label: 'Add Keyframe',
-                            onPressed: () => _setStatus('Keyframe added'),
-                          ),
-                          const SizedBox(height: 6),
-                          BlenderButton(
-                            label: 'Reset Object',
-                            onPressed: () => _setStatus('Object reset'),
-                          ),
-                          const BlenderSeparator(),
-                          Text(
-                            'Viewport Display',
-                            style: BlenderTheme.of(context).textTheme.heading,
-                          ),
-                          const SizedBox(height: 4),
-                          BlenderSegmentedControl<String>(
-                            value: _view3dHeaderState.shading == 'Wireframe'
-                                ? 'Wire'
-                                : 'Solid',
-                            items: const <BlenderMenuItem<String>>[
-                              BlenderMenuItem<String>(
-                                value: 'Solid',
-                                label: 'Solid',
-                              ),
-                              BlenderMenuItem<String>(
-                                value: 'Wire',
-                                label: 'Wire',
-                              ),
-                            ],
-                            onChanged: (value) => _update(
-                              () => _view3dHeaderState = _view3dHeaderState
-                                  .copyWith(
-                                    shading: value == 'Wire'
-                                        ? 'Wireframe'
-                                        : 'Solid',
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          BlenderColorField(
-                            label: 'Accent',
-                            color: _accentColor,
-                            onPressed: () => _setStatus('Color picker focused'),
-                          ),
-                          const SizedBox(height: 6),
-                          BlenderColorPicker(
-                            color: _accentColor,
-                            onChanged: (value) =>
-                                _update(() => _accentColor = value),
-                          ),
-                          const SizedBox(height: 6),
-                          const BlenderProgressBar(
-                            value: .68,
-                            label: 'Preview 68%',
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Shortcuts',
-                            style: BlenderTheme.of(context).textTheme.heading,
-                          ),
-                          const SizedBox(height: 4),
-                          const Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: const <Widget>[
-                              BlenderKeycap('G'),
-                              SizedBox(width: 4),
-                              Text('Move'),
-                              BlenderKeycap('R'),
-                              SizedBox(width: 4),
-                              Text('Rotate'),
-                            ],
+                  headerActions: _propertyTab == 0
+                      ? null
+                      : <Widget>[
+                          BlenderIconButton(
+                            glyph: BlenderGlyph.pin,
+                            selected: false,
+                            onPressed: () => _setStatus('Properties pinned'),
+                            tooltip: 'Pin Properties context',
+                            size: 24,
                           ),
                         ],
+                  contextMenuItemsBuilder: (property) =>
+                      BlenderContextMenuCatalog.property(
+                        animated: property.state != BlenderPropertyState.normal,
                       ),
-                    ),
-                  ),
+                  onContextMenuSelected: (property, action) =>
+                      _setStatus('$action: ${property.label}'),
                 ),
               ),
             ],

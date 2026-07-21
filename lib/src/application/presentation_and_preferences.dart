@@ -102,6 +102,85 @@ class BlenderAboutDialogConfiguration {
   final double width;
 }
 
+/// The user's response to Blender's save-before-quit prompt.
+enum BlenderQuitDecision { save, discard, cancel }
+
+/// Presents the standard Blender save-before-quit confirmation.
+///
+/// The dialog is intentionally owned by the shared presentation service so a
+/// host (desktop, embedded, or test) can use the same visual and behavioral
+/// contract when it receives a native close request. Persistence remains a
+/// host concern: [onSave] is called only after the user chooses Save.
+class BlenderQuitConfirmationService {
+  const BlenderQuitConfirmationService();
+
+  Future<BlenderQuitDecision> show(
+    BuildContext context, {
+    String fileName = 'Untitled.blend',
+    FutureOr<bool> Function()? onSave,
+  }) async {
+    final decision = await showBlenderDialog<BlenderQuitDecision>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Save changes before closing',
+      builder: (dialogContext) => BlenderDialog(
+        title: 'Save changes before closing?',
+        message: fileName,
+        icon: const _BlenderQuestionMarkIcon(),
+        width: 560,
+        actions: <BlenderDialogAction>[
+          BlenderDialogAction(
+            label: "Don't Save",
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(BlenderQuitDecision.discard),
+          ),
+          BlenderDialogAction(
+            label: 'Cancel',
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(BlenderQuitDecision.cancel),
+          ),
+          BlenderDialogAction(
+            label: 'Save',
+            primary: true,
+            onPressed: () async {
+              if (onSave != null && !await onSave()) return;
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop(BlenderQuitDecision.save);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+    return decision ?? BlenderQuitDecision.cancel;
+  }
+}
+
+class _BlenderQuestionMarkIcon extends StatelessWidget {
+  const _BlenderQuestionMarkIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: theme.colors.foregroundMuted, width: 2),
+      ),
+      child: Text(
+        '?',
+        style: theme.textTheme.heading.copyWith(
+          color: theme.colors.foregroundMuted,
+          fontSize: 26,
+        ),
+      ),
+    );
+  }
+}
+
 /// Owns the app-level splash and About presentation lifecycle.
 ///
 /// Like blenderapp's window-manager operators, this service owns when and how

@@ -4,6 +4,38 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-21 — Implemented command-backed Menu Search
+
+- Audited Blender's window-manager search operator, nested menu extraction,
+  string-search weighting, recent-use cache, popup block, and F3 invocation.
+- Extended registered commands with menu ancestry, aliases, icons, search
+  weights, and searchable/deprecated metadata; added deterministic fuzzy,
+  multi-token, and recent-aware registry search.
+- Added the reusable centered `BlenderMenuSearch` popup with live theme,
+  fixed-extent lazy results, enabled state, icons, shortcuts, mouse hover,
+  Up/Down navigation, Enter execution, Escape dismissal, and empty state.
+- Corrected application shortcut focus ownership in the shared command-binding
+  scope and wired Edit > Menu Search, Operator Search, and F3 in the example to
+  the same registered command surface.
+- Added pure ranking/recent tests and an end-to-end example F3 search/execute
+  test. See the
+  [decision record](decisions/2026-07-21-command-backed-menu-search.md).
+
+## 2026-07-21 — Audited example-only panes and removed synthetic Quick Controls
+
+- Compared the example Properties composition with Blender's
+  `space_properties.py` and traced the “Quick Controls” pane to the original
+  showcase refactor rather than a Blender source region.
+- Removed the unrelated vertical child pane so the example Properties area now
+  contains one source-shaped Properties editor beside its navigation tabs.
+- Removed the UI Catalog from the default bottom editor selector; it remains
+  available only when the explicit Components workspace is selected.
+- Applied the same boundary to the Preferences-only Keymap editor, preventing
+  it from appearing as a Blender editor type in the default workspace.
+- Recorded the remaining intentional Components, UI Catalog, splash-branding,
+  and synthetic-fixture differences in the manual parity backlog and a dated
+  decision record.
+
 ## 2026-07-20 — Established manual-wide UI/editor parity backlog
 
 - Fetched the current Blender 4.5 LTS User Interface and Editors indexes,
@@ -603,3 +635,12 @@ live in [the decision records](decisions/).
   test from the obsolete right-sidebar approximation to Blender's left-region
   structure. See the
   [decision record](decisions/2026-07-20-file-asset-and-sequencer-regions.md).
+## 2026-07-21 — Added save-before-quit confirmation
+
+- Audited Blender's `wm_files.cc` close dialog and `wm_window.cc` quit flow.
+- Added the reusable `BlenderQuitConfirmationService` and typed decision enum
+  to the library; the host supplies the actual save callback.
+- Added a macOS termination bridge that delays `NSApp` termination while the
+  Flutter dialog is open, then replies with Save/Discard/Cancel semantics.
+- Marked mutable example showcase edits dirty, handled File > Save and File >
+  Quit, and documented the default `Untitled.blend` filename behavior.

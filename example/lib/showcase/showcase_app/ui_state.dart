@@ -133,7 +133,6 @@ mixin _ShowcaseUiState on State<ShowcaseApp> {
   List<bool> _objectRotationLocks = <bool>[false, false, false];
   List<bool> _objectScaleLocks = <bool>[false, false, false];
   String _objectRotationMode = 'XYZ Euler';
-  Color _accentColor = const Color(0xFF4772B3);
   bool _useSmoothShading = true;
   bool _renderRegion = false;
   bool _cropToRenderRegion = false;

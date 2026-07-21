@@ -28,7 +28,11 @@ class BlenderCommandBindingScope extends StatelessWidget {
               },
             ),
           },
-          child: child,
+          child: Focus(
+            autofocus: true,
+            debugLabel: 'BlenderCommandBindingScope',
+            child: child,
+          ),
         ),
       ),
     );

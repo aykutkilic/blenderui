@@ -513,7 +513,10 @@ The corresponding local source references are:
 - `interface_template_search.cc` and `interface_template_search_menu.cc` for
   searchable collection/operator menus; `BlenderSearchMenu` now preserves both
   the compact list and preview-grid forms, including filtered results and
-  thumbnail tiles.
+  thumbnail tiles. Application-wide Menu Search is separately represented by
+  `BlenderMenuSearch` and `BlenderCommandRegistry.search`, including nested
+  menu ancestry, fuzzy multi-token ranking, recent use, command enablement,
+  keyboard navigation, execution, and the F3 application binding.
 - `interface_template_bone_collection_tree.cc` for nested collection rows,
   active/selected-bone markers, visibility and solo columns, disclosure state,
   and optional remove actions.

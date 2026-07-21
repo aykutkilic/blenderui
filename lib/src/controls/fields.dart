@@ -168,12 +168,14 @@ class BlenderSearchField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.placeholder = 'Search',
+    this.focusNode,
   });
 
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final String placeholder;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +183,7 @@ class BlenderSearchField extends StatelessWidget {
       valueListenable: controller,
       builder: (context, value, child) => BlenderTextField(
         controller: controller,
+        focusNode: focusNode,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         placeholder: placeholder,

@@ -265,6 +265,7 @@ class BlenderEditorHeaderPreset {
             id: command.id,
             label: command.label,
             shortcut: command.shortcut,
+            menuPath: <String>[editorType.label, menu.label],
             execute: () => execute(command.id),
           ),
         );

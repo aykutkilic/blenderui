@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart'
         BoxDecoration,
         CustomPaint,
         DecoratedBox,
+        EditableText,
         GestureDetector,
         Offset,
         Overlay,
@@ -15,6 +16,7 @@ import 'package:flutter/widgets.dart'
         SizedBox,
         ValueKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 
 import '../lib/showcase_viewport.dart';
 
@@ -27,6 +29,7 @@ part 'showcase/lattice_data_follows_blender_source_panel_anatomy.dart';
 part 'showcase/physics_properties_follows_blender_source_panel_anatomy.dart';
 part 'showcase/timeline_header_popovers_expose_source_time_settings.dart';
 part 'showcase/context_menus_follow_the_pointed_entity.dart';
+part 'showcase/menu_search_opens_and_executes_commands.dart';
 
 Future<void> tapPropertyTab(WidgetTester tester, String id) async {
   final tab = find.byKey(ValueKey<String>('property-tab-$id'));
@@ -57,4 +60,5 @@ void main() {
   registerPhysicsPropertiesFollowsBlenderSourcePanelAnatomyTests();
   registerTimelineHeaderPopoversExposeSourceTimeSettingsTests();
   registerContextMenusFollowThePointedEntityTests();
+  registerMenuSearchOpensAndExecutesCommandsTests();
 }

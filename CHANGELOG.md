@@ -1,5 +1,9 @@
 # Changelog
 
+- Added command-backed Blender Menu Search with contextual menu paths, fuzzy
+  multi-token and recent-aware ranking, icons, shortcuts, disabled state,
+  keyboard navigation, centered popup presentation, and global F3 integration.
+
 - Added reusable Grease Pencil Draw-mode headers, brush/tool state, source tool
   shelf, searchable Brush Asset Shelf, camera canvas, host stroke model, and
   Grease Pencil Dope Sheet Sidebar.
@@ -20,6 +24,15 @@
   example Graph and Drivers surfaces to the shared library contracts.
 
 ## Unreleased
+
+- Added a shared Blender save-before-quit confirmation service with the
+  Question icon treatment and `Save`, `Don't Save`, and `Cancel` decisions.
+- Wired the macOS example runner's application termination lifecycle through a
+  Flutter method channel so native close and File > Quit both honor unsaved
+  showcase edits.
+- Removed the example-only Properties “Quick Controls” child pane after
+  comparing the composition with Blender's real Properties regions; the
+  Components and UI Catalog remain explicitly isolated documentation surfaces.
 
 - Rebuilt Timeline as Blender's Dope Sheet subtype with independently clipped
   Channels/Search/Summary and window/scrub regions, source-ordered playback and

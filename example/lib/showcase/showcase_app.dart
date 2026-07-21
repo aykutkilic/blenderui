@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
 import '../demo/demo_workbench.dart';
 import 'showcase_status_bar.dart';
@@ -36,6 +37,7 @@ part 'showcase_app/tool_panels.dart';
 part 'showcase_app/brush_panels.dart';
 part 'showcase_app/brush_controls.dart';
 part 'showcase_app/main_toolbar.dart';
+part 'showcase_app/menu_search.dart';
 part 'showcase_app/editor_shell.dart';
 part 'showcase_app/clip_and_nla_headers.dart';
 part 'showcase_app/animation_and_sequencer_headers.dart';
@@ -73,6 +75,11 @@ class ShowcaseApp extends StatefulWidget {
 }
 
 class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
+  static const MethodChannel _applicationLifecycleChannel = MethodChannel(
+    'blender_ui/application_lifecycle',
+  );
+
+  bool _hasUnsavedChanges = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final BlenderApplicationController<Object?> _application;
   late final Map<BlenderEditorType, BlenderEditorHeaderPreset>
@@ -520,6 +527,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   @override
   void initState() {
     super.initState();
+    _applicationLifecycleChannel.setMethodCallHandler(_handleLifecycleCall);
     _application = BlenderApplicationController<Object?>(
       initialState: null,
       workspace: _generalTemplateLayout,
@@ -557,6 +565,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
         (commandId) => _setStatus(commandId),
       );
     }
+    _registerMenuSearchCommands();
     _mainEditorArea = BlenderEditorAreaController<BlenderEditorType>(
       session: _application.editorSession,
       workspaceId: 'showcase',
@@ -601,6 +610,47 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
       ..inspectPropertiesTarget('showcase', _propertyTabs[_propertyTab].id);
   }
 
+  Future<void> _handleLifecycleCall(MethodCall call) async {
+    if (call.method != 'quitRequested') return;
+    final navigatorContext = _navigatorKey.currentContext;
+    if (!mounted || navigatorContext == null) {
+      await _applicationLifecycleChannel.invokeMethod<void>(
+        'quitDecision',
+        'cancel',
+      );
+      return;
+    }
+    var decision = BlenderQuitDecision.discard;
+    if (_hasUnsavedChanges) {
+      decision = await const BlenderQuitConfirmationService().show(
+        navigatorContext,
+        fileName: 'Untitled.blend',
+        onSave: () {
+          if (mounted) {
+            setState(() => _hasUnsavedChanges = false);
+          }
+          return true;
+        },
+      );
+    }
+    await _applicationLifecycleChannel.invokeMethod<void>(
+      'quitDecision',
+      decision.name,
+    );
+  }
+
+  void _requestQuit() {
+    unawaited(() async {
+      try {
+        await _applicationLifecycleChannel.invokeMethod<void>('requestQuit');
+      } on MissingPluginException {
+        // Embedded runners and widget tests do not own a native window.
+      } on PlatformException {
+        // Native termination is best effort; keep the editor usable.
+      }
+    }());
+  }
+
   void _editorAreaChanged() {
     if (mounted) setState(() {});
   }
@@ -643,7 +693,12 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
 
   /// Lets showcase part files mutate this state's app-specific sample model
   /// without bypassing the State lifecycle contract.
-  void _update(VoidCallback mutation) => setState(mutation);
+  void _update(VoidCallback mutation) {
+    setState(() {
+      mutation();
+      _hasUnsavedChanges = true;
+    });
+  }
 
   void _showPreferencesWindow() {
     final navigatorContext = _navigatorKey.currentContext;

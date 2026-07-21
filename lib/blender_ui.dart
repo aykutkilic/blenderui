@@ -14,6 +14,7 @@ export 'src/command_widgets.dart'
         BlenderCommandMenuDescriptor,
         BlenderCommandMenuButton,
         BlenderCommandMenuEntry;
+export 'src/menu_search.dart' show BlenderMenuSearch, showBlenderMenuSearch;
 
 export 'src/advanced_controls.dart'
     show
@@ -42,6 +43,8 @@ export 'src/application.dart'
         BlenderApplicationController,
         BlenderApplicationScope,
         BlenderApplicationPresentationService,
+        BlenderQuitConfirmationService,
+        BlenderQuitDecision,
         BlenderApplicationMenu,
         BlenderApplicationMenuBar,
         BlenderApplicationStatusBar,

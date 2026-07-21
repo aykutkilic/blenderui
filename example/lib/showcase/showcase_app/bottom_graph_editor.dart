@@ -5,13 +5,15 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
     if (_templateMode != _ShowcaseTemplateMode.general) {
       return _buildGreasePencilDopeSheetArea();
     }
-    const selectorItems = <BlenderMenuItem<int>>[
-      BlenderMenuItem<int>(value: 0, label: 'Timeline'),
-      BlenderMenuItem<int>(value: 1, label: 'Action'),
-      BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),
-      BlenderMenuItem<int>(value: 3, label: 'Spreadsheet'),
-      BlenderMenuItem<int>(value: 4, label: 'Keymap'),
-      BlenderMenuItem<int>(value: 5, label: 'UI Catalog'),
+    final selectorItems = <BlenderMenuItem<int>>[
+      const BlenderMenuItem<int>(value: 0, label: 'Timeline'),
+      const BlenderMenuItem<int>(value: 1, label: 'Action'),
+      const BlenderMenuItem<int>(value: 2, label: 'Shader Editor'),
+      const BlenderMenuItem<int>(value: 3, label: 'Spreadsheet'),
+      if (_workspaceIndex == 10)
+        const BlenderMenuItem<int>(value: 4, label: 'Keymap'),
+      if (_workspaceIndex == 10)
+        const BlenderMenuItem<int>(value: 5, label: 'UI Catalog'),
     ];
     final selectorGlyph = switch (_bottomTab) {
       0 => BlenderGlyph.timeline,

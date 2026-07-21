@@ -3,6 +3,13 @@ import FlutterMacOS
 
 @main
 class AppDelegate: FlutterAppDelegate {
+  override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard let window = MainFlutterWindow.shared else {
+      return .terminateNow
+    }
+    return window.requestApplicationQuit() ? .terminateLater : .terminateNow
+  }
+
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     return true
   }

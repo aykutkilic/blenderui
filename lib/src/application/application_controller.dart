@@ -94,6 +94,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
           id: 'application.undo',
           label: 'Undo',
           shortcut: 'Ctrl Z',
+          menuPath: const <String>['Edit'],
+          glyph: BlenderGlyph.undo,
           enabled: () => state.canUndo,
           execute: () {
             state.undo();
@@ -105,6 +107,8 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
           id: 'application.redo',
           label: 'Redo',
           shortcut: 'Ctrl Shift Z',
+          menuPath: const <String>['Edit'],
+          glyph: BlenderGlyph.redo,
           enabled: () => state.canRedo,
           execute: () {
             state.redo();
