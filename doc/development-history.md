@@ -644,3 +644,28 @@ live in [the decision records](decisions/).
   Flutter dialog is open, then replies with Save/Discard/Cancel semantics.
 - Marked mutable example showcase edits dirty, handled File > Save and File >
   Quit, and documented the default `Untitled.blend` filename behavior.
+
+## 2026-07-21 — Unified runtime shortcuts and Keymap Preferences
+
+- Audited Blender's `rna_keymap_ui.py`, `space_userpref.py`,
+  `DNA_windowmanager_types.h`, and `wm_keymap.cc` for key configurations,
+  context-scoped maps, item event state, filtering, conflicts, restore, and
+  user overrides.
+- Replaced the global identity-keyed shortcut table with reusable, context-aware
+  command bindings, semantic chord equality, default tracking, conflict
+  reporting, item/keymap restore, and versioned JSON import/export.
+- Rebuilt `BlenderKeymapEditor` as a live Preferences surface with preset and
+  import/export chrome, Name/Key-Binding filtering, expandable map/item rows,
+  active and repeat state, shortcut capture, unavailable-command treatment,
+  and restore/remove affordances.
+- Wired the example Preferences and Keymap editor to the same runtime service,
+  registered F3, Preferences, Save, Open, and Render shortcuts, and made the
+  application controller accept an injected command registry to avoid a
+  Preferences initialization cycle found by the integration test.
+- Added service, recorder, filtering, serialization, runtime dispatch, Menu
+  Search, and example Preferences integration tests. See the
+  [decision record](decisions/2026-07-21-runtime-keymaps-and-preferences.md).
+- Corrected Cmd+, on macOS after runtime testing showed AppKit's existing
+  Preferences menu item consumed the key equivalent before Flutter. The native
+  item now calls the shared lifecycle channel, and route presentation requests
+  a frame immediately instead of waiting for a later UI event.

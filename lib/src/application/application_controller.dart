@@ -17,6 +17,7 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
     BlenderStatusService? status,
     BlenderJobService? jobs,
     BlenderReportService? reports,
+    BlenderCommandRegistry? commandRegistry,
     BlenderCommandBindings? commandBindings,
     BlenderEditorSessionService? editorSession,
     BlenderInterfacePreferencesService? interfacePreferences,
@@ -37,6 +38,7 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
        status = status ?? BlenderStatusService(),
        jobs = jobs ?? BlenderJobService(),
        reports = reports ?? BlenderReportService(),
+       commands = commandRegistry ?? BlenderCommandRegistry(),
        commandBindings = commandBindings ?? BlenderCommandBindings(),
        editorSession = editorSession ?? BlenderEditorSessionService(),
        interfacePreferences = interfacePreferences,
@@ -57,7 +59,6 @@ class BlenderApplicationController<T> implements BlenderServiceDisposable {
                ),
              ],
            ),
-       commands = BlenderCommandRegistry(),
        services = BlenderServiceContainer() {
     final interfacePreferences = this.interfacePreferences;
     final themeService = this.themeService;

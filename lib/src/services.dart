@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'icons.dart';
@@ -17,4 +18,5 @@ part 'services/state_stores.dart';
 part 'services/editor_sessions.dart';
 part 'services/service_container.dart';
 part 'services/commands.dart';
+part 'services/keymaps.dart';
 part 'services/service_contracts.dart';

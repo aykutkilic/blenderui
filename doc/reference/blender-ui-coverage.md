@@ -559,6 +559,14 @@ The corresponding local source references are:
   playback, filter, snapping, overlay, and proportional-edit popovers. The
   example now covers those source-defined controls; animation data, keying
   operators, and editor polling remain caller-owned.
+- `rna_keymap_ui.py`, `space_userpref.py`, `DNA_windowmanager_types.h`, and
+  `wm_keymap.cc` for Preferences key configurations and runtime event matching.
+  The package now shares one context-aware command-binding service between
+  dispatch and Preferences; covers active, repeat, modified/default,
+  user-defined, conflict, restore, Name/Key-Binding filter, capture, and
+  versioned JSON boundaries. Flutter keyboard chords are dispatched directly;
+  Blender modal maps, pointer/NDOF events, operator RNA properties, and preset
+  file I/O remain host/editor integrations.
 
 The remaining source-driven backlog should be added as independent
 descriptor-driven templates when the corresponding visual anatomy is mapped,

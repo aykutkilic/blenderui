@@ -491,7 +491,6 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   BlenderEditorType get _rightBottomEditorType => _rightBottomEditorArea.value;
   String _selectedObject = 'Cube';
   String? _selectedFile;
-  String? _selectedShortcut;
   final List<BlenderConsoleLine> _consoleLines = const <BlenderConsoleLine>[
     BlenderConsoleLine(
       'Blender UI console showcase',
@@ -530,6 +529,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     _applicationLifecycleChannel.setMethodCallHandler(_handleLifecycleCall);
     _application = BlenderApplicationController<Object?>(
       initialState: null,
+      commandRegistry: _commandRegistry,
+      commandBindings: _commandBindings,
       workspace: _generalTemplateLayout,
       preferences: BlenderPreferencesService(
         configuration: _preferencesConfiguration,
@@ -611,6 +612,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   }
 
   Future<void> _handleLifecycleCall(MethodCall call) async {
+    if (call.method == 'preferencesRequested') {
+      if (mounted) _showPreferencesWindow();
+      return;
+    }
     if (call.method != 'quitRequested') return;
     final navigatorContext = _navigatorKey.currentContext;
     if (!mounted || navigatorContext == null) {
@@ -704,6 +709,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
     final navigatorContext = _navigatorKey.currentContext;
     if (navigatorContext == null) return;
     unawaited(_application.preferences?.show(navigatorContext));
+    // Platform menu key equivalents are delivered outside Flutter's pointer
+    // pipeline. Ensure the pushed route is painted without waiting for a later
+    // hover, resize, or input event to request a frame.
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   BlenderPreferencesConfiguration get _preferencesConfiguration =>

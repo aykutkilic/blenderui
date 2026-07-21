@@ -1,7 +1,7 @@
 import Cocoa
 import FlutterMacOS
 
-class MainFlutterWindow: NSWindow {
+class MainFlutterWindow: NSWindow, NSWindowDelegate {
   static weak var shared: MainFlutterWindow?
   private var applicationLifecycleChannel: FlutterMethodChannel?
   private var quitRequestInFlight = false
@@ -97,6 +97,11 @@ class MainFlutterWindow: NSWindow {
     return true
   }
 
+  func requestPreferences() {
+    applicationLifecycleChannel?.invokeMethod("preferencesRequested", arguments: nil)
+  }
+
+  @objc(windowShouldClose:)
   func windowShouldClose(_ sender: NSWindow) -> Bool {
     if allowWindowCloseOnce {
       allowWindowCloseOnce = false

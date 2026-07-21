@@ -3,6 +3,10 @@ import FlutterMacOS
 
 @main
 class AppDelegate: FlutterAppDelegate {
+  @IBAction func showPreferences(_ sender: Any?) {
+    MainFlutterWindow.shared?.requestPreferences()
+  }
+
   override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard let window = MainFlutterWindow.shared else {
       return .terminateNow

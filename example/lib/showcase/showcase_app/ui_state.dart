@@ -1,6 +1,8 @@
 part of '../showcase_app.dart';
 
 mixin _ShowcaseUiState on State<ShowcaseApp> {
+  final BlenderCommandRegistry _commandRegistry = BlenderCommandRegistry();
+  final BlenderCommandBindings _commandBindings = BlenderCommandBindings();
   _ShowcaseTemplateMode _templateMode = _ShowcaseTemplateMode.general;
   bool _templateSecondaryWorkspace = false;
   BlenderGreasePencilHeaderState _greasePencilHeaderState =

@@ -7,18 +7,22 @@ class BlenderCommandBindingScope extends StatelessWidget {
     required this.commands,
     required this.bindings,
     required this.child,
+    this.contexts = const <String>{'global'},
   });
 
   final BlenderCommandRegistry commands;
   final BlenderCommandBindings bindings;
   final Widget child;
 
+  /// Active Blender-style keymap contexts for this subtree.
+  final Set<String> contexts;
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: bindings,
       builder: (context, _) => Shortcuts(
-        shortcuts: bindings.shortcuts,
+        shortcuts: bindings.shortcutsFor(contexts: contexts),
         child: Actions(
           actions: <Type, Action<Intent>>{
             BlenderCommandIntent: CallbackAction<BlenderCommandIntent>(

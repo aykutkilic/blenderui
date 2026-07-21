@@ -75,26 +75,27 @@ extension _ShowcasePreferenceInput on _ShowcaseAppState {
           ],
         ),
 
-        BlenderPreferenceSection.form(
-          'Keymap',
-          'presets',
-          'KeyPresets',
-          <Widget>[
-            BlenderStaticPropertyField.menu('Preset', 'Blender', <String>[
-              'Blender',
-              'Industry Compatible',
-            ]),
-            _preferenceButtons(<String>['Restore', 'Save']),
+        BlenderPreferenceSection(
+          id: 'preferences-Keymap-keymap',
+          category: 'Keymap',
+          title: 'Keymap',
+          searchTerms: const <String>[
+            'shortcut',
+            'key binding',
+            'preset',
+            'import',
+            'export',
           ],
-          expanded: true,
-        ),
-        BlenderPreferenceSection.form('Keymap', 'keymap', 'Keymap', <Widget>[
-          BlenderPathField(
-            controller: _keymapSearchController,
-            placeholder: 'Search Keymap',
+          child: SizedBox(
+            height: 520,
+            child: BlenderKeymapEditor(
+              searchController: _keymapSearchController,
+              bindings: _commandBindings,
+              commands: _commandRegistry,
+              onImport: () => _setStatus('Import Key Configuration'),
+              onExport: (_) => _setStatus('Exported Key Configuration'),
+            ),
           ),
-          BlenderStaticPropertyField.checkbox('Emulate Numpad'),
-          BlenderStaticPropertyField.checkbox('Select Mouse Button'),
-        ]),
+        ),
       ];
 }

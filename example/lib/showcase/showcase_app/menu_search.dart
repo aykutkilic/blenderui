@@ -126,15 +126,59 @@ extension _ShowcaseMenuSearch on _ShowcaseAppState {
       searchable: false,
       execute: _showMenuSearch,
     );
-    final activator = const SingleActivator(LogicalKeyboardKey.f3);
-    if (_application.commandBindings.commandFor(activator) == null) {
+    command(
+      id: 'application.save',
+      label: 'Save Blender File',
+      path: const <String>['File'],
+      glyph: BlenderGlyph.save,
+      shortcut: 'Ctrl S',
+      execute: () => _setStatus('Saved scene.blend'),
+    );
+    command(
+      id: 'application.open',
+      label: 'Open...',
+      path: const <String>['File'],
+      glyph: BlenderGlyph.folder,
+      shortcut: 'Ctrl O',
+      execute: () => _mainEditorArea.select(BlenderEditorType.fileBrowser),
+    );
+    command(
+      id: 'application.render',
+      label: 'Render Image',
+      path: const <String>['Render'],
+      glyph: BlenderGlyph.render,
+      shortcut: 'F12',
+      execute: () => _setStatus('Render Image'),
+    );
+
+    void bind(String commandId, SingleActivator activator) {
+      if (_application.commandBindings.commandFor(activator) != null) return;
       _application.commandBindings.register(
-        const BlenderCommandBinding(
-          commandId: 'application.menu_search',
-          activator: SingleActivator(LogicalKeyboardKey.f3),
+        BlenderCommandBinding(
+          commandId: commandId,
+          activator: activator,
+          keymap: 'Window',
         ),
       );
     }
+
+    bind(
+      'application.menu_search',
+      const SingleActivator(LogicalKeyboardKey.f3),
+    );
+    bind(
+      'application.preferences',
+      const SingleActivator(LogicalKeyboardKey.comma, meta: true),
+    );
+    bind(
+      'application.save',
+      const SingleActivator(LogicalKeyboardKey.keyS, control: true),
+    );
+    bind(
+      'application.open',
+      const SingleActivator(LogicalKeyboardKey.keyO, control: true),
+    );
+    bind('application.render', const SingleActivator(LogicalKeyboardKey.f12));
   }
 
   void _showMenuSearch() {

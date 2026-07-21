@@ -148,31 +148,10 @@ extension _ShowcaseBottomGraphEditor on _ShowcaseAppState {
       ),
       4 => BlenderKeymapEditor(
         searchController: _keymapSearchController,
-        selectedId: _selectedShortcut,
-        entries: const <BlenderKeymapEntry>[
-          BlenderKeymapEntry(
-            id: 'move',
-            action: 'Move',
-            shortcut: 'G',
-            category: '3D View',
-          ),
-          BlenderKeymapEntry(
-            id: 'rotate',
-            action: 'Rotate',
-            shortcut: 'R',
-            category: '3D View',
-          ),
-          BlenderKeymapEntry(
-            id: 'save',
-            action: 'Save Mainfile',
-            shortcut: 'Ctrl+S',
-            category: 'Window',
-          ),
-        ],
-        onSelected: (entry) {
-          _update(() => _selectedShortcut = entry.id);
-          _setStatus('Selected ${entry.action}');
-        },
+        bindings: _application.commandBindings,
+        commands: _application.commands,
+        onImport: () => _setStatus('Import Key Configuration'),
+        onExport: (_) => _setStatus('Exported Key Configuration'),
       ),
       _ => _buildControlGallery(),
     };

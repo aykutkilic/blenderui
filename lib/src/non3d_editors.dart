@@ -16,6 +16,7 @@ import 'overlay_host.dart';
 import 'editor_chrome.dart';
 import 'popover_panel.dart';
 import 'property_forms.dart';
+import 'services.dart';
 import 'specialized_templates.dart';
 import 'templates.dart';
 import 'theme.dart';

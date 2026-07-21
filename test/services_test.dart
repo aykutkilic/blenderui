@@ -131,6 +131,75 @@ void main() {
     );
   });
 
+  test(
+    'keymaps allow contextual reuse, reject local conflicts, and restore',
+    () {
+      final bindings = BlenderCommandBindings();
+      addTearDown(bindings.dispose);
+      const chord = SingleActivator(LogicalKeyboardKey.keyG);
+      bindings
+        ..register(
+          const BlenderCommandBinding(
+            commandId: 'view3d.move',
+            activator: chord,
+            keymap: '3D View',
+            context: 'view3d',
+          ),
+        )
+        ..register(
+          const BlenderCommandBinding(
+            commandId: 'node.move',
+            activator: chord,
+            keymap: 'Node Editor',
+            context: 'node',
+          ),
+        );
+
+      expect(
+        bindings.commandFor(chord, contexts: const {'view3d'}),
+        'view3d.move',
+      );
+      expect(bindings.commandFor(chord, contexts: const {'node'}), 'node.move');
+
+      final move = bindings.bindingById('3D View::view3d::view3d.move')!;
+      final conflicts = bindings.update(
+        move.id,
+        move.copyWith(
+          activator: const SingleActivator(LogicalKeyboardKey.keyR),
+        ),
+      );
+      expect(conflicts, isEmpty);
+      expect(bindings.bindingById(move.id)!.isModified, isTrue);
+      bindings.reset(move.id);
+      expect(bindings.bindingById(move.id)!.activator, chord);
+    },
+  );
+
+  test('keymap configurations round-trip through the portable codec', () {
+    final bindings = BlenderCommandBindings()
+      ..register(
+        const BlenderCommandBinding(
+          commandId: 'file.save',
+          activator: SingleActivator(
+            LogicalKeyboardKey.keyS,
+            control: true,
+            shift: true,
+          ),
+          keymap: 'Window',
+        ),
+      );
+    final restored = BlenderCommandBindings();
+    addTearDown(bindings.dispose);
+    addTearDown(restored.dispose);
+
+    restored.importConfiguration(bindings.exportConfiguration());
+
+    expect(restored.configurationName, 'Blender');
+    expect(restored.bindings.single.commandId, 'file.save');
+    expect(restored.bindings.single.shortcutLabel, 'Ctrl Shift S');
+    expect(restored.bindings.single.isModified, isFalse);
+  });
+
   test('application keeps an injected command-binding override', () {
     final bindings = BlenderCommandBindings()
       ..register(
@@ -202,6 +271,46 @@ void main() {
     await tester.pump();
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    expect(executions, 1);
+  });
+
+  testWidgets('command binding scope dispatches Meta-comma', (tester) async {
+    final commands = BlenderCommandRegistry();
+    final bindings = BlenderCommandBindings();
+    addTearDown(commands.dispose);
+    addTearDown(bindings.dispose);
+    var executions = 0;
+    commands.register(
+      BlenderCommand(
+        id: 'application.preferences',
+        label: 'Preferences',
+        execute: () => executions++,
+      ),
+    );
+    bindings.register(
+      const BlenderCommandBinding(
+        commandId: 'application.preferences',
+        activator: SingleActivator(LogicalKeyboardKey.comma, meta: true),
+      ),
+    );
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlenderCommandBindingScope(
+          commands: commands,
+          bindings: bindings,
+          child: const Text('Editor'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.comma);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.comma);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
 
     expect(executions, 1);
   });

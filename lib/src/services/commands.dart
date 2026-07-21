@@ -199,10 +199,73 @@ class BlenderCommandBinding {
   const BlenderCommandBinding({
     required this.commandId,
     required this.activator,
+    this.bindingId,
+    this.keymap = 'Window',
+    this.context = 'global',
+    this.eventType = BlenderKeymapEventType.keyboard,
+    this.eventValue = 'Press',
+    this.enabled = true,
+    this.repeat = false,
+    this.userDefined = false,
+    this.defaultActivator,
   });
 
   final String commandId;
   final ShortcutActivator activator;
+  final String? bindingId;
+  final String keymap;
+  final String context;
+  final BlenderKeymapEventType eventType;
+  final String eventValue;
+  final bool enabled;
+  final bool repeat;
+  final bool userDefined;
+  final ShortcutActivator? defaultActivator;
+
+  String get id => bindingId ?? '$keymap::$context::$commandId';
+  bool get isModified =>
+      defaultActivator != null &&
+      !BlenderShortcutCodec.equivalent(defaultActivator!, activator);
+  String get shortcutLabel => BlenderShortcutCodec.label(activator);
+
+  BlenderCommandBinding copyWith({
+    ShortcutActivator? activator,
+    bool? enabled,
+    bool? repeat,
+    bool? userDefined,
+    ShortcutActivator? defaultActivator,
+  }) => BlenderCommandBinding(
+    commandId: commandId,
+    activator: activator ?? this.activator,
+    bindingId: bindingId,
+    keymap: keymap,
+    context: context,
+    eventType: eventType,
+    eventValue: eventValue,
+    enabled: enabled ?? this.enabled,
+    repeat: repeat ?? this.repeat,
+    userDefined: userDefined ?? this.userDefined,
+    defaultActivator: defaultActivator ?? this.defaultActivator,
+  );
+
+  Map<String, Object?>? toJson() {
+    final shortcut = BlenderShortcutCodec.encode(activator);
+    if (shortcut == null) return null;
+    return <String, Object?>{
+      'id': id,
+      'command': commandId,
+      'keymap': keymap,
+      'context': context,
+      'eventType': eventType.name,
+      'eventValue': eventValue,
+      'enabled': enabled,
+      'repeat': repeat,
+      'userDefined': userDefined,
+      'shortcut': shortcut,
+      if (defaultActivator case final original?)
+        'defaultShortcut': BlenderShortcutCodec.encode(original),
+    };
+  }
 }
 
 /// Command-keymap service analogous to blenderapp's operator keymaps.
@@ -211,44 +274,231 @@ class BlenderCommandBinding {
 /// menus, keyboard shortcuts, and command search execute the same operation.
 class BlenderCommandBindings extends ChangeNotifier
     implements BlenderServiceDisposable {
-  final LinkedHashMap<ShortcutActivator, String> _bindings =
-      LinkedHashMap<ShortcutActivator, String>();
+  final List<BlenderCommandBinding> _bindings = <BlenderCommandBinding>[];
+  String _configurationName = 'Blender';
+
+  String get configurationName => _configurationName;
 
   List<BlenderCommandBinding> get bindings =>
-      List<BlenderCommandBinding>.unmodifiable(
-        _bindings.entries.map(
-          (entry) => BlenderCommandBinding(
-            commandId: entry.value,
-            activator: entry.key,
-          ),
-        ),
-      );
+      List<BlenderCommandBinding>.unmodifiable(_bindings);
 
-  Map<ShortcutActivator, Intent> get shortcuts => <ShortcutActivator, Intent>{
-    for (final entry in _bindings.entries)
-      entry.key: BlenderCommandIntent(entry.value),
+  Map<ShortcutActivator, Intent> get shortcuts => shortcutsFor();
+
+  Map<ShortcutActivator, Intent> shortcutsFor({
+    Set<String> contexts = const <String>{'global'},
+  }) => <ShortcutActivator, Intent>{
+    for (final binding in _bindings)
+      if (binding.enabled && contexts.contains(binding.context))
+        binding.activator: BlenderCommandIntent(binding.commandId),
   };
 
   /// Returns the command currently assigned to [activator], if any.
   ///
   /// Hosts use this to retain application-specific overrides when installing
   /// their default keymap.
-  String? commandFor(ShortcutActivator activator) => _bindings[activator];
+  String? commandFor(
+    ShortcutActivator activator, {
+    Set<String> contexts = const <String>{'global'},
+  }) {
+    for (final binding in _bindings.reversed) {
+      if (binding.enabled &&
+          contexts.contains(binding.context) &&
+          BlenderShortcutCodec.equivalent(binding.activator, activator)) {
+        return binding.commandId;
+      }
+    }
+    return null;
+  }
+
+  BlenderCommandBinding? bindingById(String id) {
+    for (final binding in _bindings) {
+      if (binding.id == id) return binding;
+    }
+    return null;
+  }
 
   void register(BlenderCommandBinding binding) {
-    if (_bindings.containsKey(binding.activator)) {
+    if (bindingById(binding.id) != null) {
+      throw StateError('A command binding with id "${binding.id}" exists.');
+    }
+    if (_conflictingBinding(binding) != null) {
       throw StateError(
         'A command binding already exists for ${binding.activator}.',
       );
     }
-    _bindings[binding.activator] = binding.commandId;
+    _bindings.add(
+      binding.defaultActivator == null
+          ? binding.copyWith(defaultActivator: binding.activator)
+          : binding,
+    );
     notifyListeners();
   }
 
   bool unregister(ShortcutActivator activator) {
-    final removed = _bindings.remove(activator) != null;
+    final index = _bindings.indexWhere(
+      (item) => BlenderShortcutCodec.equivalent(item.activator, activator),
+    );
+    final removed = index >= 0;
+    if (removed) _bindings.removeAt(index);
     if (removed) notifyListeners();
     return removed;
+  }
+
+  bool remove(String id) {
+    final index = _bindings.indexWhere((item) => item.id == id);
+    if (index < 0) return false;
+    _bindings.removeAt(index);
+    notifyListeners();
+    return true;
+  }
+
+  /// Replaces an item while preserving its stable id and default binding.
+  /// Returns conflicts rather than silently shadowing another operator.
+  List<BlenderKeymapConflict> update(
+    String id,
+    BlenderCommandBinding replacement,
+  ) {
+    final index = _bindings.indexWhere((item) => item.id == id);
+    if (index < 0) throw StateError('Unknown command binding "$id".');
+    final current = _bindings[index];
+    final normalized = BlenderCommandBinding(
+      commandId: replacement.commandId,
+      activator: replacement.activator,
+      bindingId: current.bindingId,
+      keymap: current.keymap,
+      context: current.context,
+      eventType: replacement.eventType,
+      eventValue: replacement.eventValue,
+      enabled: replacement.enabled,
+      repeat: replacement.repeat,
+      userDefined: current.userDefined,
+      defaultActivator: current.defaultActivator,
+    );
+    final other = _conflictingBinding(normalized, excludingId: id);
+    if (other != null)
+      return <BlenderKeymapConflict>[BlenderKeymapConflict(normalized, other)];
+    _bindings[index] = normalized;
+    notifyListeners();
+    return const <BlenderKeymapConflict>[];
+  }
+
+  void setEnabled(String id, bool enabled) {
+    final binding = bindingById(id);
+    if (binding == null || binding.enabled == enabled) return;
+    update(id, binding.copyWith(enabled: enabled));
+  }
+
+  void reset(String id) {
+    final binding = bindingById(id);
+    final original = binding?.defaultActivator;
+    if (binding == null || original == null) return;
+    update(id, binding.copyWith(activator: original, enabled: true));
+  }
+
+  void resetKeymap(String keymap) {
+    var changed = false;
+    for (var index = 0; index < _bindings.length; index++) {
+      final binding = _bindings[index];
+      if (binding.keymap != keymap || binding.defaultActivator == null)
+        continue;
+      _bindings[index] = binding.copyWith(
+        activator: binding.defaultActivator,
+        enabled: true,
+      );
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  List<BlenderKeymapConflict> conflictsFor(String id) {
+    final binding = bindingById(id);
+    if (binding == null || !binding.enabled) return const [];
+    return <BlenderKeymapConflict>[
+      for (final other in _bindings)
+        if (other.id != id &&
+            other.enabled &&
+            other.context == binding.context &&
+            BlenderShortcutCodec.equivalent(other.activator, binding.activator))
+          BlenderKeymapConflict(binding, other),
+    ];
+  }
+
+  BlenderCommandBinding? _conflictingBinding(
+    BlenderCommandBinding candidate, {
+    String? excludingId,
+  }) {
+    if (!candidate.enabled) return null;
+    for (final binding in _bindings) {
+      if (binding.id != excludingId &&
+          binding.enabled &&
+          binding.context == candidate.context &&
+          BlenderShortcutCodec.equivalent(
+            binding.activator,
+            candidate.activator,
+          )) {
+        return binding;
+      }
+    }
+    return null;
+  }
+
+  BlenderKeymapConfiguration snapshot() =>
+      BlenderKeymapConfiguration(name: _configurationName, items: bindings);
+
+  String exportConfiguration() => snapshot().encode();
+
+  /// Imports keyboard items previously produced by [exportConfiguration].
+  /// Unknown/non-keyboard records are ignored so hosts can extend the format.
+  void importConfiguration(String encoded) {
+    final decoded = jsonDecode(encoded);
+    if (decoded is! Map || decoded['items'] is! List) {
+      throw const FormatException('Invalid keymap configuration.');
+    }
+    final imported = <BlenderCommandBinding>[];
+    for (final raw in decoded['items'] as List) {
+      if (raw is! Map) continue;
+      final activator = BlenderShortcutCodec.decode(raw['shortcut']);
+      final defaultActivator =
+          BlenderShortcutCodec.decode(raw['defaultShortcut']) ?? activator;
+      final command = raw['command'];
+      if (activator == null || command is! String) continue;
+      final eventTypeName = raw['eventType'] as String?;
+      final eventType = BlenderKeymapEventType.values.firstWhere(
+        (value) => value.name == eventTypeName,
+        orElse: () => BlenderKeymapEventType.keyboard,
+      );
+      final item = BlenderCommandBinding(
+        commandId: command,
+        activator: activator,
+        bindingId: raw['id'] as String?,
+        keymap: raw['keymap'] as String? ?? 'Window',
+        context: raw['context'] as String? ?? 'global',
+        eventType: eventType,
+        eventValue: raw['eventValue'] as String? ?? 'Press',
+        enabled: raw['enabled'] != false,
+        repeat: raw['repeat'] == true,
+        userDefined: raw['userDefined'] == true,
+        defaultActivator: defaultActivator,
+      );
+      final duplicate = imported.any(
+        (other) =>
+            other.enabled &&
+            item.enabled &&
+            other.context == item.context &&
+            BlenderShortcutCodec.equivalent(other.activator, item.activator),
+      );
+      if (duplicate) {
+        throw FormatException(
+          'Conflicting shortcut ${item.shortcutLabel} in ${item.context}.',
+        );
+      }
+      imported.add(item);
+    }
+    _bindings
+      ..clear()
+      ..addAll(imported);
+    _configurationName = decoded['name'] as String? ?? 'Imported';
+    notifyListeners();
   }
 
   @override

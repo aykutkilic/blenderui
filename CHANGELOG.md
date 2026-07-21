@@ -1,5 +1,14 @@
 # Changelog
 
+- Added context-aware, runtime-editable command keymaps with semantic shortcut
+  comparison, conflict reporting, active/repeat and modified state, restore,
+  versioned JSON import/export, and a Blender-shaped live Keymap Preferences
+  editor with event capture and Name/Key-Binding filtering.
+- Wired the example's Keymap editor and Preferences to runtime commands and
+  added F3 Menu Search, Preferences, Save, Open, and Render bindings.
+- Connected the macOS application menu's Cmd+, key equivalent to the Flutter
+  Preferences service and forced immediate route repaint for platform actions.
+
 - Added command-backed Blender Menu Search with contextual menu paths, fuzzy
   multi-token and recent-aware ranking, icons, shortcuts, disabled state,
   keyboard navigation, centered popup presentation, and global F3 integration.
