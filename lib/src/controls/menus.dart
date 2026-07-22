@@ -211,23 +211,28 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
         break;
       }
     }
-    return Align(
-      alignment: Alignment.topLeft,
-      child: SizedBox(
-        key: _buttonKey,
-        width: double.infinity,
-        height: BlenderTheme.of(context).density.controlHeight,
-        child: BlenderButton(
-          label: widget.compact
-              ? ''
-              : widget.selectedLabel ?? item?.label ?? 'Select',
-          leading: item?.icon,
-          enabled: widget.enabled,
-          onPressed: widget.enabled && widget.onChanged != null ? _open : null,
-          padding: widget.compact ? EdgeInsets.zero : null,
-          trailing: BlenderIcon(
-            BlenderGlyph.panelDisclosureDown,
-            size: 9 * densityScale,
+    final label = widget.compact
+        ? ''
+        : widget.selectedLabel ?? item?.label ?? 'Select';
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          key: _buttonKey,
+          width: constraints.hasBoundedWidth ? constraints.maxWidth : null,
+          height: BlenderTheme.of(context).density.controlHeight,
+          child: BlenderButton(
+            label: label,
+            leading: item?.icon,
+            enabled: widget.enabled,
+            onPressed: widget.enabled && widget.onChanged != null
+                ? _open
+                : null,
+            padding: widget.compact ? EdgeInsets.zero : null,
+            trailing: BlenderIcon(
+              BlenderGlyph.panelDisclosureDown,
+              size: 9 * densityScale,
+            ),
           ),
         ),
       ),

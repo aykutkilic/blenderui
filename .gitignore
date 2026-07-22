@@ -123,16 +123,16 @@ test/failures/
 .pub-cache/
 .idea/
 *.iml
-example/test/failures/
-example/pubspec.lock
+examples/blenderui/test/failures/
+examples/blenderui/pubspec.lock
 
 # Flutter's desktop runner templates intentionally track these registrants.
 # Keep that choice explicit so pub's package validation does not report
 # checked-in, ignored files.
-!example/linux/flutter/generated_plugin_registrant.cc
-!example/linux/flutter/generated_plugin_registrant.h
-!example/linux/flutter/generated_plugins.cmake
-!example/macos/Flutter/GeneratedPluginRegistrant.swift
-!example/windows/flutter/generated_plugin_registrant.cc
-!example/windows/flutter/generated_plugin_registrant.h
-!example/windows/flutter/generated_plugins.cmake
+!examples/blenderui/linux/flutter/generated_plugin_registrant.cc
+!examples/blenderui/linux/flutter/generated_plugin_registrant.h
+!examples/blenderui/linux/flutter/generated_plugins.cmake
+!examples/blenderui/macos/Flutter/GeneratedPluginRegistrant.swift
+!examples/blenderui/windows/flutter/generated_plugin_registrant.cc
+!examples/blenderui/windows/flutter/generated_plugin_registrant.h
+!examples/blenderui/windows/flutter/generated_plugins.cmake

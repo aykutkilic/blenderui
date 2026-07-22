@@ -61,11 +61,19 @@ class BlenderPreferencesService {
     _themeController = controller;
   }
 
-  Future<void> show(BuildContext context) => showBlenderPreferencesWindow(
-    context,
-    configuration: configuration,
-    themeController: _themeController,
-  );
+  Future<void> show(BuildContext context) {
+    final presentation = showBlenderPreferencesWindow(
+      context,
+      configuration: configuration,
+      themeController: _themeController,
+    );
+    // Native application-menu actions are delivered outside Flutter's input
+    // pipeline. Requesting a frame here keeps every host path immediate,
+    // including macOS' Cmd+, menu equivalent, instead of requiring each app
+    // to add an unrelated setState or pointer-event workaround.
+    WidgetsBinding.instance.ensureVisualUpdate();
+    return presentation;
+  }
 }
 
 /// Describes the optional startup splash presented by an application shell.

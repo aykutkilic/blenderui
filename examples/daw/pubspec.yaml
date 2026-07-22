@@ -1,0 +1,23 @@
+name: blender_ui_daw_example
+description: A complete desktop DAW example built with blender_ui and blender_ui_daw.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  blender_ui:
+    path: ../..
+  blender_ui_daw:
+    path: ../../packages/blender_ui_daw
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false

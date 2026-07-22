@@ -17,7 +17,18 @@ const Set<String> duplicateHelperNames = <String>{
 
 void main(List<String> arguments) {
   final roots = arguments.isEmpty
-      ? const <String>['lib', 'example/lib', 'test', 'example/test']
+      ? const <String>[
+          'lib',
+          'examples/blenderui/lib',
+          'test',
+          'examples/blenderui/test',
+          'examples/components/lib',
+          'examples/components/test',
+          'packages/blender_ui_daw/lib',
+          'packages/blender_ui_daw/test',
+          'examples/daw/lib',
+          'examples/daw/test',
+        ]
       : arguments;
   final files = <File>[for (final root in roots) ..._dartFiles(root)]
     ..sort((a, b) => a.path.compareTo(b.path));

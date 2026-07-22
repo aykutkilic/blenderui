@@ -33,11 +33,11 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: example
+        working-directory: examples/blenderui
         run: flutter pub get
 
       - name: Build web demo
-        working-directory: example
+        working-directory: examples/blenderui
         run: flutter build web --release --base-href /blenderui/
 
       - name: Configure GitHub Pages
@@ -46,7 +46,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: example/build/web
+          path: examples/blenderui/build/web
 
       - name: Deploy to GitHub Pages
         id: deployment

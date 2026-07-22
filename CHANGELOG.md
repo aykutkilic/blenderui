@@ -1,5 +1,31 @@
 # Changelog
 
+- Added a reusable list-row wrapper and DAW typed device drag protocol, exact
+  effect-chain insertion, compact bypass/VU cards, and six native built-ins.
+
+- Replaced the macOS DAW example's mock catalogs with Audio Unit, recursive
+  VST3, CoreAudio, and CoreMIDI discovery; added real AU instantiation,
+  parameters, state, and native audio-device selection.
+- Added explicit plug-in loadability metadata so discovered VST3 bundles remain
+  visible but disabled until the isolated VST3 SDK host is available.
+
+- Added the separate `blender_ui_daw` extension and a dedicated retained-
+  workspace DAW example with arrangement, piano-roll, waveform, automation,
+  mixer, transport, plug-in browser, and plug-in rack surfaces.
+- Added portable DAW project JSON/storage, undoable clip/note/automation edits,
+  tempo-aware transport, audio-engine contracts, deterministic hosts, and a
+  native VST3/AU/CLAP method-channel adapter.
+- Connected the DAW macOS runner's Cmd+, application-menu action and moved
+  immediate Preferences frame scheduling into the shared presentation service.
+- Made `BlenderDropdown` safe in both bounded property rows and unbounded,
+  horizontally scrolling editor headers.
+- Added per-area DAW editor selectors, time zoom, resizable tracks,
+  trim/stretch/offset/loop controls, inline automation, scale-aware MIDI
+  editing, selectable audio devices, and synchronized track/master effect-rack
+  and audio-node-graph editors.
+- Deferred initial editor-area session persistence outside dock layout and
+  expanded the structural guard to cover the DAW package and example.
+
 - Added context-aware, runtime-editable command keymaps with semantic shortcut
   comparison, conflict reporting, active/repeat and modified state, restore,
   versioned JSON import/export, and a Blender-shaped live Keymap Preferences
@@ -33,6 +59,10 @@
   example Graph and Drivers surfaces to the shared library contracts.
 
 ## Unreleased
+
+- Reorganized the repository into `docs/`, `examples/blenderui`,
+  `examples/components`, `examples/daw`, and `packages/blender_ui_daw`, with
+  independent example manifests and updated CI/documentation paths.
 
 - Added a shared Blender save-before-quit confirmation service with the
   Question icon treatment and `Save`, `Don't Save`, and `Cancel` decisions.

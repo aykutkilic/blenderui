@@ -25,6 +25,13 @@ class BlenderListItem<T> {
   final bool enabled;
 }
 
+/// Decorates a fully interactive list row without duplicating list rendering.
+///
+/// Cross-surface interactions such as drag sources can use this while keeping
+/// [BlenderListView]'s selection, activation, semantics, and menu behavior.
+typedef BlenderListItemWrapper<T> =
+    Widget Function(BuildContext context, BlenderListItem<T> item, Widget row);
+
 class BlenderListView<T> extends StatelessWidget {
   const BlenderListView({
     super.key,
@@ -35,6 +42,7 @@ class BlenderListView<T> extends StatelessWidget {
     this.contextMenuTitleBuilder,
     this.contextMenuItemsBuilder,
     this.onContextMenuSelected,
+    this.itemWrapper,
     this.rowHeight,
     this.emptyLabel = 'No items',
   });
@@ -47,6 +55,7 @@ class BlenderListView<T> extends StatelessWidget {
   final List<BlenderMenuItem<String>> Function(BlenderListItem<T>)?
   contextMenuItemsBuilder;
   final void Function(BlenderListItem<T>, String)? onContextMenuSelected;
+  final BlenderListItemWrapper<T>? itemWrapper;
   final double? rowHeight;
   final String emptyLabel;
 
@@ -132,6 +141,9 @@ class BlenderListView<T> extends StatelessWidget {
             onSelected: (action) => onContextMenuSelected?.call(item, action),
             child: row,
           );
+        }
+        if (itemWrapper != null) {
+          row = itemWrapper!(context, item, row);
         }
         return row;
       },

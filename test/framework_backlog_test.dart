@@ -71,6 +71,29 @@ void main() {
     },
   );
 
+  test('editor area defers initial session persistence', () async {
+    final session = BlenderEditorSessionService();
+    var notifications = 0;
+    session.addListener(() => notifications++);
+
+    final controller = BlenderEditorAreaController<BlenderEditorType>(
+      session: session,
+      workspaceId: 'workspace',
+      areaId: 'deferred',
+      initialValue: BlenderEditorType.view3d,
+      codec: blenderEditorTypeViewCodec,
+    );
+    addTearDown(controller.dispose);
+
+    expect(notifications, 0);
+    await Future<void>.microtask(() {});
+    expect(notifications, 1);
+    expect(
+      session.viewForArea(workspaceId: 'workspace', areaId: 'deferred'),
+      BlenderEditorType.view3d.name,
+    );
+  });
+
   test('application controller delegates adopted service disposal', () {
     final editorSession = _TrackingEditorSessionService();
     final controller = BlenderApplicationController<int>(

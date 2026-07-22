@@ -34,7 +34,15 @@ class BlenderEditorAreaController<T> extends ChangeNotifier {
     if (restored != null && _isAvailable(restored)) {
       _value = restored;
     } else {
-      _persist(initialValue);
+      // Area controllers are commonly created lazily by a dock LayoutBuilder.
+      // Persist after that build completes so the session notifier never marks
+      // its inherited scope dirty from inside layout.
+      Future<void>.microtask(() {
+        if (_session.viewForArea(workspaceId: workspaceId, areaId: areaId) ==
+            null) {
+          _persist(_value);
+        }
+      });
     }
   }
 

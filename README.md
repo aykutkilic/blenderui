@@ -38,9 +38,9 @@ The host owns strokes, brushes, scenes, strips, undo, and persistence. BlenderUI
 owns the reusable region anatomy, controls, interaction intents, and rendering.
 
 For repository ownership, dependency direction, extension rules, and a guided
-source map, start with the [architecture guide](doc/architecture.md).
+source map, start with the [architecture guide](docs/architecture.md).
 The active screenshot/source comparison is tracked in the
-[manual UI and editor parity backlog](doc/manual-ui-editor-parity-backlog.md).
+[manual UI and editor parity backlog](docs/manual-ui-editor-parity-backlog.md).
 
 The public API includes Blender-style control variants, property decorators,
 color/curve/property templates, matrices, scopes, attribute and layer
@@ -114,7 +114,7 @@ BlenderServiceScope(
 
 Use `BlenderStateScope.watch<T>(context)` to rebuild with state and
 `BlenderStateScope.read<T>(context)` in event handlers. See
-[`ADR-0005`](doc/decisions/ADR-0005-application-services.md) for ownership and
+[`ADR-0005`](docs/decisions/ADR-0005-application-services.md) for ownership and
 lifecycle decisions.
 
 ### Animation playback state
@@ -194,7 +194,7 @@ BlenderNodeEditor(
 ```
 
 See the detailed example and source-audit notes in
-[`geometry-node-editor-parity.md`](doc/geometry-node-editor-parity.md).
+[`geometry-node-editor-parity.md`](docs/geometry-node-editor-parity.md).
 
 ### Application framework
 
@@ -277,7 +277,7 @@ Target-aware surfaces such as `BlenderOutliner`, `BlenderFileBrowser`,
 `BlenderNodeEditor`, `BlenderPropertiesEditor`, and `BlenderToolShelf` accept
 context-menu builders. Their callbacks include the exact entity under the
 pointer, and selectable targets become active before their menu opens. See
-[the source and ownership analysis](doc/context-menu-parity.md).
+[the source and ownership analysis](docs/context-menu-parity.md).
 
 ### Multiple dockable workspaces
 
@@ -380,36 +380,62 @@ final folders = BlenderWorkspaceDefinition<EditorKind>(
 Changing `selectedFolder.value` is observed and saved with the dock session;
 the application resolves the restored ID through its own data store.
 
-See [`ADR-0007`](doc/decisions/ADR-0007-workspace-layout-service.md) and
-[`ADR-0008`](doc/decisions/ADR-0008-retained-workspace-screens.md) for the
+See [`ADR-0007`](docs/decisions/ADR-0007-workspace-layout-service.md) and
+[`ADR-0008`](docs/decisions/ADR-0008-retained-workspace-screens.md) for the
 workspace ownership and retention policies.
 
 ## Sample application
 
 The repository includes a small Blender-like desktop workspace with a minimal
-orbitable grid/cube viewport. See [`example/README.md`](example/README.md)
-or run it from `example/` with:
+orbitable grid/cube viewport. See [`examples/blenderui/README.md`](examples/blenderui/README.md)
+or run it from `examples/blenderui/` with:
 
 ```sh
 flutter run -d macos
 ```
 
 Try the live [web demo](https://aykutkilic.github.io/blenderui/) in your
-browser. It is built from the same `example/` application and deployed from
+browser. It is built from the same `examples/blenderui/` application and deployed from
 `main` with GitHub Pages.
 
 The source-driven visual coverage map is maintained in
-[`doc/reference/blender-ui-coverage.md`](doc/reference/blender-ui-coverage.md).
+[`docs/reference/blender-ui-coverage.md`](docs/reference/blender-ui-coverage.md).
 
 The sample also includes Windows and Linux runners.
 Open its **Components** workspace for a searchable workbench covering controls,
 layouts, data surfaces, editors, and application services.
 
-Launch that workbench directly from `example/` with:
+Launch the standalone component catalog from `examples/components/` with:
 
 ```sh
-flutter run -d macos -t lib/components_demo.dart
+cd examples/components
+flutter run -d macos
 ```
+
+## DAW extension example
+
+[`packages/blender_ui_daw`](packages/blender_ui_daw/README.md) is a separate,
+domain-focused extension that composes BlenderUI's controls, switchable editor
+areas, docking, history, commands, keymaps, and Preferences into reusable
+arrangement, piano-roll, waveform, inline automation, mixer, transport,
+track/master effect-chain, audio-routing graph, and plug-in surfaces. Devices
+can be dragged from the browser to exact chain insertion points; every device
+has compact bypass and engine-backed VU chrome. Its audio engine,
+project storage, and native plug-in APIs are host boundaries so applications
+can provide real-time implementations without loading DSP on Flutter's UI
+isolate.
+
+Run the dedicated desktop composition from `examples/daw/`:
+
+```sh
+flutter run -d macos
+```
+
+On macOS the example uses native CoreAudio/CoreMIDI services, loadable Audio
+Units, and six native built-in processors. VST3 bundles are discovered but stay
+disabled until the isolated SDK host can instantiate them. Other platforms use
+the deterministic built-in host. `DawNativePluginHost` remains the integration
+point for additional isolated VST3, Audio Unit, or CLAP engines.
 
 ## Icon rendering
 
@@ -425,5 +451,5 @@ locate, load, bundle, or expose Blender source icon assets.
 This is not an official Blender project and does not embed Blender source
 code, icons, fonts, logos, or artwork. Blender is used as a documented visual
 and interaction reference only. The package and its independently created
-assets are MIT licensed. See `doc/reference/blender-ui-reference.md` for the
+assets are MIT licensed. See `docs/reference/blender-ui-reference.md` for the
 reference snapshot and provenance notes.

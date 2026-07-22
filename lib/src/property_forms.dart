@@ -390,6 +390,18 @@ abstract final class BlenderStaticPropertyField {
     );
   }
 
+  /// Displays a filesystem path using the standard property-row proportions.
+  ///
+  /// This is deliberately presentation-only, like the other static helpers.
+  /// Interactive path preferences should use a host-owned controller and file
+  /// picker so the library does not assume a platform storage implementation.
+  static BlenderPropertyRow path(String label, String value) {
+    return BlenderPropertyRow(
+      label: label,
+      editor: BlenderButton(label: value, onPressed: null),
+    );
+  }
+
   static BlenderPropertyRow menu(
     String label,
     String value,
