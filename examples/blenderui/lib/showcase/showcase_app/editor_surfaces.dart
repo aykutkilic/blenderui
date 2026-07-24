@@ -232,7 +232,7 @@ extension _ShowcaseEditorSurfaces on _ShowcaseAppState {
           keyPrefix: 'graph-playback',
         ),
       ),
-      BlenderEditorType.nlaEditor => BlenderNLAEditor(
+      BlenderEditorType.nlaEditor => BlenderNlaEditor(
         strips: _sequenceStrips,
         start: 1,
         end: 120,

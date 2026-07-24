@@ -228,6 +228,11 @@ class _DawAudioGraphEditorState extends State<DawAudioGraphEditor> {
         id: instance.instanceId,
         pluginId: pluginId,
         name: instance.descriptor.name,
+        enabled: instance.enabled,
+        parameters: <String, double>{
+          for (final parameter in instance.parameters)
+            parameter.id: parameter.value,
+        },
       ),
     );
   }

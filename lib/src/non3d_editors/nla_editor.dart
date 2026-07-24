@@ -1,7 +1,7 @@
 part of '../non3d_editors.dart';
 
-class BlenderNLAEditor extends StatelessWidget {
-  const BlenderNLAEditor({
+class BlenderNlaEditor extends StatelessWidget {
+  const BlenderNlaEditor({
     super.key,
     required this.strips,
     required this.start,
@@ -35,3 +35,7 @@ class BlenderNLAEditor extends StatelessWidget {
     );
   }
 }
+
+/// Compatibility spelling retained for applications using the original API.
+@Deprecated('Use BlenderNlaEditor instead.')
+typedef BlenderNLAEditor = BlenderNlaEditor;

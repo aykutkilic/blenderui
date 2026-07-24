@@ -174,15 +174,15 @@ class DawPluginRack extends StatelessWidget {
                         BlenderPanel(
                           title:
                               '${instance.descriptor.name} — ${instance.descriptor.vendor}',
-                          headerActions: <Widget>[
-                            BlenderIconButton(
-                              glyph: BlenderGlyph.close,
-                              tooltip: 'Remove Plug-in',
-                              onPressed: () => host.remove(instance.instanceId),
-                            ),
-                          ],
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  'Edit this device in Effect Chain so changes are saved with the project.',
+                                ),
+                              ),
                               for (final parameter in instance.parameters)
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 5),
@@ -195,12 +195,7 @@ class DawPluginRack extends StatelessWidget {
                                       Expanded(
                                         child: BlenderSlider(
                                           value: parameter.value,
-                                          onChanged: (value) =>
-                                              host.setParameter(
-                                                instance.instanceId,
-                                                parameter.id,
-                                                value,
-                                              ),
+                                          onChanged: null,
                                         ),
                                       ),
                                       SizedBox(

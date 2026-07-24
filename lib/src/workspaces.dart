@@ -104,16 +104,14 @@ class BlenderWorkspaceState<T> extends ChangeNotifier
 /// Use a stable, application-specific [storageKey]. The session is versioned
 /// and invalid or obsolete data is ignored, leaving declared workspace
 /// defaults intact.
-class BlenderWorkspacePersistence<T> {
+class BlenderWorkspacePersistence<T> extends BlenderPersistenceConfiguration {
   const BlenderWorkspacePersistence({
-    required this.storage,
+    required BlenderWorkspaceStorage storage,
     required this.valueCodec,
-    required this.storageKey,
-  }) : assert(storageKey != '');
+    required super.storageKey,
+  }) : super(storage: storage);
 
-  final BlenderWorkspaceStorage storage;
   final BlenderWorkspaceValueCodec<T> valueCodec;
-  final String storageKey;
 }
 
 /// Owns the dock layouts for an application's named workspaces.

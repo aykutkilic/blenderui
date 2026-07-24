@@ -146,14 +146,11 @@ class BlenderEditorSessionService extends ChangeNotifier
 }
 
 /// Storage configuration for [BlenderEditorSessionService].
-class BlenderEditorSessionPersistence {
+class BlenderEditorSessionPersistence extends BlenderPersistenceConfiguration {
   const BlenderEditorSessionPersistence({
-    required this.storage,
-    required this.storageKey,
-  }) : assert(storageKey != '');
-
-  final BlenderPersistentStorage storage;
-  final String storageKey;
+    required super.storage,
+    required super.storageKey,
+  });
 }
 
 /// Provides observable editor-session context to an editor workspace subtree.

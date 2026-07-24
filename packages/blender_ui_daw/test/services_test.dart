@@ -1,17 +1,19 @@
+import 'dart:convert';
+
 import 'package:blender_ui_daw/blender_ui_daw.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const project = DawProject(
+  final project = DawProject(
     id: 'portable',
     name: 'Portable Project',
     lengthBeats: 64,
     sampleRate: 96000,
     tempoMap: <DawTempoPoint>[
-      DawTempoPoint(beat: 0, bpm: 120),
-      DawTempoPoint(beat: 32, bpm: 128),
+      const DawTempoPoint(beat: 0, bpm: 120),
+      const DawTempoPoint(beat: 32, bpm: 128),
     ],
     loopEnabled: true,
     loopStartBeat: 8,
@@ -38,12 +40,18 @@ void main() {
             name: 'Volume',
             parameterId: 'track.volume',
             points: <DawAutomationPoint>[
-              DawAutomationPoint(id: 'p1', beat: 0, value: .5),
+              const DawAutomationPoint(id: 'p1', beat: 0, value: .5),
             ],
           ),
         ],
         plugins: <DawPluginSlot>[
-          DawPluginSlot(id: 'eq', pluginId: 'eq.vst3', name: 'EQ'),
+          DawPluginSlot(
+            id: 'eq',
+            pluginId: 'eq.vst3',
+            name: 'EQ',
+            parameters: <String, double>{'frequency': .7},
+            state: <int>[1, 2, 3],
+          ),
         ],
       ),
     ],
@@ -68,6 +76,8 @@ void main() {
     expect(decoded.master.plugins.single.name, 'Limiter');
     final track = decoded.tracks.single;
     expect(track.plugins.single.pluginId, 'eq.vst3');
+    expect(track.plugins.single.parameters, <String, double>{'frequency': .7});
+    expect(track.plugins.single.state, <int>[1, 2, 3]);
     expect(track.automation.single.points.single.value, .5);
     final clip = track.clips.single as DawAudioClip;
     expect(clip.sourcePath, 'Audio/take.wav');
@@ -106,6 +116,28 @@ void main() {
     expect(engine.beat, 12);
     expect(engine.playing, isTrue);
   });
+
+  test(
+    'project codec accepts version-one documents without runtime plugin state',
+    () {
+      const codec = DawProjectCodec();
+      final legacy = jsonDecode(codec.encode(project)) as Map<String, Object?>;
+      legacy['version'] = 1;
+      final projectJson = legacy['project'] as Map<String, Object?>;
+      final tracks = projectJson['tracks'] as List<Object?>;
+      final slot =
+          ((tracks.single as Map<String, Object?>)['plugins'] as List<Object?>)
+                  .single
+              as Map<String, Object?>;
+      slot
+        ..remove('parameters')
+        ..remove('state');
+
+      final decoded = codec.decode(jsonEncode(legacy));
+      expect(decoded.tracks.single.plugins.single.parameters, isEmpty);
+      expect(decoded.tracks.single.plugins.single.state, isEmpty);
+    },
+  );
 
   test(
     'audio device controller discovers and reconfigures the engine',
@@ -175,6 +207,7 @@ void main() {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       MethodCall? startCall;
+      MethodCall? synchronizeCall;
       messenger.setMockMethodCallHandler(channel, (call) async {
         if (call.method == 'listDevices') {
           return <Object?>[
@@ -188,6 +221,7 @@ void main() {
           ];
         }
         if (call.method == 'start') startCall = call;
+        if (call.method == 'synchronizeProject') synchronizeCall = call;
         return null;
       });
       addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
@@ -210,6 +244,9 @@ void main() {
         'coreaudio:usb',
       );
       expect(engine.state, DawAudioEngineState.running);
+      await engine.synchronizeProject(project);
+      final payload = synchronizeCall?.arguments as Map<Object?, Object?>;
+      expect(payload['project'], contains('"tracks"'));
     },
   );
 

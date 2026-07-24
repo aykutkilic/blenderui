@@ -23,3 +23,4 @@ part 'application/application_controller.dart';
 part 'application/presentation_and_preferences.dart';
 part 'application/workspace_shell.dart';
 part 'application/startup_templates.dart';
+part 'application/lifecycle_bridge.dart';

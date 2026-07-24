@@ -4,6 +4,7 @@ import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/widgets.dart'
     show
+        AxisDirection,
         BoxDecoration,
         CustomPaint,
         DecoratedBox,

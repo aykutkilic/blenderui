@@ -204,14 +204,12 @@ class BlenderInterfacePreferences {
 }
 
 /// Optional storage adapter for [BlenderInterfacePreferencesService].
-class BlenderInterfacePreferencesPersistence {
+class BlenderInterfacePreferencesPersistence
+    extends BlenderPersistenceConfiguration {
   const BlenderInterfacePreferencesPersistence({
-    required this.storage,
-    this.storageKey = 'blenderui.interface-preferences',
+    required super.storage,
+    super.storageKey = 'blenderui.interface-preferences',
   });
-
-  final BlenderPersistentStorage storage;
-  final String storageKey;
 }
 
 /// Observable, persistable interface preferences shared across an app.

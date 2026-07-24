@@ -17,6 +17,9 @@ final class NativeDawBridge {
   private var audioUnitDescriptions: [String: AudioComponentDescription] = [:]
   private var pluginDescriptors: [String: [String: Any]] = [:]
   private var audioUnits: [String: AVAudioUnit] = [:]
+  private var projectDocument: [String: Any]?
+  private var currentBeat = 0.0
+  private var playing = false
 
   init(messenger: FlutterBinaryMessenger) {
     pluginChannel = FlutterMethodChannel(
@@ -345,11 +348,42 @@ final class NativeDawBridge {
     case "listDevices": result(listAudioDevices())
     case "start": startAudio(call, result: result)
     case "stop": audioEngine.stop(); result(nil)
-    case "synchronizeProject", "seek", "setPlaying": result(nil)
+    case "synchronizeProject": synchronizeProject(call, result: result)
+    case "seek":
+      guard let beat = argument(call, "beat") as? Double, beat.isFinite else {
+        result(FlutterError(code: "bad_arguments", message: "A finite beat is required", details: nil))
+        return
+      }
+      currentBeat = beat
+      result(nil)
+    case "setPlaying":
+      guard let value = argument(call, "playing") as? Bool else {
+        result(FlutterError(code: "bad_arguments", message: "playing is required", details: nil))
+        return
+      }
+      playing = value
+      result(nil)
     case "render": result(FlutterError(code: "render_unavailable", message: "Native offline rendering is not implemented", details: nil))
     case "cancelRender": result(nil)
     default: result(FlutterMethodNotImplemented)
     }
+  }
+
+  /// Receives the complete versioned DAW document. Rendering remains
+  /// deliberately unavailable until this host builds an AVAudioEngine graph,
+  /// but the control plane no longer silently drops project state.
+  private func synchronizeProject(_ call: FlutterMethodCall, result: FlutterResult) {
+    guard let encoded = argument(call, "project") as? String,
+          let data = encoded.data(using: .utf8),
+          let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          root["format"] as? String == "blender_ui_daw_project",
+          let document = root["project"] as? [String: Any]
+    else {
+      result(FlutterError(code: "invalid_project", message: "Expected a versioned DAW project document", details: nil))
+      return
+    }
+    projectDocument = document
+    result(nil)
   }
 
   private func listAudioDevices() -> [[String: Any]] {

@@ -1,0 +1,4 @@
+ipython>=8.0
+jupyter-server>=2.0
+ipykernel>=6.0
+websockets>=14.0

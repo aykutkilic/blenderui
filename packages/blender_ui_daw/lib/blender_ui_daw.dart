@@ -3,6 +3,7 @@ library blender_ui_daw;
 export 'src/model/project.dart';
 export 'src/model/midi_scale.dart';
 export 'src/controllers/session_controller.dart';
+export 'src/controllers/selection.dart';
 export 'src/controllers/session_plugin_commands.dart';
 export 'src/controllers/audio_device_controller.dart';
 export 'src/controllers/transport_controller.dart';

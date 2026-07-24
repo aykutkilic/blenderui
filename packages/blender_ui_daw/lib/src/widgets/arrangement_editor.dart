@@ -4,6 +4,7 @@ import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/widgets.dart';
 
 import '../controllers/session_controller.dart';
+import '../controllers/selection.dart';
 import '../model/project.dart';
 import 'clip_properties_bar.dart';
 import 'editor_shared.dart';

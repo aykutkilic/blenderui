@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../model/project.dart';
 import 'audio_engine.dart';
+import 'project_codec.dart';
 
 /// CoreAudio-facing control-plane adapter.
 ///
@@ -18,7 +19,7 @@ class DawNativeAudioEngine extends ChangeNotifier implements DawAudioEngine {
   final MethodChannel _channel;
   DawAudioEngineState _state = DawAudioEngineState.stopped;
   DawAudioEngineConfiguration? _configuration;
-  final DawAudioMeterSnapshot _meters = const DawAudioMeterSnapshot();
+  final DawAudioMeterSnapshot _meters = DawAudioMeterSnapshot();
   double _renderProgress = 0;
 
   @override
@@ -70,8 +71,9 @@ class DawNativeAudioEngine extends ChangeNotifier implements DawAudioEngine {
   @override
   Future<void> synchronizeProject(DawProject project) =>
       _channel.invokeMethod<void>('synchronizeProject', <String, Object?>{
-        'projectId': project.id,
-        'sampleRate': project.sampleRate,
+        // Keep this DTO versioned and complete. Native hosts must not infer a
+        // graph from an identifier because that loses clips, routing, and FX.
+        'project': const DawProjectCodec().encode(project),
       });
 
   @override

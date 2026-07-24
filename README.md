@@ -437,6 +437,32 @@ disabled until the isolated SDK host can instantiate them. Other platforms use
 the deterministic built-in host. `DawNativePluginHost` remains the integration
 point for additional isolated VST3, Audio Unit, or CLAP engines.
 
+## Math and AI workbook example
+
+[`packages/blender_ui_workbook`](packages/blender_ui_workbook/README.md) is a
+desktop extension for offline-first workbook documents, optional persistent
+Jupyter/Python cells, CodeForge editing with a plain-text fallback, LSP and AI
+inline completion, GitHub-flavored Markdown and LaTeX cells, typed rich output,
+and variable-selectable native manipulable Flutter plots. Code editors retain
+their geometry and typography across focus changes. The Rust-backed editor
+remains isolated from the web-compatible core package.
+
+Run the dedicated host from `examples/workbook/`:
+
+```sh
+cd examples/workbook
+flutter run -d macos
+```
+
+The shell opens offline without Python or a network connection. Edit >
+Preferences can install an isolated managed Jupyter runtime under application
+support, select a custom Python, connect a remote server, and opt into
+auto-connect. Its Workbook, Scripting, and Inspect layouts use BlenderUI's
+persistent docking workspace, editor-session, history, commands, keymap,
+status/report/job, interface-preference, and theme services. See
+[`examples/workbook/README.md`](examples/workbook/README.md) for runtime,
+Python LSP, Ollama, and OpenAI-compatible endpoint options.
+
 ## Icon rendering
 
 BlenderUI maps its semantic `BlenderGlyph` catalog to the outlined Material

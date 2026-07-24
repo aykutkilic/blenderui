@@ -106,6 +106,31 @@ class DawNativePluginHost extends ChangeNotifier implements DawPluginHost {
       'parameterId': parameterId,
       'value': value.clamp(0, 1),
     });
+    _instances = List<DawPluginInstance>.unmodifiable(<DawPluginInstance>[
+      for (final instance in _instances)
+        if (instance.instanceId == instanceId)
+          DawPluginInstance(
+            instanceId: instance.instanceId,
+            descriptor: instance.descriptor,
+            enabled: instance.enabled,
+            parameters: <DawPluginParameter>[
+              for (final parameter in instance.parameters)
+                if (parameter.id == parameterId)
+                  DawPluginParameter(
+                    id: parameter.id,
+                    name: parameter.name,
+                    value: value.clamp(0, 1).toDouble(),
+                    unit: parameter.unit,
+                    automatable: parameter.automatable,
+                  )
+                else
+                  parameter,
+            ],
+          )
+        else
+          instance,
+    ]);
+    notifyListeners();
   }
 
   @override

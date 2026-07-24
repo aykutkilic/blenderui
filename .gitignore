@@ -123,6 +123,8 @@ test/failures/
 .pub-cache/
 .idea/
 *.iml
+**/__pycache__/
+examples/workbook/.venv/
 examples/blenderui/test/failures/
 examples/blenderui/pubspec.lock
 
@@ -136,3 +138,10 @@ examples/blenderui/pubspec.lock
 !examples/blenderui/windows/flutter/generated_plugin_registrant.cc
 !examples/blenderui/windows/flutter/generated_plugin_registrant.h
 !examples/blenderui/windows/flutter/generated_plugins.cmake
+!examples/workbook/linux/flutter/generated_plugin_registrant.cc
+!examples/workbook/linux/flutter/generated_plugin_registrant.h
+!examples/workbook/linux/flutter/generated_plugins.cmake
+!examples/workbook/macos/Flutter/GeneratedPluginRegistrant.swift
+!examples/workbook/windows/flutter/generated_plugin_registrant.cc
+!examples/workbook/windows/flutter/generated_plugin_registrant.h
+!examples/workbook/windows/flutter/generated_plugins.cmake

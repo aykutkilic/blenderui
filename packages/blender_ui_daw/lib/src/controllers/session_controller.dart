@@ -4,38 +4,7 @@ import 'package:blender_ui/blender_ui.dart';
 import 'package:flutter/foundation.dart';
 
 import '../model/project.dart';
-
-class DawSelection {
-  const DawSelection({
-    this.trackId,
-    this.clipId,
-    this.noteIds = const <String>{},
-    this.automationLaneId,
-    this.automationPointId,
-  });
-
-  final String? trackId;
-  final String? clipId;
-  final Set<String> noteIds;
-  final String? automationLaneId;
-  final String? automationPointId;
-
-  DawSelection copyWith({
-    String? trackId,
-    String? clipId,
-    Set<String>? noteIds,
-    String? automationLaneId,
-    String? automationPointId,
-    bool clearClip = false,
-    bool clearNotes = false,
-  }) => DawSelection(
-    trackId: trackId ?? this.trackId,
-    clipId: clearClip ? null : clipId ?? this.clipId,
-    noteIds: clearNotes ? const <String>{} : noteIds ?? this.noteIds,
-    automationLaneId: automationLaneId ?? this.automationLaneId,
-    automationPointId: automationPointId ?? this.automationPointId,
-  );
-}
+import 'selection.dart';
 
 /// Reusable DAW editing session backed by BlenderUI's bounded history and
 /// high-frequency playback controller.
@@ -60,8 +29,8 @@ class DawSessionController extends ChangeNotifier {
            ),
        _ownsHistory = history == null,
        _ownsPlayback = playback == null {
-    this.history.addListener(_relay);
-    this.playback.addListener(_relay);
+    this.history.addListener(_relayProjectChange);
+    this.playback.addListener(_relayPlaybackChange);
   }
 
   final int historyLimit;
@@ -70,13 +39,30 @@ class DawSessionController extends ChangeNotifier {
   final bool _ownsHistory;
   final bool _ownsPlayback;
 
-  DawSelection _selection = const DawSelection();
+  /// Emits only when the serializable project document has changed.
+  ///
+  /// Hosts should persist and synchronize audio graphs from this stream, never
+  /// from the broad [ChangeNotifier] used to rebuild editor widgets.
+  final ChangeNotifier projectChanges = ChangeNotifier();
+
+  /// Emits selection-only changes.
+  final ChangeNotifier selectionChanges = ChangeNotifier();
+
+  /// Emits transient editor configuration changes such as zoom and snapping.
+  final ChangeNotifier viewChanges = ChangeNotifier();
+
+  /// Emits high-frequency transport updates.
+  final ChangeNotifier playbackChanges = ChangeNotifier();
+
+  DawSelection _selection = DawSelection();
   double _horizontalZoom = 1;
   double _verticalZoom = 1;
   double _snapBeats = .25;
   DawAutomationWriteMode _automationWriteMode = DawAutomationWriteMode.read;
   DawClipResizeMode _clipResizeMode = DawClipResizeMode.trim;
   int _entitySerial = 1;
+  var _transactionDepth = 0;
+  var _notificationPending = false;
 
   DawProject get project => history.value;
   DawSelection get selection => _selection;
@@ -100,7 +86,36 @@ class DawSessionController extends ChangeNotifier {
     return null;
   }
 
-  void _relay() => notifyListeners();
+  void _relayProjectChange() {
+    projectChanges.notifyListeners();
+    _markChanged();
+  }
+
+  void _relayPlaybackChange() {
+    playbackChanges.notifyListeners();
+    _markChanged();
+  }
+
+  void _markChanged() {
+    if (_transactionDepth > 0) {
+      _notificationPending = true;
+      return;
+    }
+    notifyListeners();
+  }
+
+  void _transaction(void Function() action) {
+    _transactionDepth++;
+    try {
+      action();
+    } finally {
+      _transactionDepth--;
+      if (_transactionDepth == 0 && _notificationPending) {
+        _notificationPending = false;
+        notifyListeners();
+      }
+    }
+  }
 
   double snap(double beat) =>
       _snapBeats <= 0 ? beat : (beat / _snapBeats).round() * _snapBeats;
@@ -108,7 +123,8 @@ class DawSessionController extends ChangeNotifier {
   void setSnap(double value) {
     if (_snapBeats == value) return;
     _snapBeats = math.max(0, value);
-    notifyListeners();
+    viewChanges.notifyListeners();
+    _markChanged();
   }
 
   void setZoom({double? horizontal, double? vertical}) {
@@ -120,19 +136,22 @@ class DawSessionController extends ChangeNotifier {
       return;
     _horizontalZoom = nextHorizontal;
     _verticalZoom = nextVertical;
-    notifyListeners();
+    viewChanges.notifyListeners();
+    _markChanged();
   }
 
   void setAutomationWriteMode(DawAutomationWriteMode value) {
     if (_automationWriteMode == value) return;
     _automationWriteMode = value;
-    notifyListeners();
+    viewChanges.notifyListeners();
+    _markChanged();
   }
 
   void setClipResizeMode(DawClipResizeMode value) {
     if (_clipResizeMode == value) return;
     _clipResizeMode = value;
-    notifyListeners();
+    viewChanges.notifyListeners();
+    _markChanged();
   }
 
   void selectTrack(String id, {bool clearClip = true}) {
@@ -141,17 +160,17 @@ class DawSessionController extends ChangeNotifier {
       clearClip: clearClip,
       clearNotes: true,
     );
-    notifyListeners();
+    _notifySelectionChanged();
   }
 
   void selectClip(String trackId, String clipId) {
     _selection = DawSelection(trackId: trackId, clipId: clipId);
-    notifyListeners();
+    _notifySelectionChanged();
   }
 
   void selectNotes(Set<String> ids) {
     _selection = _selection.copyWith(noteIds: Set.unmodifiable(ids));
-    notifyListeners();
+    _notifySelectionChanged();
   }
 
   void selectAutomation(String trackId, String laneId, {String? pointId}) {
@@ -160,13 +179,20 @@ class DawSessionController extends ChangeNotifier {
       automationLaneId: laneId,
       automationPointId: pointId,
     );
+    _notifySelectionChanged();
+  }
+
+  void _notifySelectionChanged() {
+    selectionChanges.notifyListeners();
     notifyListeners();
   }
 
   void commit(DawProject next) {
     if (identical(next, project)) return;
-    history.replace(next);
-    playback.setRange(0, next.lengthBeats);
+    _transaction(() {
+      history.replace(next);
+      playback.setRange(0, next.lengthBeats);
+    });
   }
 
   void updateTrack(String trackId, DawTrack Function(DawTrack track) update) {
@@ -192,12 +218,14 @@ class DawSessionController extends ChangeNotifier {
   }
 
   void removeTrack(String trackId) {
+    final selectionCleared = _selection.trackId == trackId;
+    if (selectionCleared) _selection = DawSelection();
     commit(
       project.copyWith(
         tracks: project.tracks.where((track) => track.id != trackId).toList(),
       ),
     );
-    if (_selection.trackId == trackId) _selection = const DawSelection();
+    if (selectionCleared) selectionChanges.notifyListeners();
   }
 
   void addClip(String trackId, DawClip clip) {
@@ -409,6 +437,7 @@ class DawSessionController extends ChangeNotifier {
         ),
       );
       _selection = _selection.copyWith(clearNotes: true);
+      selectionChanges.notifyListeners();
       return;
     }
     final laneId = _selection.automationLaneId;
@@ -442,6 +471,7 @@ class DawSessionController extends ChangeNotifier {
       ),
     );
     _selection = _selection.copyWith(clearClip: true);
+    selectionChanges.notifyListeners();
   }
 
   void addMidiNote(String trackId, String clipId, DawMidiNote note) {
@@ -697,8 +727,12 @@ class DawSessionController extends ChangeNotifier {
 
   @override
   void dispose() {
-    history.removeListener(_relay);
-    playback.removeListener(_relay);
+    history.removeListener(_relayProjectChange);
+    playback.removeListener(_relayPlaybackChange);
+    projectChanges.dispose();
+    selectionChanges.dispose();
+    viewChanges.dispose();
+    playbackChanges.dispose();
     if (_ownsHistory) history.dispose();
     if (_ownsPlayback) playback.dispose();
     super.dispose();

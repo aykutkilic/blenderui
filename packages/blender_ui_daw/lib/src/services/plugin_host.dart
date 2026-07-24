@@ -102,12 +102,12 @@ class DawPluginParameter {
 }
 
 class DawPluginInstance {
-  const DawPluginInstance({
+  DawPluginInstance({
     required this.instanceId,
     required this.descriptor,
-    this.parameters = const <DawPluginParameter>[],
+    List<DawPluginParameter> parameters = const <DawPluginParameter>[],
     this.enabled = true,
-  });
+  }) : parameters = List<DawPluginParameter>.unmodifiable(parameters);
 
   final String instanceId;
   final DawPluginDescriptor descriptor;

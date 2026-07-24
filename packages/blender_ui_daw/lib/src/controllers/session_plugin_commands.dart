@@ -54,4 +54,22 @@ extension DawSessionPluginCommands on DawSessionController {
       ],
     ),
   );
+
+  void setPluginRuntimeState(
+    String trackId,
+    String slotId, {
+    required Map<String, double> parameters,
+    List<int>? state,
+  }) => updateTrack(
+    trackId,
+    (track) => track.copyWith(
+      plugins: <DawPluginSlot>[
+        for (final plugin in track.plugins)
+          if (plugin.id == slotId)
+            plugin.copyWith(parameters: parameters, state: state)
+          else
+            plugin,
+      ],
+    ),
+  );
 }

@@ -93,7 +93,7 @@ abstract class DawClip {
 }
 
 class DawMidiClip extends DawClip {
-  const DawMidiClip({
+  DawMidiClip({
     required super.id,
     required super.name,
     required super.startBeat,
@@ -104,8 +104,8 @@ class DawMidiClip extends DawClip {
     super.looped,
     super.sourceTempo,
     super.playbackRate,
-    this.notes = const <DawMidiNote>[],
-  });
+    List<DawMidiNote> notes = const <DawMidiNote>[],
+  }) : notes = List<DawMidiNote>.unmodifiable(notes);
 
   final List<DawMidiNote> notes;
 
@@ -143,11 +143,11 @@ class DawMidiClip extends DawClip {
 }
 
 class DawWaveform {
-  const DawWaveform({
-    required this.peaks,
+  DawWaveform({
+    required List<double> peaks,
     this.sampleRate = 48000,
     this.channels = 2,
-  });
+  }) : peaks = List<double>.unmodifiable(peaks);
 
   /// Interleaved normalized peak amplitudes used for editor rendering.
   final List<double> peaks;
@@ -246,14 +246,14 @@ class DawAutomationPoint {
 }
 
 class DawAutomationLane {
-  const DawAutomationLane({
+  DawAutomationLane({
     required this.id,
     required this.name,
     required this.parameterId,
-    this.points = const <DawAutomationPoint>[],
+    List<DawAutomationPoint> points = const <DawAutomationPoint>[],
     this.enabled = true,
     this.colorValue = 0xFFE7A33E,
-  });
+  }) : points = List<DawAutomationPoint>.unmodifiable(points);
 
   final String id;
   final String name;
@@ -275,38 +275,55 @@ class DawAutomationLane {
   );
 }
 
+/// Durable state for one processor in a track chain.
+///
+/// This is the document source of truth. A [DawPluginHost] projects it to a
+/// native instance, rather than owning configuration that would disappear on
+/// save, undo, or host restart.
 class DawPluginSlot {
-  const DawPluginSlot({
+  DawPluginSlot({
     required this.id,
     required this.pluginId,
     required this.name,
     this.enabled = true,
     this.wet = 1,
-  });
+    Map<String, double> parameters = const <String, double>{},
+    List<int> state = const <int>[],
+  }) : parameters = Map<String, double>.unmodifiable(parameters),
+       state = List<int>.unmodifiable(state);
 
   final String id;
   final String pluginId;
   final String name;
   final bool enabled;
   final double wet;
+  final Map<String, double> parameters;
+  final List<int> state;
 
-  DawPluginSlot copyWith({bool? enabled, double? wet}) => DawPluginSlot(
+  DawPluginSlot copyWith({
+    bool? enabled,
+    double? wet,
+    Map<String, double>? parameters,
+    List<int>? state,
+  }) => DawPluginSlot(
     id: id,
     pluginId: pluginId,
     name: name,
     enabled: enabled ?? this.enabled,
     wet: (wet ?? this.wet).clamp(0, 1).toDouble(),
+    parameters: parameters ?? this.parameters,
+    state: state ?? this.state,
   );
 }
 
 class DawTrack {
-  const DawTrack({
+  DawTrack({
     required this.id,
     required this.name,
     required this.type,
-    this.clips = const <DawClip>[],
-    this.automation = const <DawAutomationLane>[],
-    this.plugins = const <DawPluginSlot>[],
+    List<DawClip> clips = const <DawClip>[],
+    List<DawAutomationLane> automation = const <DawAutomationLane>[],
+    List<DawPluginSlot> plugins = const <DawPluginSlot>[],
     this.colorValue = 0xFF5B8FD1,
     this.volume = .8,
     this.pan = 0,
@@ -316,7 +333,9 @@ class DawTrack {
     this.collapsed = false,
     this.heightScale = 1,
     this.automationExpanded = false,
-  });
+  }) : clips = List<DawClip>.unmodifiable(clips),
+       automation = List<DawAutomationLane>.unmodifiable(automation),
+       plugins = List<DawPluginSlot>.unmodifiable(plugins);
 
   final String id;
   final String name;
@@ -366,24 +385,30 @@ class DawTrack {
 }
 
 class DawProject {
-  const DawProject({
+  DawProject({
     required this.id,
     required this.name,
-    required this.tracks,
+    required List<DawTrack> tracks,
     this.lengthBeats = 128,
-    this.tempoMap = const <DawTempoPoint>[DawTempoPoint(beat: 0, bpm: 120)],
+    List<DawTempoPoint> tempoMap = const <DawTempoPoint>[
+      DawTempoPoint(beat: 0, bpm: 120),
+    ],
     this.timeSignature = const DawTimeSignature(),
     this.sampleRate = 48000,
     this.loopEnabled = false,
     this.loopStartBeat = 0,
     this.loopEndBeat = 16,
-    this.master = const DawTrack(
-      id: 'master',
-      name: 'Master',
-      type: DawTrackType.audio,
-      colorValue: 0xFF8C8C8C,
-    ),
-  });
+    DawTrack? master,
+  }) : tracks = List<DawTrack>.unmodifiable(tracks),
+       tempoMap = List<DawTempoPoint>.unmodifiable(tempoMap),
+       master =
+           master ??
+           DawTrack(
+             id: 'master',
+             name: 'Master',
+             type: DawTrackType.audio,
+             colorValue: 0xFF8C8C8C,
+           );
 
   final String id;
   final String name;

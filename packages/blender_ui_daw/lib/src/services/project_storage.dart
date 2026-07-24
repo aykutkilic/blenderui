@@ -43,10 +43,12 @@ class DawProjectPersistenceController extends ChangeNotifier {
   String? _location;
   Object? _lastError;
   Timer? _autosaveTimer;
+  bool _dirty = false;
 
   DawProjectPersistenceState get state => _state;
   String? get location => _location;
   Object? get lastError => _lastError;
+  bool get dirty => _dirty;
 
   Future<void> save(DawProject project, {String? location}) async {
     final target = location ?? _location;
@@ -59,6 +61,7 @@ class DawProjectPersistenceController extends ChangeNotifier {
       await store.write(target, codec.encode(project));
       _location = target;
       _lastError = null;
+      _dirty = false;
       _setState(DawProjectPersistenceState.saved);
     } catch (error) {
       _lastError = error;
@@ -78,6 +81,7 @@ class DawProjectPersistenceController extends ChangeNotifier {
       final project = codec.decode(contents);
       _location = location;
       _lastError = null;
+      _dirty = false;
       _setState(DawProjectPersistenceState.idle);
       return project;
     } catch (error) {
@@ -88,9 +92,26 @@ class DawProjectPersistenceController extends ChangeNotifier {
   }
 
   void scheduleAutosave(DawProject project) {
+    _dirty = true;
     if (_location == null) return;
     _autosaveTimer?.cancel();
-    _autosaveTimer = Timer(autosaveDelay, () => unawaited(save(project)));
+    _autosaveTimer = Timer(autosaveDelay, () => unawaited(_autosave(project)));
+  }
+
+  /// Flushes a dirty document before a host permits application shutdown.
+  Future<void> flush(DawProject project) async {
+    _autosaveTimer?.cancel();
+    if (!_dirty || _location == null) return;
+    await save(project);
+  }
+
+  Future<void> _autosave(DawProject project) async {
+    try {
+      await save(project);
+    } on Object {
+      // [save] already records the error and exposes the failed state to the
+      // host. A timer callback has no caller that can await this failure.
+    }
   }
 
   void _setState(DawProjectPersistenceState value) {

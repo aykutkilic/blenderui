@@ -18,12 +18,19 @@ This guide is the shortest path for a third-party reviewer entering BlenderUI.
 | `examples/blenderui/lib/showcase/` | Blender-application imitation composed from the public package. It owns fixtures and fake outcomes. |
 | `examples/components/` | Standalone searchable component tutorials and API demonstrations. |
 | `examples/daw/` | DAW application composition using the `blender_ui_daw` extension package. |
+| `packages/blender_ui_workbook/` | Offline workbook sessions plus optional Jupyter, CodeForge/fallback editing, AI completion, and native plots. |
+| `examples/workbook/` | Thin offline-first math and AI host composing shared application services and persisted dock workspaces while owning files, editor vocabulary, and runtime policy. |
 | `test/`, `examples/*/test/` | Package contracts and application integration/visual-baseline behavior. |
 | `tool/structural_guard.dart` | Enforces reviewability invariants across source and test files. |
 
 Parent files such as `controls.dart`, `layout.dart`, and `editors.dart` are
 same-library entry points. Their descriptive `part` files preserve private
 sharing without turning implementation files into public libraries.
+
+The [naming and ownership map](naming-and-ownership.md) distinguishes related
+`Data`, `State`, `Controller`, `Service`, `Persistence`, `Host`, and `Shell`
+types and records the theme, workspace, editor, application, DAW, and workbook
+boundaries in one place.
 
 ## Dependency direction
 

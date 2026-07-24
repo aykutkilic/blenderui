@@ -37,13 +37,14 @@ class DawAudioEngineConfiguration {
 }
 
 class DawAudioMeterSnapshot {
-  const DawAudioMeterSnapshot({
-    this.trackPeaks = const <String, double>{},
-    this.devicePeaks = const <String, double>{},
+  DawAudioMeterSnapshot({
+    Map<String, double> trackPeaks = const <String, double>{},
+    Map<String, double> devicePeaks = const <String, double>{},
     this.masterPeak = 0,
     this.cpuLoad = 0,
     this.xrunCount = 0,
-  });
+  }) : trackPeaks = Map<String, double>.unmodifiable(trackPeaks),
+       devicePeaks = Map<String, double>.unmodifiable(devicePeaks);
 
   final Map<String, double> trackPeaks;
   final Map<String, double> devicePeaks;
@@ -96,7 +97,7 @@ abstract interface class DawAudioEngine implements Listenable {
 class DawInMemoryAudioEngine extends ChangeNotifier implements DawAudioEngine {
   DawAudioEngineState _state = DawAudioEngineState.stopped;
   DawAudioEngineConfiguration? _configuration;
-  DawAudioMeterSnapshot _meters = const DawAudioMeterSnapshot();
+  DawAudioMeterSnapshot _meters = DawAudioMeterSnapshot();
   double _renderProgress = 0;
   Timer? _renderTimer;
   bool _playing = false;

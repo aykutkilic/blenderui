@@ -19,16 +19,21 @@ class DawTransportController extends ChangeNotifier {
   final Duration tickRate;
   Timer? _timer;
   DateTime? _lastTick;
+  Future<void> _engineCommands = Future<void>.value();
+  double? _pendingSeek;
+  bool _seekScheduled = false;
+  Object? _engineError;
 
   bool get playing => session.playback.playing;
   bool get recording => session.playback.recording;
+  Object? get engineError => _engineError;
 
   void togglePlay() => playing ? stop() : play();
 
   void play() {
     if (playing) return;
     session.playback.setPlaying(true);
-    unawaited(audioEngine?.setPlaying(true));
+    _enqueueEngineCommand(() => audioEngine?.setPlaying(true));
     _lastTick = DateTime.now();
     _timer = Timer.periodic(tickRate, (_) => _tick());
     notifyListeners();
@@ -39,7 +44,7 @@ class DawTransportController extends ChangeNotifier {
     _timer = null;
     _lastTick = null;
     session.playback.setPlaying(false);
-    unawaited(audioEngine?.setPlaying(false));
+    _enqueueEngineCommand(() => audioEngine?.setPlaying(false));
     notifyListeners();
   }
 
@@ -65,7 +70,35 @@ class DawTransportController extends ChangeNotifier {
       return;
     }
     session.playback.seek(next);
-    unawaited(audioEngine?.seek(next));
+    _scheduleSeek(next);
+  }
+
+  /// Serializes native control-plane traffic and surfaces failures to UI
+  /// listeners. The timer never waits on platform channels.
+  void _enqueueEngineCommand(Future<void>? Function() command) {
+    _engineCommands = _engineCommands
+        .then((_) async {
+          await command();
+          _engineError = null;
+        })
+        .catchError((Object error, StackTrace _) {
+          _engineError = error;
+          notifyListeners();
+        });
+  }
+
+  /// A frame can advance presentation state many times before a native host
+  /// consumes it. Only the newest seek needs to cross the boundary.
+  void _scheduleSeek(double beat) {
+    _pendingSeek = beat;
+    if (_seekScheduled) return;
+    _seekScheduled = true;
+    scheduleMicrotask(() {
+      _seekScheduled = false;
+      final next = _pendingSeek;
+      _pendingSeek = null;
+      if (next != null) _enqueueEngineCommand(() => audioEngine?.seek(next));
+    });
   }
 
   @override

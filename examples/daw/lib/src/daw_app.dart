@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'demo_project.dart';
+import 'daw_application_storage.dart';
 
 class DawExampleApp extends StatefulWidget {
   const DawExampleApp({super.key});
@@ -16,10 +17,6 @@ class DawExampleApp extends StatefulWidget {
 }
 
 class _DawExampleAppState extends State<DawExampleApp> {
-  static const MethodChannel _applicationLifecycleChannel = MethodChannel(
-    'blender_ui/application_lifecycle',
-  );
-
   late final BlenderApplicationController<DawProject> _application;
   late final DawSessionController _session;
   late final DawTransportController _transport;
@@ -30,16 +27,21 @@ class _DawExampleAppState extends State<DawExampleApp> {
   late final DawProjectPersistenceController _persistence;
   final BlenderCommandRegistry _commands = BlenderCommandRegistry();
   final BlenderCommandBindings _bindings = BlenderCommandBindings();
+  final _lifecycleBridge = BlenderApplicationLifecycleBridge();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final TextEditingController _keymapSearch = TextEditingController();
   final Map<String, BlenderEditorAreaController<DawEditorView>> _editorAreas =
       <String, BlenderEditorAreaController<DawEditorView>>{};
   bool _metronome = true;
+  Object? _reportedTransportError;
 
   @override
   void initState() {
     super.initState();
-    _applicationLifecycleChannel.setMethodCallHandler(_handleLifecycleCall);
+    _lifecycleBridge.attach(
+      onPreferencesRequested: _showPreferences,
+      onUnhandledMethodCall: _handleLifecycleCall,
+    );
     final project = buildDemoProject();
     final workspaces = BlenderWorkspaceService<String>(
       initialWorkspaceId: 'song',
@@ -80,9 +82,10 @@ class _DawExampleAppState extends State<DawExampleApp> {
       audioEngine: _audioEngine,
     );
     _persistence = DawProjectPersistenceController(
-      store: DawMemoryProjectStore(),
+      store: DawApplicationStorage(),
     );
-    _session.addListener(_synchronizeProjectServices);
+    _session.projectChanges.addListener(_synchronizeProjectServices);
+    _transport.addListener(_reportTransportError);
     unawaited(
       _audioDevices.initialize(preferredSampleRate: project.sampleRate),
     );
@@ -90,13 +93,8 @@ class _DawExampleAppState extends State<DawExampleApp> {
     unawaited(_midiDevices.refresh());
     _session.selectClip('drums', 'drum-pattern-a');
     _registerCommands();
+    unawaited(_synchronizeProjectServicesAsync());
     _application.status.report('Audio engine ready');
-  }
-
-  Future<void> _handleLifecycleCall(MethodCall call) async {
-    if (call.method == 'preferencesRequested' && mounted) {
-      _showPreferences();
-    }
   }
 
   static const BlenderDockNode<String> _songLayout =
@@ -345,8 +343,23 @@ class _DawExampleAppState extends State<DawExampleApp> {
   }
 
   void _synchronizeProjectServices() {
-    unawaited(_audioEngine.synchronizeProject(_session.project));
+    unawaited(_synchronizeProjectServicesAsync());
     _persistence.scheduleAutosave(_session.project);
+  }
+
+  void _reportTransportError() {
+    final error = _transport.engineError;
+    if (error == null || identical(error, _reportedTransportError)) return;
+    _reportedTransportError = error;
+    _application.status.report('Audio transport command failed: $error');
+  }
+
+  Future<void> _synchronizeProjectServicesAsync() async {
+    try {
+      await _audioEngine.synchronizeProject(_session.project);
+    } on Object catch (error) {
+      _application.status.report('Audio engine synchronization failed: $error');
+    }
   }
 
   Future<void> _discoverPlugins() async {
@@ -362,12 +375,35 @@ class _DawExampleAppState extends State<DawExampleApp> {
     }
   }
 
-  void _saveProject() {
-    unawaited(() async {
-      final fileName = '${_session.project.name}.buidaw';
+  Future<void> _saveProject() async {
+    final fileName = '${_session.project.name}.buidaw';
+    try {
       await _persistence.save(_session.project, location: fileName);
       _application.status.report('Saved $fileName');
-    }());
+    } on Object catch (error) {
+      _application.status.report('Could not save $fileName: $error');
+    }
+  }
+
+  Future<void> _handleLifecycleCall(MethodCall call) async {
+    if (call.method != 'quitRequested') return;
+    final context = _navigatorKey.currentContext;
+    if (!mounted || context == null) {
+      await _lifecycleBridge.invoke<void>('quitDecision', 'cancel');
+      return;
+    }
+    var decision = BlenderQuitDecision.discard;
+    if (_persistence.dirty) {
+      decision = await const BlenderQuitConfirmationService().show(
+        context,
+        fileName: _persistence.location ?? '${_session.project.name}.buidaw',
+        onSave: () async {
+          await _saveProject();
+          return !_persistence.dirty;
+        },
+      );
+    }
+    await _lifecycleBridge.invoke<void>('quitDecision', decision.name);
   }
 
   void _showPreferences() {
@@ -594,11 +630,12 @@ class _DawExampleAppState extends State<DawExampleApp> {
 
   @override
   void dispose() {
-    _applicationLifecycleChannel.setMethodCallHandler(null);
+    _lifecycleBridge.dispose();
     for (final controller in _editorAreas.values) {
       controller.dispose();
     }
-    _session.removeListener(_synchronizeProjectServices);
+    _session.projectChanges.removeListener(_synchronizeProjectServices);
+    _transport.removeListener(_reportTransportError);
     _transport.dispose();
     _session.dispose();
     _audioDevices.dispose();

@@ -75,12 +75,9 @@ class ShowcaseApp extends StatefulWidget {
 }
 
 class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
-  static const MethodChannel _applicationLifecycleChannel = MethodChannel(
-    'blender_ui/application_lifecycle',
-  );
-
   bool _hasUnsavedChanges = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final _lifecycleBridge = BlenderApplicationLifecycleBridge();
   late final BlenderApplicationController<Object?> _application;
   late final Map<BlenderEditorType, BlenderEditorHeaderPreset>
   _editorHeaderPresets;
@@ -526,7 +523,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   @override
   void initState() {
     super.initState();
-    _applicationLifecycleChannel.setMethodCallHandler(_handleLifecycleCall);
+    _lifecycleBridge.attach(
+      onPreferencesRequested: _showPreferencesWindow,
+      onUnhandledMethodCall: _handleLifecycleCall,
+    );
     _application = BlenderApplicationController<Object?>(
       initialState: null,
       commandRegistry: _commandRegistry,
@@ -612,17 +612,10 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
   }
 
   Future<void> _handleLifecycleCall(MethodCall call) async {
-    if (call.method == 'preferencesRequested') {
-      if (mounted) _showPreferencesWindow();
-      return;
-    }
     if (call.method != 'quitRequested') return;
     final navigatorContext = _navigatorKey.currentContext;
     if (!mounted || navigatorContext == null) {
-      await _applicationLifecycleChannel.invokeMethod<void>(
-        'quitDecision',
-        'cancel',
-      );
+      await _lifecycleBridge.invoke<void>('quitDecision', 'cancel');
       return;
     }
     var decision = BlenderQuitDecision.discard;
@@ -638,16 +631,13 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
         },
       );
     }
-    await _applicationLifecycleChannel.invokeMethod<void>(
-      'quitDecision',
-      decision.name,
-    );
+    await _lifecycleBridge.invoke<void>('quitDecision', decision.name);
   }
 
   void _requestQuit() {
     unawaited(() async {
       try {
-        await _applicationLifecycleChannel.invokeMethod<void>('requestQuit');
+        await _lifecycleBridge.invoke<void>('requestQuit');
       } on MissingPluginException {
         // Embedded runners and widget tests do not own a native window.
       } on PlatformException {
@@ -660,6 +650,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> with _ShowcaseUiState {
 
   @override
   void dispose() {
+    _lifecycleBridge.dispose();
     _mainEditorArea
       ..removeListener(_editorAreaChanged)
       ..dispose();

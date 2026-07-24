@@ -10,7 +10,7 @@ import '../model/project.dart';
 class DawProjectCodec extends Codec<DawProject, String> {
   const DawProjectCodec();
 
-  static const int currentVersion = 1;
+  static const int currentVersion = 2;
 
   @override
   Converter<String, DawProject> get decoder => const _DawProjectDecoder();
@@ -55,7 +55,7 @@ class _DawProjectDecoder extends Converter<String, DawProject> {
       throw const DawProjectFormatException('Unsupported project format');
     }
     final version = _integer(root['version'], 'version');
-    if (version != DawProjectCodec.currentVersion) {
+    if (version < 1 || version > DawProjectCodec.currentVersion) {
       throw DawProjectFormatException('Unsupported project version $version');
     }
     return _projectFromJson(_map(root['project'], 'project'));
@@ -125,6 +125,8 @@ Map<String, Object?> _trackToJson(DawTrack track) => <String, Object?>{
         'name': slot.name,
         'enabled': slot.enabled,
         'wet': slot.wet,
+        'parameters': slot.parameters,
+        'state': slot.state,
       },
   ],
 };
@@ -174,7 +176,7 @@ DawProject _projectFromJson(Map<String, Object?> json) {
   return DawProject(
     id: _string(json['id'], 'project.id'),
     name: _string(json['name'], 'project.name'),
-    lengthBeats: _number(json['lengthBeats'], 'project.lengthBeats'),
+    lengthBeats: _readJsonNumber(json['lengthBeats'], 'project.lengthBeats'),
     sampleRate: _integer(json['sampleRate'], 'project.sampleRate'),
     timeSignature: DawTimeSignature(
       numerator: _integer(signature['numerator'], 'timeSignature.numerator'),
@@ -188,14 +190,14 @@ DawProject _projectFromJson(Map<String, Object?> json) {
         _tempoFromJson(_map(value, 'tempoMap item')),
     ],
     loopEnabled: _boolean(loop['enabled'], 'loop.enabled'),
-    loopStartBeat: _number(loop['startBeat'], 'loop.startBeat'),
-    loopEndBeat: _number(loop['endBeat'], 'loop.endBeat'),
+    loopStartBeat: _readJsonNumber(loop['startBeat'], 'loop.startBeat'),
+    loopEndBeat: _readJsonNumber(loop['endBeat'], 'loop.endBeat'),
     tracks: <DawTrack>[
       for (final value in _list(json['tracks'], 'tracks'))
         _trackFromJson(_map(value, 'track')),
     ],
     master: json['master'] == null
-        ? const DawTrack(
+        ? DawTrack(
             id: 'master',
             name: 'Master',
             type: DawTrackType.audio,
@@ -206,8 +208,8 @@ DawProject _projectFromJson(Map<String, Object?> json) {
 }
 
 DawTempoPoint _tempoFromJson(Map<String, Object?> json) => DawTempoPoint(
-  beat: _number(json['beat'], 'tempo.beat'),
-  bpm: _number(json['bpm'], 'tempo.bpm'),
+  beat: _readJsonNumber(json['beat'], 'tempo.beat'),
+  bpm: _readJsonNumber(json['bpm'], 'tempo.bpm'),
 );
 
 DawTrack _trackFromJson(Map<String, Object?> json) => DawTrack(
@@ -215,13 +217,13 @@ DawTrack _trackFromJson(Map<String, Object?> json) => DawTrack(
   name: _string(json['name'], 'track.name'),
   type: _enumValue(DawTrackType.values, json['type'], 'track.type'),
   colorValue: _integer(json['color'], 'track.color'),
-  volume: _number(json['volume'], 'track.volume'),
-  pan: _number(json['pan'], 'track.pan'),
+  volume: _readJsonNumber(json['volume'], 'track.volume'),
+  pan: _readJsonNumber(json['pan'], 'track.pan'),
   muted: _boolean(json['muted'], 'track.muted'),
   solo: _boolean(json['solo'], 'track.solo'),
   armed: _boolean(json['armed'], 'track.armed'),
   collapsed: _boolean(json['collapsed'], 'track.collapsed'),
-  heightScale: _number(json['heightScale'], 'track.heightScale'),
+  heightScale: _readJsonNumber(json['heightScale'], 'track.heightScale'),
   automationExpanded: _boolean(
     json['automationExpanded'],
     'track.automationExpanded',
@@ -244,14 +246,14 @@ DawClip _clipFromJson(Map<String, Object?> json) {
   final shared = (
     id: _string(json['id'], 'clip.id'),
     name: _string(json['name'], 'clip.name'),
-    start: _number(json['startBeat'], 'clip.startBeat'),
-    length: _number(json['lengthBeats'], 'clip.lengthBeats'),
-    offset: _number(json['offsetBeats'], 'clip.offsetBeats'),
+    start: _readJsonNumber(json['startBeat'], 'clip.startBeat'),
+    length: _readJsonNumber(json['lengthBeats'], 'clip.lengthBeats'),
+    offset: _readJsonNumber(json['offsetBeats'], 'clip.offsetBeats'),
     color: _integer(json['color'], 'clip.color'),
     muted: _boolean(json['muted'], 'clip.muted'),
     looped: _boolean(json['looped'], 'clip.looped'),
-    sourceTempo: _number(json['sourceTempo'], 'clip.sourceTempo'),
-    playbackRate: _number(json['playbackRate'], 'clip.playbackRate'),
+    sourceTempo: _readJsonNumber(json['sourceTempo'], 'clip.sourceTempo'),
+    playbackRate: _readJsonNumber(json['playbackRate'], 'clip.playbackRate'),
   );
   switch (_string(json['kind'], 'clip.kind')) {
     case 'midi':
@@ -288,14 +290,17 @@ DawClip _clipFromJson(Map<String, Object?> json) {
         waveform: DawWaveform(
           peaks: <double>[
             for (final peak in _list(waveform['peaks'], 'waveform.peaks'))
-              _number(peak, 'waveform peak'),
+              _readJsonNumber(peak, 'waveform peak'),
           ],
           sampleRate: _integer(waveform['sampleRate'], 'waveform.sampleRate'),
           channels: _integer(waveform['channels'], 'waveform.channels'),
         ),
-        gain: _number(json['gain'], 'clip.gain'),
-        fadeInBeats: _number(json['fadeInBeats'], 'clip.fadeInBeats'),
-        fadeOutBeats: _number(json['fadeOutBeats'], 'clip.fadeOutBeats'),
+        gain: _readJsonNumber(json['gain'], 'clip.gain'),
+        fadeInBeats: _readJsonNumber(json['fadeInBeats'], 'clip.fadeInBeats'),
+        fadeOutBeats: _readJsonNumber(
+          json['fadeOutBeats'],
+          'clip.fadeOutBeats',
+        ),
         reversed: _boolean(json['reversed'], 'clip.reversed'),
       );
     default:
@@ -306,9 +311,9 @@ DawClip _clipFromJson(Map<String, Object?> json) {
 DawMidiNote _noteFromJson(Map<String, Object?> json) => DawMidiNote(
   id: _string(json['id'], 'note.id'),
   pitch: _integer(json['pitch'], 'note.pitch'),
-  startBeat: _number(json['startBeat'], 'note.startBeat'),
-  lengthBeats: _number(json['lengthBeats'], 'note.lengthBeats'),
-  velocity: _number(json['velocity'], 'note.velocity'),
+  startBeat: _readJsonNumber(json['startBeat'], 'note.startBeat'),
+  lengthBeats: _readJsonNumber(json['lengthBeats'], 'note.lengthBeats'),
+  velocity: _readJsonNumber(json['velocity'], 'note.velocity'),
   channel: _integer(json['channel'], 'note.channel'),
   muted: _boolean(json['muted'], 'note.muted'),
 );
@@ -329,8 +334,8 @@ DawAutomationLane _automationFromJson(Map<String, Object?> json) =>
 DawAutomationPoint _automationPointFromJson(Map<String, Object?> json) =>
     DawAutomationPoint(
       id: _string(json['id'], 'automation point.id'),
-      beat: _number(json['beat'], 'automation point.beat'),
-      value: _number(json['value'], 'automation point.value'),
+      beat: _readJsonNumber(json['beat'], 'automation point.beat'),
+      value: _readJsonNumber(json['value'], 'automation point.value'),
       interpolation: _enumValue(
         DawAutomationInterpolation.values,
         json['interpolation'],
@@ -343,7 +348,15 @@ DawPluginSlot _pluginSlotFromJson(Map<String, Object?> json) => DawPluginSlot(
   pluginId: _string(json['pluginId'], 'plugin.pluginId'),
   name: _string(json['name'], 'plugin.name'),
   enabled: _boolean(json['enabled'], 'plugin.enabled'),
-  wet: _number(json['wet'], 'plugin.wet'),
+  wet: _readJsonNumber(json['wet'], 'plugin.wet'),
+  parameters: <String, double>{
+    for (final entry in _mapOrEmpty(json['parameters']).entries)
+      entry.key: _readJsonNumber(entry.value, 'plugin.parameters.${entry.key}'),
+  },
+  state: <int>[
+    for (final value in _listOrEmpty(json['state']))
+      _integer(value, 'plugin.state'),
+  ],
 );
 
 Map<String, Object?> _map(Object? value, String name) {
@@ -357,12 +370,19 @@ List<Object?> _list(Object? value, String name) {
   throw DawProjectFormatException('$name must be an array');
 }
 
+Map<String, Object?> _mapOrEmpty(Object? value) => value == null
+    ? const <String, Object?>{}
+    : _map(value, 'plugin.parameters');
+
+List<Object?> _listOrEmpty(Object? value) =>
+    value == null ? const <Object?>[] : _list(value, 'plugin.state');
+
 String _string(Object? value, String name) {
   if (value is String) return value;
   throw DawProjectFormatException('$name must be a string');
 }
 
-double _number(Object? value, String name) {
+double _readJsonNumber(Object? value, String name) {
   if (value is num) return value.toDouble();
   throw DawProjectFormatException('$name must be a number');
 }

@@ -1,0 +1,29 @@
+name: Workbook extension
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  workbook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: beta
+          cache: true
+      - name: Verify workbook extension
+        working-directory: packages/blender_ui_workbook
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Verify workbook host
+        working-directory: examples/workbook
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test

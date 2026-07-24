@@ -269,7 +269,10 @@ void registerScenePropertiesFollowsBlenderPanelAnatomyTests() {
     // the descriptor assertions above still cover the complete anatomy.
     final propertiesScroll = find.descendant(
       of: find.byType(BlenderPropertiesEditor),
-      matching: find.byType(Scrollable),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
     );
     expect(propertiesScroll, findsOneWidget);
     for (var index = 0; index < 4; index++) {

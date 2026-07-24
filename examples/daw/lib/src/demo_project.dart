@@ -47,7 +47,7 @@ DawProject buildDemoProject() {
             colorValue: 0xFFE07A45,
             notes: _drumNotes(accent: true),
           ),
-          const DawMidiClip(
+          DawMidiClip(
             id: 'drum-fill',
             name: 'Fill',
             startBeat: 60,
@@ -55,21 +55,21 @@ DawProject buildDemoProject() {
             colorValue: 0xFFF09A58,
           ),
         ],
-        automation: const <DawAutomationLane>[
+        automation: <DawAutomationLane>[
           DawAutomationLane(
             id: 'drum-filter',
             name: 'Filter Cutoff',
             parameterId: 'internal.auto-filter.frequency',
             colorValue: 0xFFE07A45,
             points: <DawAutomationPoint>[
-              DawAutomationPoint(id: 'df-1', beat: 0, value: .25),
-              DawAutomationPoint(id: 'df-2', beat: 16, value: .72),
-              DawAutomationPoint(id: 'df-3', beat: 32, value: .42),
-              DawAutomationPoint(id: 'df-4', beat: 64, value: .9),
+              const DawAutomationPoint(id: 'df-1', beat: 0, value: .25),
+              const DawAutomationPoint(id: 'df-2', beat: 16, value: .72),
+              const DawAutomationPoint(id: 'df-3', beat: 32, value: .42),
+              const DawAutomationPoint(id: 'df-4', beat: 64, value: .9),
             ],
           ),
         ],
-        plugins: const <DawPluginSlot>[
+        plugins: <DawPluginSlot>[
           DawPluginSlot(
             id: 'drum-filter-device',
             pluginId: 'internal:auto-filter',
@@ -105,21 +105,21 @@ DawProject buildDemoProject() {
             notes: _bassNotes(transpose: 5),
           ),
         ],
-        automation: const <DawAutomationLane>[
+        automation: <DawAutomationLane>[
           DawAutomationLane(
             id: 'bass-resonance',
             name: 'Resonance',
             parameterId: 'internal.eq-eight.band-2',
             colorValue: 0xFF6B8EE8,
             points: <DawAutomationPoint>[
-              DawAutomationPoint(id: 'br-1', beat: 0, value: .2),
-              DawAutomationPoint(id: 'br-2', beat: 24, value: .6),
-              DawAutomationPoint(id: 'br-3', beat: 48, value: .35),
-              DawAutomationPoint(id: 'br-4', beat: 72, value: .78),
+              const DawAutomationPoint(id: 'br-1', beat: 0, value: .2),
+              const DawAutomationPoint(id: 'br-2', beat: 24, value: .6),
+              const DawAutomationPoint(id: 'br-3', beat: 48, value: .35),
+              const DawAutomationPoint(id: 'br-4', beat: 72, value: .78),
             ],
           ),
         ],
-        plugins: const <DawPluginSlot>[
+        plugins: <DawPluginSlot>[
           DawPluginSlot(
             id: 'bass-eq-device',
             pluginId: 'internal:eq-eight',
@@ -155,7 +155,7 @@ DawProject buildDemoProject() {
             offsetBeats: 4,
           ),
         ],
-        plugins: const <DawPluginSlot>[
+        plugins: <DawPluginSlot>[
           DawPluginSlot(
             id: 'guitar-filter-device',
             pluginId: 'internal:auto-filter',
@@ -182,7 +182,7 @@ DawProject buildDemoProject() {
           ),
         ],
       ),
-      const DawTrack(
+      DawTrack(
         id: 'reverb',
         name: 'Reverb Bus',
         type: DawTrackType.bus,
@@ -196,7 +196,7 @@ DawProject buildDemoProject() {
           ),
         ],
       ),
-      const DawTrack(
+      DawTrack(
         id: 'master',
         name: 'Master',
         type: DawTrackType.master,

@@ -121,13 +121,8 @@ void registerShowcaseBootsWithBlenderLikeEditorRegionsTests() {
     await tester.ensureVisible(components);
     await tester.tap(components);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(bottomSelector);
-    await tester.tap(bottomSelector);
-    await tester.pump();
-    await tester.tap(find.text('UI Catalog'));
-    await tester.pump();
-    expect(find.text('Core controls'), findsOneWidget);
-    expect(find.text('Templates'), findsOneWidget);
+    expect(find.text('Feature map'), findsOneWidget);
+    expect(find.text('Live application snapshot'), findsOneWidget);
   });
 
   testWidgets('Edit opens the source-shaped Preferences temporary window', (

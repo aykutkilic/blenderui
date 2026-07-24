@@ -1,0 +1,31 @@
+name: blender_ui_workbook
+description: Reusable Jupyter workbook, CodeForge editor, and interactive plot surfaces for BlenderUI.
+version: 0.1.0
+repository: https://github.com/aykutkilic/blenderui
+publish_to: none
+
+environment:
+  sdk: ">=3.12.1 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  blender_ui:
+    path: ../..
+  code_forge: ^10.8.0
+  flutter:
+    sdk: flutter
+  flutter_markdown_plus: ^1.0.10
+  flutter_markdown_plus_latex: ^1.0.5
+  http: ^1.4.0
+  markdown: ^7.3.0
+  re_highlight: ^0.0.3
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false
+  assets:
+    - python/blenderui_workbook.py

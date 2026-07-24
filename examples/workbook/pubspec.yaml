@@ -1,0 +1,31 @@
+name: blender_ui_workbook_example
+description: A native math and AI workbook powered by Jupyter and BlenderUI.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.12.1 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  blender_ui:
+    path: ../..
+  blender_ui_workbook:
+    path: ../../packages/blender_ui_workbook
+  flutter:
+    sdk: flutter
+  file_selector: ^1.1.0
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  # CodeForge 10.8 builds its Rust library from a CocoaPods script phase. Its
+  # SwiftPM target currently links only the dummy FFI object, so the framework
+  # expected by flutter_rust_bridge is absent at runtime.
+  config:
+    enable-swift-package-manager: false

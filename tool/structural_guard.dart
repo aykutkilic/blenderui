@@ -28,6 +28,10 @@ void main(List<String> arguments) {
           'packages/blender_ui_daw/test',
           'examples/daw/lib',
           'examples/daw/test',
+          'packages/blender_ui_workbook/lib',
+          'packages/blender_ui_workbook/test',
+          'examples/workbook/lib',
+          'examples/workbook/test',
         ]
       : arguments;
   final files = <File>[for (final root in roots) ..._dartFiles(root)]

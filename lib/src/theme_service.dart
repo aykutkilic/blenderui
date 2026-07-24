@@ -206,14 +206,11 @@ class BlenderThemeDefinition {
 }
 
 /// Storage contract for user-created BlenderUI themes.
-class BlenderThemePersistence {
+class BlenderThemePersistence extends BlenderPersistenceConfiguration {
   const BlenderThemePersistence({
-    required this.storage,
-    this.storageKey = 'blenderui.themes',
+    required super.storage,
+    super.storageKey = 'blenderui.themes',
   });
-
-  final BlenderPersistentStorage storage;
-  final String storageKey;
 }
 
 /// Raised when an XML file is not a usable Blender theme preset.

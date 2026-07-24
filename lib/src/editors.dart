@@ -42,6 +42,7 @@ part 'editors/viewport_sidebar.dart';
 part 'editors/view3d_editor_header.dart';
 part 'editors/view3d_selectors.dart';
 part 'editors/node_editor_host.dart';
+part 'editors/node_editor_interactions.dart';
 part 'editors/node_editor_selection.dart';
 part 'editors/grease_pencil_models.dart';
 part 'editors/grease_pencil_header.dart';

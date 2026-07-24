@@ -2,7 +2,7 @@ import 'package:blender_ui_daw/blender_ui_daw.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  DawProject project() => const DawProject(
+  DawProject project() => DawProject(
     id: 'test',
     name: 'Test',
     lengthBeats: 32,
@@ -18,7 +18,12 @@ void main() {
             startBeat: 0,
             lengthBeats: 8,
             notes: <DawMidiNote>[
-              DawMidiNote(id: 'note', pitch: 60, startBeat: 0, lengthBeats: 1),
+              const DawMidiNote(
+                id: 'note',
+                pitch: 60,
+                startBeat: 0,
+                lengthBeats: 1,
+              ),
             ],
           ),
         ],
@@ -28,13 +33,81 @@ void main() {
             name: 'Cutoff',
             parameterId: 'cutoff',
             points: <DawAutomationPoint>[
-              DawAutomationPoint(id: 'point', beat: 0, value: .2),
+              const DawAutomationPoint(id: 'point', beat: 0, value: .2),
             ],
           ),
         ],
       ),
     ],
   );
+
+  test('project snapshots do not retain caller-owned collections', () {
+    final notes = <DawMidiNote>[
+      const DawMidiNote(id: 'note', pitch: 60, startBeat: 0, lengthBeats: 1),
+    ];
+    final clips = <DawClip>[
+      DawMidiClip(
+        id: 'clip',
+        name: 'Pattern',
+        startBeat: 0,
+        lengthBeats: 4,
+        notes: notes,
+      ),
+    ];
+    final project = DawProject(
+      id: 'immutable',
+      name: 'Immutable',
+      tracks: <DawTrack>[
+        DawTrack(
+          id: 'track',
+          name: 'Track',
+          type: DawTrackType.midi,
+          clips: clips,
+        ),
+      ],
+    );
+
+    notes.clear();
+    clips.clear();
+
+    final clip = project.tracks.single.clips.single as DawMidiClip;
+    expect(clip.notes, hasLength(1));
+    expect(project.tracks.single.clips, hasLength(1));
+    expect(
+      () => project.tracks.add(
+        DawTrack(id: 'later', name: 'Later', type: DawTrackType.audio),
+      ),
+      throwsUnsupportedError,
+    );
+  });
+
+  test('track removal publishes the cleared selection once', () {
+    final session = DawSessionController(initialProject: project());
+    addTearDown(session.dispose);
+    session.selectTrack('midi');
+    var notifications = 0;
+    session.addListener(() => notifications++);
+
+    session.removeTrack('midi');
+
+    expect(session.selection.trackId, isNull);
+    expect(notifications, 1);
+  });
+
+  test('project changes exclude selection, view, and playback activity', () {
+    final session = DawSessionController(initialProject: project());
+    addTearDown(session.dispose);
+    var documentNotifications = 0;
+    session.projectChanges.addListener(() => documentNotifications++);
+
+    session.selectTrack('midi');
+    session.setZoom(horizontal: 2);
+    session.playback.seek(4);
+    expect(documentNotifications, 0);
+
+    session.setTrackVolume('midi', .4);
+    expect(documentNotifications, 1);
+  });
 
   test('clip and note edits snap and participate in history', () {
     final session = DawSessionController(initialProject: project());
@@ -136,15 +209,11 @@ void main() {
 
       session.addPlugin(
         'master',
-        const DawPluginSlot(id: 'eq', pluginId: 'eq', name: 'EQ'),
+        DawPluginSlot(id: 'eq', pluginId: 'eq', name: 'EQ'),
       );
       session.addPlugin(
         'master',
-        const DawPluginSlot(
-          id: 'limiter',
-          pluginId: 'limiter',
-          name: 'Limiter',
-        ),
+        DawPluginSlot(id: 'limiter', pluginId: 'limiter', name: 'Limiter'),
       );
       session.movePlugin('master', 1, 0);
       session.setPluginWet('master', 'eq', .4);

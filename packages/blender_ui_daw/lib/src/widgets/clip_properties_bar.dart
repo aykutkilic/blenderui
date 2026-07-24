@@ -36,32 +36,32 @@ class DawClipPropertiesBar extends StatelessWidget {
                   style: theme.textTheme.label,
                 ),
               ),
-              _number(
+              _numberField(
                 'Start',
                 clip.startBeat,
                 (value) =>
                     session.editClip(track.id, clip.id, startBeat: value),
               ),
-              _number(
+              _numberField(
                 'Length',
                 clip.lengthBeats,
                 (value) =>
                     session.editClip(track.id, clip.id, lengthBeats: value),
               ),
-              _number(
+              _numberField(
                 'Offset',
                 clip.offsetBeats,
                 (value) =>
                     session.editClip(track.id, clip.id, offsetBeats: value),
               ),
-              _number(
+              _numberField(
                 'Source BPM',
                 clip.sourceTempo,
                 (value) =>
                     session.editClip(track.id, clip.id, sourceTempo: value),
                 width: 136,
               ),
-              _number(
+              _numberField(
                 'Rate',
                 clip.playbackRate,
                 (value) =>
@@ -93,7 +93,7 @@ class DawClipPropertiesBar extends StatelessWidget {
     },
   );
 
-  Widget _number(
+  Widget _numberField(
     String label,
     double value,
     ValueChanged<double> onChanged, {

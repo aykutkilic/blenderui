@@ -360,7 +360,7 @@ void registerToolPropertiesFollowsBlenderSculptModePanelTests() {
     await tester.tap(outputTab);
     await tester.pumpAndSettle();
 
-    expect(find.text('Output'), findsOneWidget);
+    expect(find.text('Output'), findsWidgets);
     expect(find.text('Format'), findsOneWidget);
     expect(find.text('Frame Range'), findsOneWidget);
     expect(find.text('Stereoscopy'), findsOneWidget);

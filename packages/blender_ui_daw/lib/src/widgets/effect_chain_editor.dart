@@ -167,7 +167,8 @@ class _DawEffectChainEditorState extends State<DawEffectChainEditor> {
                               value,
                             ),
                             onParameter: (parameter, value) =>
-                                widget.host.setParameter(
+                                _setPluginParameter(
+                                  track.id,
                                   track.plugins[index].id,
                                   parameter.id,
                                   value,
@@ -217,6 +218,11 @@ class _DawEffectChainEditorState extends State<DawEffectChainEditor> {
           id: instance.instanceId,
           pluginId: pluginId,
           name: instance.descriptor.name,
+          enabled: instance.enabled,
+          parameters: <String, double>{
+            for (final parameter in instance.parameters)
+              parameter.id: parameter.value,
+          },
         ),
         index: index,
       );
@@ -227,24 +233,61 @@ class _DawEffectChainEditorState extends State<DawEffectChainEditor> {
 
   Future<void> _removePlugin(DawTrack track, int index) async {
     final slot = track.plugins[index];
-    widget.session.removePlugin(track.id, slot.id);
     try {
       await widget.host.remove(slot.id);
+      if (!mounted) return;
+      widget.session.removePlugin(track.id, slot.id);
     } catch (error) {
       if (mounted)
         setState(() => _loadError = 'Could not unload device: $error');
     }
   }
 
-  void _setPluginEnabled(String trackId, String instanceId, bool enabled) {
-    widget.session.setPluginEnabled(trackId, instanceId, enabled);
-    unawaited(
-      widget.host.setEnabled(instanceId, enabled).catchError((Object error) {
-        if (mounted) {
-          setState(() => _loadError = 'Could not change device bypass: $error');
-        }
-      }),
-    );
+  Future<void> _setPluginEnabled(
+    String trackId,
+    String instanceId,
+    bool enabled,
+  ) async {
+    try {
+      await widget.host.setEnabled(instanceId, enabled);
+      if (!mounted) return;
+      widget.session.setPluginEnabled(trackId, instanceId, enabled);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _loadError = 'Could not change device bypass: $error');
+      }
+    }
+  }
+
+  Future<void> _setPluginParameter(
+    String trackId,
+    String instanceId,
+    String parameterId,
+    double value,
+  ) async {
+    try {
+      await widget.host.setParameter(instanceId, parameterId, value);
+      if (!mounted) return;
+      final instance = _instanceFor(instanceId);
+      if (instance == null) return;
+      final state = await widget.host.saveState(instanceId);
+      if (!mounted) return;
+      widget.session.setPluginRuntimeState(
+        trackId,
+        instanceId,
+        parameters: <String, double>{
+          for (final parameter in instance.parameters)
+            parameter.id: parameter.value,
+        },
+        state: state,
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _loadError = 'Could not change device parameter: $error',
+        );
+      }
+    }
   }
 }
 

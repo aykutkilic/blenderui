@@ -15,9 +15,11 @@ Use an explicit library-first layout:
 docs/                    architecture, references, decisions, history
 lib/                     core BlenderUI package and shared services
 packages/blender_ui_daw/ DAW-specific reusable extension
+packages/blender_ui_workbook/ Jupyter/CodeForge/plot workbook extension
 examples/blenderui/      main Blender-shaped application
 examples/components/     standalone component/tutorial catalog
 examples/daw/            DAW application composed from the extension
+examples/workbook/       math and AI workbook host
 test/                    core package contracts
 ```
 

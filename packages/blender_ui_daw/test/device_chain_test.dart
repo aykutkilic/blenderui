@@ -34,7 +34,7 @@ void main() {
     final host = DawInMemoryPluginHost();
     final engine = DawInMemoryAudioEngine();
     final session = DawSessionController(
-      initialProject: const DawProject(
+      initialProject: DawProject(
         id: 'device-chain',
         name: 'Device Chain',
         lengthBeats: 16,

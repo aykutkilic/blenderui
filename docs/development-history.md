@@ -4,6 +4,147 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-24 — Reduced overloaded host and interaction state
+
+- Extracted the workbook host's optional Python/Jupyter, server, LSP, AI,
+  runtime-settings, application-support, and installer-job lifecycle into a
+  dedicated `WorkbookRuntimeController`; the application state now concentrates
+  on shell, document, and editor-area composition.
+- Separated node, socket, canvas, zoom, and box-selection gesture policy from
+  node-editor rendering while retaining one lifecycle-owned state mutation
+  gateway.
+- Canonicalized `BlenderNlaEditor` and retained the former
+  `BlenderNLAEditor` spelling as a deprecated compatibility alias.
+- Added a naming and ownership map for theme, workspace, docking, editor,
+  application, DAW, and workbook families; classified generated files, export
+  barrels, source-shaped property catalogs, and retained history as deliberate
+  large surfaces.
+- Kept `DawSessionController` intact for now: a meaningful follow-up must
+  extract domain editing services without weakening undo, transaction,
+  selection, or notification semantics.
+- Static analysis caught an initial attempt to invoke protected `setState`
+  through an extension; routing interaction mutations through the owning state
+  fixed the boundary without suppressing diagnostics. See the
+  [reviewability decision](decisions/2026-07-24-reviewability-and-ownership-names.md).
+
+## 2026-07-24 — Separated DAW document changes from runtime activity
+
+- Split the DAW session's document, selection, view, and playback
+  notifications so persistence and native graph synchronization run only after
+  a serializable project mutation—not after selection changes or transport
+  ticks.
+- Made plug-in parameters and opaque saved state durable project data, added a
+  backwards-compatible project-format revision, and made native project
+  synchronization carry the complete versioned document.
+- Serialized/coalesced transport commands, surfaced native command failures,
+  made meter snapshots immutable, and added a dirty-document shutdown path to
+  the macOS DAW example.
+- Reworked the lifecycle bridge into a registered dispatcher so disposing one
+  application does not disconnect another, and made persistence status
+  observable rather than leaving failures in an unread field.
+- See the [state integrity decision](decisions/2026-07-24-state-integrity-and-host-services.md).
+
+## 2026-07-24 — Tightened workbook rendering and execution boundaries
+
+- Moved workbook shadow-file preparation out of the cell build callback and
+  made the host provide only already-prepared paths to the editor. The host's
+  dedicated shadow-file coordinator serializes updates, skips unchanged source,
+  and deletes stale app-owned cell files.
+- Made expected kernel execution failures return failed cell results instead
+  of escaping fire-and-forget UI commands after the cell state was updated.
+- Replaced the fallback editor's synchronous file read with a resilient
+  asynchronous load so a missing or still-preparing host file cannot block the
+  render thread.
+- Classified the session's authoring/history and transient-execution split,
+  direct CodeForge extension dependency, and example-host composition as
+  deliberate boundaries rather than duplicate framework layers. See the
+  [decision record](decisions/2026-07-24-workbook-host-file-boundary.md).
+
+## 2026-07-24 — Hardened state snapshots and host services
+
+- Made DAW/workbook model collections immutable at construction, including
+  recursively frozen JSON-like workbook display data, so history and undo
+  snapshots cannot be mutated by a caller without a state transition.
+- Coalesced DAW commit notifications, corrected selection publication during
+  deletion, contained autosave failures, and replaced the DAW example's
+  in-memory Save behavior with application-support file persistence.
+- Made native plug-in removal/bypass host-first, consolidated application
+  lifecycle channel handling, and extracted the shared persistence storage/key
+  configuration. See the
+  [decision record](decisions/2026-07-24-state-integrity-and-host-services.md).
+
+## 2026-07-23 — Added stable authoring cells for code, Markdown, LaTeX, and plots
+
+- Kept each CodeForge/fallback code editor mounted across selection changes and
+  gave it one source-derived height and text style, eliminating the font and
+  geometry jump caused by swapping to a read-only preview on focus loss.
+- Added first-class Markdown cells with local GitHub-flavored Markdown and
+  inline/block LaTeX rendering, while retaining an editable source surface and
+  offline startup.
+- Added document-level Plot cells based on the existing `ploted` Flutter port,
+  including plot kind, title, optional X variable, multi-select Y variables,
+  offline assignment discovery, application-history integration, and generated
+  rich-MIME execution through the active kernel.
+- Preserved BlenderUI's application/service boundaries: authoring changes use
+  shared history, plot output remains transient, the Outline distinguishes all
+  three cell kinds, and neither Markdown nor plot configuration mandates a
+  runtime during startup.
+- Replaced the initially selected discontinued `flutter_markdown` package after
+  dependency resolution warned about its status; the maintained
+  `flutter_markdown_plus` successor and its LaTeX extension are now used.
+- Removed a preview-only `SelectionArea` after full-host tests exposed its
+  implicit `MaterialLocalizations` requirement, preserving the native
+  `BlenderApp` shell boundary.
+- Added controller, notebook-metadata, Markdown-rendering, invalid-plot, and
+  code-editor stability coverage. See the
+  [authoring cells decision](decisions/2026-07-23-workbook-authoring-cells.md).
+
+## 2026-07-22 — Established the math and AI workbook extension
+
+- Added the native-only `blender_ui_workbook` extension boundary so CodeForge's
+  Rust backend does not constrain the web-compatible BlenderUI core.
+- Added a persistent Jupyter Server REST/WebSocket kernel adapter, local
+  authenticated server process, typed streamed outputs, and immutable workbook
+  session/cell models.
+- Composed CodeForge with its controller, search, undo/redo, folding,
+  suggestions, multi-cursor editing, and complete stdio/WebSocket LSP
+  capabilities; added provider-neutral ghost-text AI completion plus Ollama and
+  OpenAI-compatible HTTP adapters.
+- Reimplemented the local `ploted` interaction foundation in Flutter with typed
+  MIME specs and distinct oscilloscope, line/scatter, stacked-area, bar,
+  histogram, waveform, candlestick, Sankey, Gantt, 3D, and XY-map renderers;
+  added axes, visibility, panning, anchored zoom, keyboard navigation, draggable
+  vertical/band cursors, Sankey nodes, a rotatable 3D camera, a context menu,
+  reset, and native rich outputs.
+- Added a loopback WebSocket-to-stdio Python LSP companion for sandboxed hosts
+  and proved basedpyright initialization, configuration responses, completion,
+  semantic tokens, diagnostics, document colors, folding, and code actions.
+- Centralized Blender theme adaptation for CodeForge, workbook chrome, outputs,
+  plots, and menus after native visual verification exposed invisible default
+  token colors and light Material surfaces.
+- Added a debounced AI completion coordinator that rejects stale responses,
+  clears failed suggestions, and feeds provider output into CodeForge ghost
+  text; retained both Ollama and OpenAI-compatible provider adapters.
+- Added `examples/workbook`, a thin native host that prepares shadow Python
+  files, discovers a Python LSP, starts or connects to Jupyter, and demonstrates
+  calculation plus an interactive sine plot.
+- Recorded that the existing Homebrew Jupyter launcher has a stale Python 3.9
+  shebang and that no Python language server was initially on `PATH`; the host
+  now reports setup failures and supports explicit executable overrides.
+- Caught a native-only CodeForge packaging failure after a nominally successful
+  macOS build: Flutter 3.45's SwiftPM path bundled only `code_forge.o`, and
+  `RustLib.init()` could not load the expected framework. Disabled SwiftPM for
+  this host so CodeForge's CocoaPods Rust build phase owns native linkage.
+- Updated the verified Rust toolchain from 1.83 to stable 1.97.1 after the
+  CodeForge dependency graph required Rust edition 2024.
+- The first real macOS app showed that App Sandbox prevents a user-selected
+  Python virtual environment from reading even `pyvenv.cfg`. The host initially
+  retained the sandbox and preferred authenticated remote services; later
+  managed-runtime verification below established the current fail-fast local
+  execution boundary.
+- See the
+  [workbook architecture decision](decisions/2026-07-22-math-ai-workbook-extension.md).
+
 ## 2026-07-22 — Reorganized the repository around library and host boundaries
 
 - Moved the documentation tree from `doc/` to `docs/` and added a repository
@@ -489,7 +630,14 @@ live in [the decision records](decisions/).
   [`ADR-0001`](decisions/ADR-0001-foundation.md) through
   [`ADR-0004`](decisions/ADR-0004-editor-docking-and-minimal-viewport.md).
 
-## Durable development lessons
+## Archived detailed task records
+
+The chronology above is the canonical milestone record. The detailed notes
+below are retained as historical implementation evidence for the 2026-07-20
+through 2026-07-22 work; they deliberately supplement rather than repeat the
+canonical milestones.
+
+### Durable development lessons
 
 - Start BlenderUI parity work from the local blenderapp checkout. Reuse visual
   anatomy and ownership boundaries, never Blender implementation or assets.
@@ -502,7 +650,7 @@ live in [the decision records](decisions/).
   the repository before formatting or verification. This does not alter project
   source, but it should be surfaced when it blocks a command.
 
-## 2026-07-20 — Matched View3D control and overlay geometry
+### 2026-07-20 — Matched View3D control and overlay geometry
 
 - Compared the supplied Blender and example-app captures against local
   blenderapp constants for toolbar columns, toolbar icons, widget units, and
@@ -527,7 +675,7 @@ live in [the decision records](decisions/).
   incorrectly expanded to the overlay height; visual inspection of the
   generated reference caught it and the panel now uses intrinsic height.
 
-## 2026-07-19 — 3D Viewport editor-chrome parity
+### 2026-07-19 — 3D Viewport editor-chrome parity
 
 - Audited the example app against the local `blenderapp` View3D header, tool
   system, navigation gizmo, and sidebar sources.
@@ -539,7 +687,7 @@ live in [the decision records](decisions/).
 - Documented source anchors, architecture decisions, full backlog, failures,
   and verification in `docs/3d-viewport-parity.md`.
 
-## 2026-07-19 — Retired completed plans and extracted remaining View3D chrome
+### 2026-07-19 — Retired completed plans and extracted remaining View3D chrome
 
 - Re-audited all 261 Dart files and the maintained documentation for current
   ownership, duplication, obsolete guidance, and reviewability.
@@ -551,7 +699,7 @@ live in [the decision records](decisions/).
 - Consolidated current ownership rules, rejected abstractions, size limits,
   and verification expectations in a single decision record.
 
-## 2026-07-19 — Made the Geometry Node Editor universal
+### 2026-07-19 — Made the Geometry Node Editor universal
 
 - Audited `space_node.py`, `node_add_menu_geometry.py`, and the Node Editor C++
   draw/relationship implementation in the local blenderapp checkout.
@@ -566,7 +714,7 @@ live in [the decision records](decisions/).
   verification in [`geometry-node-editor-parity.md`](geometry-node-editor-parity.md)
   and the accepted universal-editor decision.
 
-## 2026-07-20 — Rebuilt the Timeline from native editor regions
+### 2026-07-20 — Rebuilt the Timeline from native editor regions
 
 - Audited `space_time.py`, `space_dopesheet.py`, `space_action.cc`, and
   `time_scrub_ui.cc` in the local blenderapp checkout against the supplied
@@ -590,7 +738,7 @@ live in [the decision records](decisions/).
   metadata was absent. The failure and the source/golden/native fallback are
   retained in the decision record.
 
-## 2026-07-20 — Removed Timeline scrubbing from the static render path
+### 2026-07-20 — Removed Timeline scrubbing from the static render path
 
 - Examined `space_action.cc`, `action_draw.cc`, and `keyframes_draw.cc` for the
   native application's overlay separation, View2D culling, prepared keylists,
@@ -605,7 +753,7 @@ live in [the decision records](decisions/).
   scrubbing repaints the overlay only, while an explicit data revision
   invalidates the prepared static content.
 
-## 2026-07-20 — Extracted reusable playback state from the example
+### 2026-07-20 — Extracted reusable playback state from the example
 
 - Replaced the example's local frame notifier, transport flag mutation, range
   clamping, and generic listenable builder with public
@@ -620,7 +768,7 @@ live in [the decision records](decisions/).
   the example boot suite caught two stale text-based assumptions about the
   now-icon-only editor selector.
 
-## 2026-07-20 — Applied resolution scale to popup and tab chrome
+### 2026-07-20 — Applied resolution scale to popup and tab chrome
 
 - Audited Blender's local `wm_window.cc`, `interface_intern.hh`, popup/menu
   regions, interface style, and tree-view sources. Blender applies
@@ -633,7 +781,7 @@ live in [the decision records](decisions/).
   geometry. Full analyzer output still contains pre-existing unrelated
   `ValueListenable`/playback-controller errors.
 
-## 2026-07-20 — Applied Blender workspace editor presets to the example
+### 2026-07-20 — Applied Blender workspace editor presets to the example
 
 - Audited Blender's workspace model: workspace tabs select a stored screen
   layout and its editor contexts, rather than only changing the active label.
@@ -645,7 +793,7 @@ live in [the decision records](decisions/).
   the library node editor and its spreadsheet companion, matching Blender's
   inspection-oriented workflow.
 
-## 2026-07-20 — Rebuilt the Graph Editor around shared F-curve space
+### 2026-07-20 — Rebuilt the Graph Editor around shared F-curve space
 
 - Audited Blender's `space_graph.cc`, `graph_draw.cc`, `graph_view.cc`,
   `graph_select.cc`, and `space_graph.py` implementations against the supplied
@@ -666,7 +814,7 @@ live in [the decision records](decisions/).
   Flutter's post-touch-slop `onPanStart`; retaining the pointer-down key target
   restored reliable compact-key dragging.
 
-## 2026-07-20 — Added Blender's 2D Animation and Storyboarding templates
+### 2026-07-20 — Added Blender's 2D Animation and Storyboarding templates
 
 - Audited both app-template initialization scripts and queried Blender 5.1.2's
   packaged startup files headlessly to recover the exact screens, regions,
@@ -689,7 +837,7 @@ live in [the decision records](decisions/).
   stroke/fill inspector, and the shelf header has its independent catalog
   visibility tree. Added deterministic preview fallbacks and popup goldens.
 
-## 2026-07-20 — Added source-shaped File, Asset, and Video Sequencer regions
+### 2026-07-20 — Added source-shaped File, Asset, and Video Sequencer regions
 
 - Audited Blender's File/Asset Browser region registration and Python header,
   path, catalog, display, filter, bookmark, system, and volume UI definitions.
@@ -707,7 +855,7 @@ live in [the decision records](decisions/).
   test from the obsolete right-sidebar approximation to Blender's left-region
   structure. See the
   [decision record](decisions/2026-07-20-file-asset-and-sequencer-regions.md).
-## 2026-07-21 — Added save-before-quit confirmation
+### 2026-07-21 — Added save-before-quit confirmation
 
 - Audited Blender's `wm_files.cc` close dialog and `wm_window.cc` quit flow.
 - Added the reusable `BlenderQuitConfirmationService` and typed decision enum
@@ -717,7 +865,7 @@ live in [the decision records](decisions/).
 - Marked mutable example showcase edits dirty, handled File > Save and File >
   Quit, and documented the default `Untitled.blend` filename behavior.
 
-## 2026-07-21 — Unified runtime shortcuts and Keymap Preferences
+### 2026-07-21 — Unified runtime shortcuts and Keymap Preferences
 
 - Audited Blender's `rna_keymap_ui.py`, `space_userpref.py`,
   `DNA_windowmanager_types.h`, and `wm_keymap.cc` for key configurations,
@@ -742,7 +890,7 @@ live in [the decision records](decisions/).
   item now calls the shared lifecycle channel, and route presentation requests
   a frame immediately instead of waiting for a later UI event.
 
-## 2026-07-22 — Added draggable DAW devices and native built-in processors
+### 2026-07-22 — Added draggable DAW devices and native built-in processors
 
 - Added a reusable `BlenderListView` row-decoration seam and a typed DAW device
   drag payload so browsers can feed ordered racks without duplicating list UI.
@@ -756,3 +904,10 @@ live in [the decision records](decisions/).
   host can actually load them. Added focused drag/host tests and a successful
   macOS debug build. See the
   [decision record](decisions/2026-07-22-daw-device-chain-drag-and-builtins.md).
+
+### 2026-07-22 — Workbook runtime detail
+
+The canonical workbook milestone is recorded above. Runtime setup, sandbox
+constraints, and verification evidence live in the
+[workbook architecture decision](decisions/2026-07-22-math-ai-workbook-extension.md)
+to prevent a second history record from drifting.
