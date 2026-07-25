@@ -190,6 +190,8 @@ final class _ToolbarAction extends StatelessWidget {
           : Text(label, style: const TextStyle(fontSize: 10)),
       style: TextButton.styleFrom(
         foregroundColor: palette.foreground,
+        disabledForegroundColor: palette.disabled,
+        overlayColor: palette.buttonHover,
         padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 7),
         minimumSize: const Size(0, 28),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -258,6 +260,8 @@ final class _WorkbookCellCard extends StatelessWidget {
                           : 'Run cell',
                       onPressed: onRun,
                       icon: const Icon(Icons.play_arrow, size: 15),
+                      color: palette.foreground,
+                      disabledColor: palette.disabled,
                       padding: const EdgeInsets.all(5),
                     ),
                     SizedBox(
@@ -282,6 +286,8 @@ final class _WorkbookCellCard extends StatelessWidget {
                       tooltip: 'Delete cell',
                       onPressed: onRemove,
                       icon: const Icon(Icons.close, size: 13),
+                      color: palette.foreground,
+                      disabledColor: palette.disabled,
                       padding: const EdgeInsets.all(5),
                     ),
                   ],

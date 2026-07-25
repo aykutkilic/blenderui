@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:re_highlight/languages/python.dart';
 import 'package:re_highlight/re_highlight.dart';
+import 'package:re_highlight/styles/lightfair.dart';
 import 'package:re_highlight/styles/vs2015.dart';
 
 import '../services/ai_completion.dart';
@@ -390,7 +391,12 @@ final class _WorkbookCodeEditorState extends State<WorkbookCodeEditor> {
         ),
       );
     }
-    final configuredTheme = widget.editorTheme ?? vs2015Theme;
+    final configuredTheme =
+        widget.editorTheme ??
+        (ThemeData.estimateBrightnessForColor(palette.canvas) ==
+                Brightness.light
+            ? lightfairTheme
+            : vs2015Theme);
     final rootStyle = configuredTheme['root'] ?? const TextStyle();
     final editorTheme = <String, TextStyle>{
       ...configuredTheme,
@@ -400,6 +406,13 @@ final class _WorkbookCodeEditorState extends State<WorkbookCodeEditor> {
       ),
     };
     return CodeForge(
+      // CodeForge 10.8.0 snapshots its syntax theme in initState. Recreate
+      // only the native editor surface when semantic theme colors change so
+      // the controller-backed document, selection, and persistence remain
+      // intact while the cached painter theme is refreshed.
+      key: ValueKey<Object>(
+        Object.hash(palette.canvas, palette.foreground, palette.accent),
+      ),
       controller: _controller,
       findController: widget.findController,
       undoController: widget.undoController,

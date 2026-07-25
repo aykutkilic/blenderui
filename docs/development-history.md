@@ -4,6 +4,20 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-25 — Made workbook authoring surfaces theme-aware
+
+- Selected light/dark syntax palettes from the active semantic workbook canvas
+  instead of always using CodeForge's VS2015 dark palette.
+- Recreated only CodeForge's native editor surface when semantic theme colors
+  change because CodeForge 10.8.0 snapshots its syntax theme during
+  initialization; the external controller continues to own document text,
+  selection, and persistence.
+- Bound cell run/delete controls and toolbar disabled/hover states to the
+  workbook palette and added a light/dark theme-switch regression test.
+
+See the workbook package's authoring widget tests for coverage of this
+boundary.
+
 ## 2026-07-24 — Reduced overloaded host and interaction state
 
 - Extracted the workbook host's optional Python/Jupyter, server, LSP, AI,

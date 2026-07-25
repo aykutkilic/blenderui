@@ -22,6 +22,9 @@ final class WorkbookPalette {
   Color get muted => colors.foregroundMuted;
   Color get disabled => colors.foregroundDisabled;
   Color get accent => colors.accent;
+  Color get button => colors.button;
+  Color get buttonHover => colors.buttonHover;
+  Color get buttonPressed => colors.buttonPressed;
   Color get focus => colors.focus;
   Color get outline => colors.borderSubtle;
   Color get error => colors.error;
