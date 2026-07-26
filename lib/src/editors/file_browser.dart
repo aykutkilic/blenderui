@@ -118,26 +118,43 @@ class BlenderFileBrowser extends StatelessWidget {
         Expanded(child: content),
       ],
     );
-    final body = Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (resolvedHeaderState.showSourceList && sourceList != null)
-          sourceList!,
-        Expanded(child: main),
-        if (sidebar != null)
-          SizedBox(
-            width: sidebarWidth,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colors.surface,
-                border: Border(
-                  left: BorderSide(color: theme.colors.editorBorder),
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        // File browser side regions have fixed, desktop-oriented widths. A
+        // resizable dock keeps the catalog/source navigation while it fits,
+        // then collapses it only once it would exceed the whole region.
+        final showSourceList =
+            resolvedHeaderState.showSourceList &&
+            sourceList != null &&
+            constraints.maxWidth >= 270;
+        final showSidebar =
+            sidebar != null &&
+            constraints.maxWidth >= (showSourceList ? 650 : 380);
+        // Preserve catalog navigation in the intermediate range where its
+        // fixed width fits but leaves too little room for usable asset tiles.
+        // The grid returns once both panes have practical width.
+        if (showSourceList && constraints.maxWidth < 430) return sourceList!;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (showSourceList) sourceList!,
+            Expanded(child: main),
+            if (showSidebar)
+              SizedBox(
+                width: sidebarWidth,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.surface,
+                    border: Border(
+                      left: BorderSide(color: theme.colors.editorBorder),
+                    ),
+                  ),
+                  child: sidebar,
                 ),
               ),
-              child: sidebar,
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
     final browser = Column(
       children: <Widget>[
@@ -206,17 +223,26 @@ class BlenderFileBrowser extends StatelessWidget {
           ),
         if (displayMode == BlenderFileDisplayMode.thumbnails)
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(4),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 140,
-                mainAxisExtent: 72,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
-              ),
-              itemCount: visible.length,
-              itemBuilder: (context, index) =>
-                  _buildGridEntry(context, visible[index]),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // A dock can report zero width for a transient layout pass
+                // while a splitter collapses or reattaches. Grid delegates
+                // require a positive cross-axis extent, so wait until the
+                // region has usable width before creating the viewport.
+                if (constraints.maxWidth <= 0) return const SizedBox.shrink();
+                return GridView.builder(
+                  padding: const EdgeInsets.all(4),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 140,
+                    mainAxisExtent: 72,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                  ),
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) =>
+                      _buildGridEntry(context, visible[index]),
+                );
+              },
             ),
           )
         else

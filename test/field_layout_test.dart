@@ -51,7 +51,10 @@ void main() {
           height: 30,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: BlenderSearchField(controller: controller),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[BlenderSearchField(controller: controller)],
+            ),
           ),
         ),
       ),

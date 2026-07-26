@@ -74,6 +74,97 @@ void main() {
     expect(find.byType(BlenderPreviewTile), findsNWidgets(2));
   });
 
+  testWidgets('asset grid defers construction while its dock has zero width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const BlenderApp(
+        home: SizedBox(
+          width: 0,
+          height: 360,
+          child: BlenderFileBrowser(
+            entries: entries,
+            gridView: true,
+            assetBrowser: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('file browser collapses source regions in a narrow dock', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const BlenderApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 110.1,
+            height: 360,
+            child: BlenderFileBrowser(
+              entries: entries,
+              assetBrowser: true,
+              title: null,
+              sourceList: BlenderFileBrowserSourceList(
+                sections: <BlenderFileSourceSection>[
+                  BlenderFileSourceSection(
+                    id: 'system',
+                    label: 'System',
+                    entries: <BlenderFileSourceEntry>[
+                      BlenderFileSourceEntry(id: 'home', label: 'Home'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey<String>('file-browser-source-region')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('file browser keeps catalog navigation in an intermediate dock', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const BlenderApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 300,
+            height: 360,
+            child: BlenderFileBrowser(
+              entries: entries,
+              assetBrowser: true,
+              title: null,
+              sourceList: BlenderAssetBrowserCatalogRegion(
+                catalogs: <BlenderAssetCatalog>[
+                  BlenderAssetCatalog(id: 'image', label: 'Images'),
+                ],
+                width: 220,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey<String>('asset-browser-catalog-region')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('directories stay above files for every sort direction', (
     tester,
   ) async {
