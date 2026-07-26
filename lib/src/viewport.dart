@@ -196,12 +196,20 @@ class BlenderViewportShell extends StatelessWidget {
     );
     final sidebar = this.sidebar;
     if (sidebar == null) return viewport;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Expanded(child: viewport),
-        SizedBox(width: sidebarWidth, child: sidebar),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A docked viewport can temporarily be narrower than its sidebar
+        // while the host splitter is moving. Keep the scene usable and hide
+        // the secondary region until there is room for both columns.
+        if (constraints.maxWidth <= sidebarWidth) return viewport;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(child: viewport),
+            SizedBox(width: sidebarWidth, child: sidebar),
+          ],
+        );
+      },
     );
   }
 }

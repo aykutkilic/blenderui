@@ -102,8 +102,8 @@ void registerColorPickerEmitsAChangedColorTests() {
     final disclosure = tester.getCenter(
       find.byKey(const ValueKey<String>('tree-disclosure-collection')),
     );
-    expect(label.dy, closeTo(row.dy + 1, 0.1));
-    expect(disclosure.dy, closeTo(row.dy + 1, 0.1));
+    expect(label.dy, closeTo(row.dy, 0.1));
+    expect(disclosure.dy, closeTo(row.dy, 0.1));
   });
 
   testWidgets('tree disclosures use Blender thin arrow glyphs', (tester) async {

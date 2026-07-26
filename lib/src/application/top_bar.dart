@@ -162,24 +162,37 @@ class BlenderApplicationTopBar<MenuValue, WorkspaceValue>
     final prefix = _menuWidgets(theme);
     return _BlenderApplicationTopBarSurface(
       height: scaledHeight,
-      child: Row(
-        children: <Widget>[
-          if (overflow == BlenderApplicationTopBarOverflow.workspaceOnly)
-            ...prefix,
-          Expanded(
-            child: _BlenderApplicationWorkspaceStrip<WorkspaceValue>(
-              prefix: overflow == BlenderApplicationTopBarOverflow.shared
-                  ? prefix
-                  : const <Widget>[],
-              workspaces: workspaces,
-              activeWorkspace: activeWorkspace,
-              onWorkspaceSelected: onWorkspaceSelected,
-              actions: workspaceActions,
-            ),
-          ),
-          ...contextControls,
-          ...trailing,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // A top bar may itself be hosted in a horizontal scroll surface.
+          // `Expanded` is invalid under that unbounded width, so render the
+          // workspace strip at its intrinsic width for that outer-scroll case.
+          final canExpandStrip = constraints.hasBoundedWidth;
+          final workspaceStrip =
+              _BlenderApplicationWorkspaceStrip<WorkspaceValue>(
+                prefix: overflow == BlenderApplicationTopBarOverflow.shared
+                    ? prefix
+                    : const <Widget>[],
+                workspaces: workspaces,
+                activeWorkspace: activeWorkspace,
+                onWorkspaceSelected: onWorkspaceSelected,
+                actions: workspaceActions,
+                scrollable: canExpandStrip,
+              );
+          return Row(
+            mainAxisSize: canExpandStrip ? MainAxisSize.max : MainAxisSize.min,
+            children: <Widget>[
+              if (overflow == BlenderApplicationTopBarOverflow.workspaceOnly)
+                ...prefix,
+              if (canExpandStrip)
+                Expanded(child: workspaceStrip)
+              else
+                workspaceStrip,
+              ...contextControls,
+              ...trailing,
+            ],
+          );
+        },
       ),
     );
   }
@@ -192,6 +205,7 @@ class _BlenderApplicationWorkspaceStrip<T> extends StatefulWidget {
     required this.activeWorkspace,
     required this.onWorkspaceSelected,
     required this.actions,
+    required this.scrollable,
   });
 
   final List<Widget> prefix;
@@ -199,6 +213,7 @@ class _BlenderApplicationWorkspaceStrip<T> extends StatefulWidget {
   final T activeWorkspace;
   final ValueChanged<T> onWorkspaceSelected;
   final List<Widget> actions;
+  final bool scrollable;
 
   @override
   State<_BlenderApplicationWorkspaceStrip<T>> createState() =>
@@ -228,6 +243,7 @@ class _BlenderApplicationWorkspaceStripState<T>
 
   void _syncFades() {
     if (!_controller.hasClients) return;
+    if (!_controller.position.hasContentDimensions) return;
     final showLeft = _controller.offset > 1;
     final showRight =
         _controller.offset < _controller.position.maxScrollExtent - 1;
@@ -243,20 +259,23 @@ class _BlenderApplicationWorkspaceStripState<T>
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final background = theme.colors.topBar;
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ...widget.prefix,
+        for (final workspace in widget.workspaces) _workspaceButton(workspace),
+        ...widget.actions,
+      ],
+    );
+    if (!widget.scrollable) {
+      return SizedBox(height: theme.density.rowHeight, child: row);
+    }
     final content = ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: SingleChildScrollView(
         controller: _controller,
         scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ...widget.prefix,
-            for (final workspace in widget.workspaces)
-              _workspaceButton(workspace),
-            ...widget.actions,
-          ],
-        ),
+        child: row,
       ),
     );
     return SizedBox(

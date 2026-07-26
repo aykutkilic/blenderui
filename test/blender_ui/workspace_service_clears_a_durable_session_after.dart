@@ -664,6 +664,36 @@ void registerWorkspaceServiceClearsADurableSessionAfterTests() {
     },
   );
 
+  testWidgets('application top bar can be hosted in a horizontal scroll view', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            height: 34,
+            child: BlenderApplicationTopBar<String, int>(
+              menus: const <BlenderApplicationMenu<String>>[
+                BlenderApplicationMenu<String>(
+                  label: 'File',
+                  items: <BlenderMenuItem<String>>[],
+                ),
+              ],
+              workspaces: const <BlenderApplicationWorkspace<int>>[
+                BlenderApplicationWorkspace<int>(value: 0, label: 'Layout'),
+              ],
+              activeWorkspace: 0,
+              onWorkspaceSelected: _ignoreInt,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('submenu rows use thin arrows and stay highlighted', (
     tester,
   ) async {

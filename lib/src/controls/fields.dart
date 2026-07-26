@@ -125,35 +125,60 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
             ),
             borderRadius: BorderRadius.circular(theme.shapes.controlRadius),
           ),
-          child: Row(
-            children: <Widget>[
-              if (widget.leading != null) ...<Widget>[
-                widget.leading!,
-                const SizedBox(width: 5),
-              ],
-              Expanded(
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  children: <Widget>[
-                    if (widget.placeholder != null &&
-                        widget.controller.text.isEmpty)
-                      IgnorePointer(
-                        child: Text(
-                          widget.placeholder!,
-                          style: theme.textTheme.body.copyWith(
-                            color: theme.colors.foregroundMuted,
-                          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Dock areas can temporarily become narrower than the fixed
+              // leading/trailing affordances while they are being resized.
+              // At that width there is no usable text area, so expose one
+              // compact affordance instead of letting the row overflow.
+              if (constraints.maxWidth < 48) {
+                final compactChild = widget.trailing ?? widget.leading;
+                return compactChild == null
+                    ? const SizedBox.shrink()
+                    : Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: compactChild,
                         ),
-                      ),
-                    field,
+                      );
+              }
+              final contents = Row(
+                children: <Widget>[
+                  if (widget.leading != null) ...<Widget>[
+                    widget.leading!,
+                    const SizedBox(width: 5),
                   ],
-                ),
-              ),
-              if (widget.trailing != null) ...<Widget>[
-                const SizedBox(width: 5),
-                widget.trailing!,
-              ],
-            ],
+                  Expanded(
+                    child: Stack(
+                      alignment: Alignment.centerLeft,
+                      children: <Widget>[
+                        if (widget.placeholder != null &&
+                            widget.controller.text.isEmpty)
+                          IgnorePointer(
+                            child: Text(
+                              widget.placeholder!,
+                              style: theme.textTheme.body.copyWith(
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                          ),
+                        field,
+                      ],
+                    ),
+                  ),
+                  if (widget.trailing != null) ...<Widget>[
+                    const SizedBox(width: 5),
+                    widget.trailing!,
+                  ],
+                ],
+              );
+              // Horizontal header scroll surfaces deliberately pass an
+              // unbounded width to their children. Give the editable region
+              // a stable intrinsic width before using `Expanded` inside it.
+              return constraints.hasBoundedWidth
+                  ? contents
+                  : SizedBox(width: 180, child: contents);
+            },
           ),
         ),
       ),

@@ -5,7 +5,10 @@ class BlenderToolbar extends StatefulWidget {
     super.key,
     required this.children,
     this.height,
-    this.scrollable = false,
+    // Blender headers are frequently hosted in resizable editor regions.
+    // Keep their controls reachable when the region becomes narrower than
+    // the combined intrinsic width of its children.
+    this.scrollable = true,
     this.background,
     this.edgeFade = true,
   });
@@ -42,6 +45,7 @@ class _BlenderToolbarState extends State<BlenderToolbar> {
   void _syncFadeState() {
     if (!_scrollController.hasClients) return;
     final showLeft = _scrollController.offset > 1;
+    if (!_scrollController.position.hasContentDimensions) return;
     final showRight =
         _scrollController.offset <
         _scrollController.position.maxScrollExtent - 1;
@@ -55,12 +59,18 @@ class _BlenderToolbarState extends State<BlenderToolbar> {
 
   Widget _content(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final children = widget.scrollable
+        ? widget.children
+              .where((child) => child is! Spacer)
+              .map((child) => child is Flexible ? child.child : child)
+              .toList(growable: false)
+        : widget.children;
     final row = Row(
       mainAxisSize: widget.scrollable ? MainAxisSize.min : MainAxisSize.max,
       children: <Widget>[
-        for (var i = 0; i < widget.children.length; i++) ...<Widget>[
+        for (var i = 0; i < children.length; i++) ...<Widget>[
           if (i > 0) SizedBox(width: theme.density.spacing),
-          widget.children[i],
+          children[i],
         ],
       ],
     );
