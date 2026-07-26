@@ -393,13 +393,8 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                               ),
                             ),
                           ),
-                        // Flutter centers a text line box, while Blender aligns
-                        // tree labels and icons to its optical row center. Keep
-                        // the shared Tree (and therefore Outliner) one logical
-                        // pixel below the geometric guide center so nested row
-                        // content does not look vertically raised.
-                        Transform.translate(
-                          offset: const Offset(0, 1),
+                        Align(
+                          alignment: Alignment.centerLeft,
                           child: Padding(
                             padding: EdgeInsets.only(
                               left: entry.depth * widget.indent,
