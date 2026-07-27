@@ -45,6 +45,38 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('docked sidebar is inset from the viewport edges', (
+    tester,
+  ) async {
+    final controller = BlenderViewportController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      BlenderApp(
+        home: SizedBox(
+          width: 500,
+          height: 240,
+          child: BlenderViewportShell(
+            controller: controller,
+            sceneBuilder: (context, state) => const SizedBox.expand(),
+            sidebar: const SizedBox(
+              key: ValueKey<String>('sidebar-content'),
+              height: 100,
+            ),
+            sidebarWidth: 160,
+          ),
+        ),
+      ),
+    );
+
+    final shell = tester.getRect(find.byType(BlenderViewportShell));
+    final sidebar = tester.getRect(
+      find.byKey(const ValueKey<String>('sidebar-content')),
+    );
+    expect(sidebar.top, shell.top + 8);
+    expect(sidebar.bottom, sidebar.top + 100);
+    expect(sidebar.bottom, lessThan(shell.bottom - 8));
+  });
 }
 
 void _ignoreString(String value) {}

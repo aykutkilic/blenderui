@@ -118,6 +118,7 @@ class BlenderViewportShell extends StatelessWidget {
     this.overlays = const <Widget>[],
     this.sidebar,
     this.sidebarWidth = 240,
+    this.sidebarPadding = const EdgeInsets.symmetric(vertical: 8),
     this.background,
     this.orbitEnabled = true,
     this.zoomEnabled = true,
@@ -136,6 +137,11 @@ class BlenderViewportShell extends StatelessWidget {
   final List<Widget> overlays;
   final Widget? sidebar;
   final double sidebarWidth;
+
+  /// Insets the docked N-panel from the viewport edges like Blender's UI
+  /// region. Keep this vertical by default so a collapsed tab rail can still
+  /// fit inside a narrow [sidebarWidth].
+  final EdgeInsets sidebarPadding;
   final Color? background;
   final bool orbitEnabled;
   final bool zoomEnabled;
@@ -203,10 +209,16 @@ class BlenderViewportShell extends StatelessWidget {
         // the secondary region until there is room for both columns.
         if (constraints.maxWidth <= sidebarWidth) return viewport;
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          // The N-panel is an inset region. Its contents should retain their
+          // natural height instead of painting a second full-height viewport
+          // background beside the scene.
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Expanded(child: viewport),
-            SizedBox(width: sidebarWidth, child: sidebar),
+            SizedBox(
+              width: sidebarWidth,
+              child: Padding(padding: sidebarPadding, child: sidebar),
+            ),
           ],
         );
       },
@@ -471,6 +483,9 @@ class BlenderViewportSidebarRail extends StatelessWidget {
         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
         child: ListView.separated(
           primary: false,
+          // Let the rail size to its tabs when the dock is unconstrained, but
+          // retain scrolling when a host gives it a genuinely short height.
+          shrinkWrap: true,
           itemCount: tabs.length,
           separatorBuilder: (_, _) => const SizedBox(height: 3),
           itemBuilder: (context, index) {

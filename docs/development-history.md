@@ -4,6 +4,23 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-27 — Matched viewport sidebar region behavior
+
+- Added a configurable vertical inset to `BlenderViewportShell` so docked
+  sidebar rails and panels follow Blender's inset right UI region geometry.
+- Kept collapsed sidebar rails narrow-safe and added shared viewport geometry
+  coverage.
+
+## 2026-07-27 — Reserved the tree edge before the scrollbar
+
+- Audited Blender's Outliner drawing path, which subtracts its right-column
+  width and scissored the tree before drawing restriction controls.
+- Added the equivalent interface-scaled safe inset to shared `BlenderTree`
+  content so collapsed summaries and row actions cannot paint underneath the
+  overlaid scrollbar in Outliner or File Browser surfaces.
+- Added focused geometry coverage and refreshed only the affected Outliner and
+  File Browser golden snapshots.
+
 ## 2026-07-27 — Restored selected values in compact dropdowns
 
 - Redefined compact dropdown presentation as dense toolbar styling that keeps

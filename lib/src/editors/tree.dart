@@ -332,307 +332,326 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                 ),
               ),
             ),
-            ListView.builder(
-              controller: _scrollController,
-              itemCount: visible.length,
-              itemExtent: rowHeight,
-              itemBuilder: (context, index) {
-                final entry = visible[index];
-                final node = entry.value;
-                final hasChildren =
-                    node.children.isNotEmpty || node.hasChildren;
-                final selected = _selectedIds.contains(node.id);
-                final alternate = index.isOdd;
-                final contextMenuItems =
-                    widget.contextMenuItemsBuilder?.call(node) ??
-                    const <BlenderMenuItem<String>>[];
-                Widget row = GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onSecondaryTapDown: node.onContextMenuRequested == null
-                      ? null
-                      : (details) => node.onContextMenuRequested!(
-                          details.globalPosition,
-                        ),
-                  onLongPressStart: node.onContextMenuRequested == null
-                      ? null
-                      : (details) => node.onContextMenuRequested!(
-                          details.globalPosition,
-                        ),
-                  child: DecoratedBox(
-                    key: ValueKey<String>('tree-row-${node.id}'),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? theme.colors.selection
-                          : alternate
-                          ? const Color(0x04FFFFFF)
-                          : null,
-                      border: node.dropTarget
-                          ? Border(
-                              bottom: BorderSide(
-                                color: theme.colors.accent,
-                                width: 2,
-                              ),
-                            )
-                          : null,
-                    ),
-                    child: Stack(
-                      children: <Widget>[
-                        if (entry.depth > 0)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: CustomPaint(
-                                painter: _BlenderTreeGuidePainter(
-                                  indent: widget.indent,
-                                  depth: entry.depth,
-                                  ancestorHasNext: entry.ancestorHasNext,
-                                  isLast: entry.isLast,
-                                  color: theme.colors.foregroundMuted.withAlpha(
-                                    62,
-                                  ),
-                                ),
-                              ),
-                            ),
+            Padding(
+              // Blender reserves the right-side restriction column and clips
+              // tree content before it. RawScrollbar paints over Flutter's
+              // viewport, so keep the same clear strip for trailing tree
+              // summaries and row actions instead of letting them sit under
+              // the scrollbar thumb.
+              padding: EdgeInsets.only(right: 8 * theme.density.interfaceScale),
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: visible.length,
+                itemExtent: rowHeight,
+                itemBuilder: (context, index) {
+                  final entry = visible[index];
+                  final node = entry.value;
+                  final hasChildren =
+                      node.children.isNotEmpty || node.hasChildren;
+                  final selected = _selectedIds.contains(node.id);
+                  final alternate = index.isOdd;
+                  final contextMenuItems =
+                      widget.contextMenuItemsBuilder?.call(node) ??
+                      const <BlenderMenuItem<String>>[];
+                  Widget row = GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onSecondaryTapDown: node.onContextMenuRequested == null
+                        ? null
+                        : (details) => node.onContextMenuRequested!(
+                            details.globalPosition,
                           ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: entry.depth * widget.indent,
-                            ),
-                            child: LayoutBuilder(
-                              builder: (context, rowConstraints) {
-                                final showNodeIcon =
-                                    rowConstraints.maxWidth >= 44;
-                                final showTrailing =
-                                    rowConstraints.maxWidth >= 112;
-                                final showDisclosure =
-                                    rowConstraints.maxWidth >= widget.indent;
-                                return Row(
-                                  children: <Widget>[
-                                    if (showDisclosure)
-                                      SizedBox(
-                                        width: widget.indent,
-                                        child: hasChildren
-                                            ? GestureDetector(
-                                                behavior:
-                                                    HitTestBehavior.opaque,
-                                                onTap: () =>
-                                                    _toggleExpanded(node.id),
-                                                child: Center(
-                                                  child: BlenderTooltip(
-                                                    message:
-                                                        _expanded.contains(
-                                                          node.id,
-                                                        )
-                                                        ? 'Collapse'
-                                                        : 'Expand',
-                                                    child: BlenderIcon(
-                                                      key: ValueKey<String>(
-                                                        'tree-disclosure-${node.id}',
-                                                      ),
-                                                      _expanded.contains(
-                                                            node.id,
-                                                          )
-                                                          ? BlenderGlyph
-                                                                .panelDisclosureDown
-                                                          : BlenderGlyph
-                                                                .panelDisclosureRight,
-                                                      size: 9,
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                    if (showNodeIcon &&
-                                        node.icon != null) ...<Widget>[
-                                      BlenderIcon(
-                                        node.icon!,
-                                        size: 14,
-                                        color: node.iconColor,
-                                      ),
-                                      SizedBox(width: theme.density.spacing),
-                                    ],
-                                    Expanded(
-                                      child: Row(
-                                        children: <Widget>[
-                                          Flexible(
-                                            child: Text(
-                                              key: ValueKey<String>(
-                                                'tree-label-${node.id}',
-                                              ),
-                                              node.label,
-                                              maxLines: 1,
-                                              style: theme.textTheme.label
-                                                  .copyWith(
-                                                    color: node.selectable
-                                                        ? theme
-                                                              .colors
-                                                              .foreground
-                                                        : theme
-                                                              .colors
-                                                              .foregroundMuted,
-                                                  ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (node.dropHint != null)
-                                            Flexible(
-                                              child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                  left: 4,
-                                                ),
-                                                child: Text(
-                                                  node.dropHint!,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: theme.textTheme.caption
-                                                      .copyWith(
-                                                        color:
-                                                            theme.colors.accent,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (showTrailing &&
-                                        hasChildren &&
-                                        !_expanded.contains(node.id))
-                                      _BlenderCollapsedTreeSummary(
-                                        children: node.children,
-                                      ),
-                                    if (showTrailing && widget.showVisibility)
-                                      BlenderIconButton(
-                                        glyph: BlenderGlyph.eye,
-                                        selected: false,
-                                        onPressed:
-                                            widget.onVisibilityChanged == null
-                                            ? null
-                                            : () => widget.onVisibilityChanged!(
-                                                node,
-                                              ),
-                                        tooltip: node.visible ? 'Hide' : 'Show',
-                                        size: 20,
-                                      ),
-                                    if (showTrailing && widget.showLock)
-                                      BlenderIconButton(
-                                        glyph: BlenderGlyph.lock,
-                                        selected: false,
-                                        onPressed: widget.onLockChanged == null
-                                            ? null
-                                            : () => widget.onLockChanged!(node),
-                                        tooltip: node.locked
-                                            ? 'Unlock'
-                                            : 'Lock',
-                                        size: 20,
-                                      ),
-                                    if (showTrailing &&
-                                        node.actionIcon != null &&
-                                        (_hoveredNodeId == node.id ||
-                                            node.dropTarget))
-                                      BlenderIconButton(
-                                        glyph: node.actionIcon!,
-                                        onPressed: node.onAction,
-                                        tooltip: node.actionTooltip,
-                                        size: 20,
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
+                    onLongPressStart: node.onContextMenuRequested == null
+                        ? null
+                        : (details) => node.onContextMenuRequested!(
+                            details.globalPosition,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-                // Select on pointer-down so adding double-click activation does
-                // not delay ordinary single-click selection until the double
-                // tap recognizer times out.
-                if (node.selectable) {
-                  row = Listener(
-                    behavior: HitTestBehavior.translucent,
-                    onPointerDown: (event) => _handleSelectablePointerDown(
-                      node,
-                      index,
-                      visible,
-                      event,
-                    ),
-                    child: row,
-                  );
-                }
-                row = MouseRegion(
-                  onEnter: (_) => setState(() => _hoveredNodeId = node.id),
-                  onExit: (_) {
-                    if (_hoveredNodeId == node.id) {
-                      setState(() => _hoveredNodeId = null);
-                    }
-                  },
-                  child: row,
-                );
-                if (node.canAcceptDrop != null && node.onAcceptDrop != null) {
-                  final dragTargetChild = row;
-                  row = DragTarget<Object>(
-                    onWillAcceptWithDetails: (details) {
-                      final accepted = node.canAcceptDrop!(details.data);
-                      if (accepted) node.onDragEntered?.call(details.data);
-                      return accepted;
-                    },
-                    onLeave: (_) => node.onDragExited?.call(),
-                    onAcceptWithDetails: (details) {
-                      node.onDragExited?.call();
-                      unawaited(
-                        Future<void>.sync(
-                          () => node.onAcceptDrop!(details.data),
-                        ),
-                      );
-                    },
-                    builder: (context, candidates, rejected) => DecoratedBox(
-                      decoration: candidates.isEmpty
-                          ? const BoxDecoration()
-                          : BoxDecoration(
-                              border: Border(
+                    child: DecoratedBox(
+                      key: ValueKey<String>('tree-row-${node.id}'),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? theme.colors.selection
+                            : alternate
+                            ? const Color(0x04FFFFFF)
+                            : null,
+                        border: node.dropTarget
+                            ? Border(
                                 bottom: BorderSide(
                                   color: theme.colors.accent,
                                   width: 2,
                                 ),
+                              )
+                            : null,
+                      ),
+                      child: Stack(
+                        children: <Widget>[
+                          if (entry.depth > 0)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: CustomPaint(
+                                  painter: _BlenderTreeGuidePainter(
+                                    indent: widget.indent,
+                                    depth: entry.depth,
+                                    ancestorHasNext: entry.ancestorHasNext,
+                                    isLast: entry.isLast,
+                                    color: theme.colors.foregroundMuted
+                                        .withAlpha(62),
+                                  ),
+                                ),
                               ),
                             ),
-                      child: dragTargetChild,
-                    ),
-                  );
-                }
-                if (node.dragData != null) {
-                  row = Draggable<Object>(
-                    data: node.dragData!,
-                    feedback: BlenderEditorFrame(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 260),
-                        child: row,
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: entry.depth * widget.indent,
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  final showNodeIcon =
+                                      rowConstraints.maxWidth >= 44;
+                                  final showTrailing =
+                                      rowConstraints.maxWidth >= 112;
+                                  final showDisclosure =
+                                      rowConstraints.maxWidth >= widget.indent;
+                                  return Row(
+                                    children: <Widget>[
+                                      if (showDisclosure)
+                                        SizedBox(
+                                          width: widget.indent,
+                                          child: hasChildren
+                                              ? GestureDetector(
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onTap: () =>
+                                                      _toggleExpanded(node.id),
+                                                  child: Center(
+                                                    child: BlenderTooltip(
+                                                      message:
+                                                          _expanded.contains(
+                                                            node.id,
+                                                          )
+                                                          ? 'Collapse'
+                                                          : 'Expand',
+                                                      child: BlenderIcon(
+                                                        key: ValueKey<String>(
+                                                          'tree-disclosure-${node.id}',
+                                                        ),
+                                                        _expanded.contains(
+                                                              node.id,
+                                                            )
+                                                            ? BlenderGlyph
+                                                                  .panelDisclosureDown
+                                                            : BlenderGlyph
+                                                                  .panelDisclosureRight,
+                                                        size: 9,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      if (showNodeIcon &&
+                                          node.icon != null) ...<Widget>[
+                                        BlenderIcon(
+                                          node.icon!,
+                                          size: 14,
+                                          color: node.iconColor,
+                                        ),
+                                        SizedBox(width: theme.density.spacing),
+                                      ],
+                                      Expanded(
+                                        child: Row(
+                                          children: <Widget>[
+                                            Flexible(
+                                              child: Text(
+                                                key: ValueKey<String>(
+                                                  'tree-label-${node.id}',
+                                                ),
+                                                node.label,
+                                                maxLines: 1,
+                                                style: theme.textTheme.label
+                                                    .copyWith(
+                                                      color: node.selectable
+                                                          ? theme
+                                                                .colors
+                                                                .foreground
+                                                          : theme
+                                                                .colors
+                                                                .foregroundMuted,
+                                                    ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (node.dropHint != null)
+                                              Flexible(
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        left: 4,
+                                                      ),
+                                                  child: Text(
+                                                    node.dropHint!,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: theme
+                                                        .textTheme
+                                                        .caption
+                                                        .copyWith(
+                                                          color: theme
+                                                              .colors
+                                                              .accent,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (showTrailing &&
+                                          hasChildren &&
+                                          !_expanded.contains(node.id))
+                                        _BlenderCollapsedTreeSummary(
+                                          key: ValueKey<String>(
+                                            'tree-collapsed-summary-${node.id}',
+                                          ),
+                                          children: node.children,
+                                        ),
+                                      if (showTrailing && widget.showVisibility)
+                                        BlenderIconButton(
+                                          glyph: BlenderGlyph.eye,
+                                          selected: false,
+                                          onPressed:
+                                              widget.onVisibilityChanged == null
+                                              ? null
+                                              : () =>
+                                                    widget.onVisibilityChanged!(
+                                                      node,
+                                                    ),
+                                          tooltip: node.visible
+                                              ? 'Hide'
+                                              : 'Show',
+                                          size: 20,
+                                        ),
+                                      if (showTrailing && widget.showLock)
+                                        BlenderIconButton(
+                                          glyph: BlenderGlyph.lock,
+                                          selected: false,
+                                          onPressed:
+                                              widget.onLockChanged == null
+                                              ? null
+                                              : () =>
+                                                    widget.onLockChanged!(node),
+                                          tooltip: node.locked
+                                              ? 'Unlock'
+                                              : 'Lock',
+                                          size: 20,
+                                        ),
+                                      if (showTrailing &&
+                                          node.actionIcon != null &&
+                                          (_hoveredNodeId == node.id ||
+                                              node.dropTarget))
+                                        BlenderIconButton(
+                                          glyph: node.actionIcon!,
+                                          onPressed: node.onAction,
+                                          tooltip: node.actionTooltip,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    childWhenDragging: Opacity(opacity: .45, child: row),
-                    child: row,
                   );
-                }
-                if (contextMenuItems.isNotEmpty) {
-                  row = BlenderContextMenu<String>(
-                    title: widget.contextMenuTitleBuilder?.call(node),
-                    items: contextMenuItems,
-                    // Blender activates the view item under the pointer before
-                    // asking that item to build its context menu.
-                    onContextRequested: (_) {
-                      if (node.selectable) widget.onSelected?.call(node);
+                  // Select on pointer-down so adding double-click activation does
+                  // not delay ordinary single-click selection until the double
+                  // tap recognizer times out.
+                  if (node.selectable) {
+                    row = Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: (event) => _handleSelectablePointerDown(
+                        node,
+                        index,
+                        visible,
+                        event,
+                      ),
+                      child: row,
+                    );
+                  }
+                  row = MouseRegion(
+                    onEnter: (_) => setState(() => _hoveredNodeId = node.id),
+                    onExit: (_) {
+                      if (_hoveredNodeId == node.id) {
+                        setState(() => _hoveredNodeId = null);
+                      }
                     },
-                    onSelected: (item) =>
-                        widget.onContextMenuSelected?.call(node, item),
                     child: row,
                   );
-                }
-                return row;
-              },
+                  if (node.canAcceptDrop != null && node.onAcceptDrop != null) {
+                    final dragTargetChild = row;
+                    row = DragTarget<Object>(
+                      onWillAcceptWithDetails: (details) {
+                        final accepted = node.canAcceptDrop!(details.data);
+                        if (accepted) node.onDragEntered?.call(details.data);
+                        return accepted;
+                      },
+                      onLeave: (_) => node.onDragExited?.call(),
+                      onAcceptWithDetails: (details) {
+                        node.onDragExited?.call();
+                        unawaited(
+                          Future<void>.sync(
+                            () => node.onAcceptDrop!(details.data),
+                          ),
+                        );
+                      },
+                      builder: (context, candidates, rejected) => DecoratedBox(
+                        decoration: candidates.isEmpty
+                            ? const BoxDecoration()
+                            : BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: theme.colors.accent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                        child: dragTargetChild,
+                      ),
+                    );
+                  }
+                  if (node.dragData != null) {
+                    row = Draggable<Object>(
+                      data: node.dragData!,
+                      feedback: BlenderEditorFrame(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 260),
+                          child: row,
+                        ),
+                      ),
+                      childWhenDragging: Opacity(opacity: .45, child: row),
+                      child: row,
+                    );
+                  }
+                  if (contextMenuItems.isNotEmpty) {
+                    row = BlenderContextMenu<String>(
+                      title: widget.contextMenuTitleBuilder?.call(node),
+                      items: contextMenuItems,
+                      // Blender activates the view item under the pointer before
+                      // asking that item to build its context menu.
+                      onContextRequested: (_) {
+                        if (node.selectable) widget.onSelected?.call(node);
+                      },
+                      onSelected: (item) =>
+                          widget.onContextMenuSelected?.call(node, item),
+                      child: row,
+                    );
+                  }
+                  return row;
+                },
+              ),
             ),
           ],
         ),
@@ -667,7 +686,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
 }
 
 class _BlenderCollapsedTreeSummary extends StatelessWidget {
-  const _BlenderCollapsedTreeSummary({required this.children});
+  const _BlenderCollapsedTreeSummary({super.key, required this.children});
 
   final List<BlenderTreeNode<dynamic>> children;
 
