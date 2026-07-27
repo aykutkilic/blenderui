@@ -87,24 +87,20 @@ class _BlenderButtonState extends State<BlenderButton> {
       BlenderButtonVariant.tool => theme.colors.surface,
       BlenderButtonVariant.tab => theme.colors.tab,
       BlenderButtonVariant.menu => theme.colors.menuBackground,
-      BlenderButtonVariant.menuTrigger => theme.colors.surface,
+      BlenderButtonVariant.menuTrigger => theme.colors.surfaceElevated,
       BlenderButtonVariant.topBar => theme.colors.topBar,
     };
     final hoverBackground = switch (widget.variant) {
       BlenderButtonVariant.tab => theme.colors.tabSelected,
       BlenderButtonVariant.menu => theme.colors.menuSelection,
-      BlenderButtonVariant.menuTrigger => theme.colors.buttonSelected.withAlpha(
-        0xB3,
-      ),
+      BlenderButtonVariant.menuTrigger => theme.colors.surfaceRaised,
       BlenderButtonVariant.topBar => theme.colors.surfaceRaised,
       _ => theme.colors.buttonHover,
     };
     final selectedBackground = switch (widget.variant) {
       BlenderButtonVariant.tab => theme.colors.tabSelected,
       BlenderButtonVariant.menu => theme.colors.menuSelection,
-      BlenderButtonVariant.menuTrigger => theme.colors.buttonSelected.withAlpha(
-        0xB3,
-      ),
+      BlenderButtonVariant.menuTrigger => theme.colors.surfaceRaised,
       BlenderButtonVariant.topBar => theme.colors.surfaceRaised,
       _ => theme.colors.buttonSelected,
     };

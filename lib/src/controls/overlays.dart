@@ -333,6 +333,7 @@ class BlenderPopover extends StatefulWidget {
     this.targetAnchor = Alignment.bottomLeft,
     this.followerAnchor = Alignment.topLeft,
     this.onOpenChanged,
+    this.onOverlayHover,
     this.openOnHover = false,
     this.hoverDelay = const Duration(milliseconds: 200),
   });
@@ -343,6 +344,7 @@ class BlenderPopover extends StatefulWidget {
   final Alignment targetAnchor;
   final Alignment followerAnchor;
   final ValueChanged<bool>? onOpenChanged;
+  final ValueChanged<Offset>? onOverlayHover;
   final bool openOnHover;
   final Duration hoverDelay;
 
@@ -374,6 +376,17 @@ class _BlenderPopoverState extends State<BlenderPopover> {
             context,
             Stack(
               children: <Widget>[
+                Positioned.fill(
+                  child: MouseRegion(
+                    onHover: widget.onOverlayHover == null
+                        ? null
+                        : (event) => widget.onOverlayHover!(event.position),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ),
+                ),
                 CustomSingleChildLayout(
                   delegate: _BlenderPopoverPositionDelegate(
                     target: Rect.fromLTWH(

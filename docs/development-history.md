@@ -4,6 +4,28 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-07-27 — Restored selected values in compact dropdowns
+
+- Redefined compact dropdown presentation as dense toolbar styling that keeps
+  the selected label and icon visible, added explicit icon-only behavior for
+  genuinely narrow selectors, and reflected the open menu in the trigger's
+  selected state.
+- Centered dropdown triggers within taller headers and aligned generic menu
+  rows, adaptive widths, hover color, and shadow with Blender's native menu
+  geometry instead of double-scaling roomy application-menu dimensions.
+- Preserved the Outliner display-mode selector as icon-only and added focused
+  regressions for both compact labeled and icon-only dropdowns.
+- Matched editor-header pulldowns to Blender's flat, borderless gray
+  hover/open treatment and added toolbar-owned sibling hover switching without
+  coupling nested submenu popovers to the top-level menu bar.
+
+## 2026-07-27 — Added cursor clearance to shared tooltips
+
+- Increased the shared `BlenderTooltip` gap below compact controls to 16 px so
+  the visible mouse pointer no longer overlaps the tooltip overlay. The
+  spacing is owned by the reusable tooltip primitive and is covered by its
+  geometry test.
+
 ## 2026-07-25 — Made workbook authoring surfaces theme-aware
 
 - Selected light/dark syntax palettes from the active semantic workbook canvas

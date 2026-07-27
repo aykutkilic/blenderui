@@ -410,6 +410,16 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                 : null,
             child: Text(widget.label!, style: theme.textTheme.label),
           );
+    final unitHint = widget.suffix == null
+        ? null
+        : Text(
+            widget.suffix!,
+            style: theme.textTheme.body.copyWith(
+              color: widget.enabled
+                  ? theme.colors.foregroundMuted
+                  : theme.colors.foregroundDisabled,
+            ),
+          );
     final field = BlenderTextField(
       controller: _controller,
       focusNode: _focusNode,
@@ -426,12 +436,25 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
               onPressed: () => _setValue(widget.value - widget.step),
             )
           : null,
-      trailing: _hovered && showSteppers
-          ? _BlenderNumberStepper(
-              previous: false,
-              onPressed: () => _setValue(widget.value + widget.step),
-            )
-          : null,
+      // A unit remains visible while text is selected or replaced, matching
+      // Blender's numeric inputs and making the expected value unambiguous.
+      // It is deliberately presentation-only: the controller continues to
+      // contain only the numeric value accepted by the parser.
+      trailing: unitHint == null && !(_hovered && showSteppers)
+          ? null
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (unitHint != null) unitHint,
+                if (_hovered && showSteppers) ...<Widget>[
+                  if (unitHint != null) const SizedBox(width: 4),
+                  _BlenderNumberStepper(
+                    previous: false,
+                    onPressed: () => _setValue(widget.value + widget.step),
+                  ),
+                ],
+              ],
+            ),
       keyboardType: const TextInputType.numberWithOptions(
         decimal: true,
         signed: true,
@@ -495,13 +518,23 @@ class _BlenderNumberFieldState extends State<BlenderNumberField> {
                     onPressed: () => _setValue(widget.value - widget.step),
                   ),
                 Expanded(
-                  child: Text(
-                    '${_format(widget.value)}${widget.suffix ?? ''}',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.body.copyWith(
-                      color: widget.enabled
-                          ? theme.colors.foreground
-                          : theme.colors.foregroundDisabled,
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _format(widget.value),
+                          style: theme.textTheme.body.copyWith(
+                            color: widget.enabled
+                                ? theme.colors.foreground
+                                : theme.colors.foregroundDisabled,
+                          ),
+                        ),
+                        if (unitHint != null) ...<Widget>[
+                          const SizedBox(width: 2),
+                          unitHint,
+                        ],
+                      ],
                     ),
                   ),
                 ),

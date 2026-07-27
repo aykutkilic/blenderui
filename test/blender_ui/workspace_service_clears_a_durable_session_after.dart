@@ -741,7 +741,7 @@ void registerWorkspaceServiceClearsADurableSessionAfterTests() {
     final colors = BlenderTheme.of(tester.element(row)).colors;
     final decoration =
         tester.widget<Container>(row).decoration! as BoxDecoration;
-    expect(decoration.color, colors.menuSelection);
+    expect(decoration.color, colors.surfaceRaised);
     expect(find.text('Update Data Previews'), findsOneWidget);
   });
 }

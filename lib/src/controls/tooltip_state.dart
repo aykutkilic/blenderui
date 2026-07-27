@@ -1,5 +1,10 @@
 part of '../controls.dart';
 
+/// Vertical clearance that keeps the tooltip below the pointer resting on a
+/// compact control. The cursor's visible arrow extends beyond its hotspot, so
+/// the gap must be larger than a small widget-to-overlay spacing alone.
+const double _tooltipPointerClearance = 16;
+
 class _BlenderTooltipState extends State<BlenderTooltip> {
   final LayerLink _link = LayerLink();
   OverlayEntry? _entry;
@@ -20,7 +25,7 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
             // Keep the tooltip clear of the pointer resting on the control's
             // lower edge. This also matches the breathing room of Blender's
             // native tooltip placement.
-            offset: const Offset(0, 10),
+            offset: const Offset(0, _tooltipPointerClearance),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topLeft,

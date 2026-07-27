@@ -29,9 +29,9 @@ void registerResolutionScaleScalesMenuAndTabGeometryTests() {
       tester
           .getSize(find.byKey(const ValueKey<String>('menu-row-View')))
           .height,
-      42,
+      30,
     );
-    expect(tester.getSize(find.byType(BlenderMenu<String>)).width, 450);
+    expect(tester.getSize(find.byType(BlenderMenu<String>)).width, 270);
   });
 
   testWidgets('resolution scale applies to tab headers and tab hit targets', (

@@ -67,6 +67,28 @@ Widget _propertiesHarness() {
 }
 
 void main() {
+  testWidgets('number fields render units as muted hints', (tester) async {
+    await tester.pumpWidget(
+      BlenderApp(
+        home: SizedBox(
+          width: 160,
+          child: BlenderNumberField(
+            value: 5,
+            suffix: 'm',
+            onChanged: _ignoreDouble,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('m'), findsOneWidget);
+    final hint = tester.widget<Text>(find.text('m'));
+    expect(
+      hint.style?.color,
+      BlenderTheme.of(tester.element(find.text('m'))).colors.foregroundMuted,
+    );
+  });
+
   testWidgets('Output properties preserve Blender boolean row composition', (
     tester,
   ) async {

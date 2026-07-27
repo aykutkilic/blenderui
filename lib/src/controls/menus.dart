@@ -172,6 +172,7 @@ class BlenderDropdown<T> extends StatefulWidget {
     required this.onChanged,
     this.enabled = true,
     this.compact = false,
+    this.iconOnly = false,
     this.selectedLabel,
   });
 
@@ -179,7 +180,16 @@ class BlenderDropdown<T> extends StatefulWidget {
   final List<BlenderMenuItem<T>> items;
   final ValueChanged<T>? onChanged;
   final bool enabled;
+
+  /// Uses header-density padding and toolbar colors while retaining the
+  /// selected item's label and icon.
   final bool compact;
+
+  /// Hides the selected label for genuinely icon-only selectors.
+  ///
+  /// This is separate from [compact] because Blender header dropdowns remain
+  /// compact while still communicating their current selection.
+  final bool iconOnly;
   final String? selectedLabel;
 
   @override
@@ -188,17 +198,24 @@ class BlenderDropdown<T> extends StatefulWidget {
 
 class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
   final GlobalKey _buttonKey = GlobalKey();
+  bool _menuOpen = false;
+
   Future<void> _open() async {
     final renderObject = _buttonKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox) return;
     final origin = renderObject.localToGlobal(Offset.zero);
-    await _showBlenderMenuOverlay<T>(
-      context: context,
-      position: Offset(origin.dx, origin.dy + renderObject.size.height + 2),
-      items: widget.items,
-      selectedValue: widget.value,
-      onSelected: widget.onChanged,
-    );
+    setState(() => _menuOpen = true);
+    try {
+      await _showBlenderMenuOverlay<T>(
+        context: context,
+        position: Offset(origin.dx, origin.dy + renderObject.size.height + 2),
+        items: widget.items,
+        selectedValue: widget.value,
+        onSelected: widget.onChanged,
+      );
+    } finally {
+      if (mounted) setState(() => _menuOpen = false);
+    }
   }
 
   @override
@@ -211,12 +228,12 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
         break;
       }
     }
-    final label = widget.compact
+    final label = widget.iconOnly
         ? ''
         : widget.selectedLabel ?? item?.label ?? 'Select';
     return LayoutBuilder(
       builder: (context, constraints) => Align(
-        alignment: Alignment.topLeft,
+        alignment: Alignment.centerLeft,
         child: SizedBox(
           key: _buttonKey,
           width: constraints.hasBoundedWidth ? constraints.maxWidth : null,
@@ -225,10 +242,18 @@ class _BlenderDropdownState<T> extends State<BlenderDropdown<T>> {
             label: label,
             leading: item?.icon,
             enabled: widget.enabled,
+            selected: _menuOpen,
+            variant: widget.compact
+                ? BlenderButtonVariant.toolbar
+                : BlenderButtonVariant.regular,
             onPressed: widget.enabled && widget.onChanged != null
                 ? _open
                 : null,
-            padding: widget.compact ? EdgeInsets.zero : null,
+            padding: widget.compact
+                ? EdgeInsets.symmetric(
+                    horizontal: (widget.iconOnly ? 4 : 6) * densityScale,
+                  )
+                : null,
             trailing: BlenderIcon(
               BlenderGlyph.panelDisclosureDown,
               size: 9 * densityScale,
@@ -252,6 +277,58 @@ class BlenderMenu<T> extends StatelessWidget {
   final ValueChanged<BlenderMenuItem<T>> onSelected;
   final String? title;
 
+  double _preferredWidth(
+    BuildContext context,
+    BlenderThemeData theme,
+    double scale, {
+    required bool hasSelectionMarkers,
+    required bool hasLeadingMarkers,
+  }) {
+    final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final labelStyle = theme.textTheme.body.copyWith(
+      fontSize: 11 * scale,
+      height: 1.1,
+    );
+    final shortcutStyle = theme.textTheme.caption.copyWith(
+      fontSize: 10 * scale,
+    );
+
+    double textWidth(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: textDirection,
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    final leadingWidth = hasLeadingMarkers
+        ? (hasSelectionMarkers ? 35 * scale : 18 * scale)
+        : 0.0;
+    var contentWidth = 0.0;
+    for (final item in items) {
+      if (item.separator) continue;
+      var rowWidth = 14 * scale + textWidth(item.label, labelStyle);
+      if (leadingWidth > 0) rowWidth += leadingWidth + 7 * scale;
+      if (item.shortcut case final shortcut?) {
+        rowWidth += 8 * scale + textWidth(shortcut, shortcutStyle);
+      }
+      if (item.submenu != null) rowWidth += 17 * scale;
+      contentWidth = math.max(contentWidth, rowWidth);
+    }
+    if (title case final title? when title.isNotEmpty) {
+      contentWidth = math.max(
+        contentWidth,
+        16 * scale + textWidth(title, labelStyle),
+      );
+    }
+    return (contentWidth + 8 * scale)
+        .clamp(180 * scale, 300 * scale)
+        .toDouble();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
@@ -261,89 +338,104 @@ class BlenderMenu<T> extends StatelessWidget {
       (candidate) =>
           candidate.selected || candidate.checked || candidate.icon != null,
     );
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        minWidth: 220 * scale,
-        maxWidth: 300 * scale,
-        maxHeight: 420 * scale,
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colors.menuBackground,
-          border: Border.all(color: theme.colors.borderSubtle),
-          borderRadius: BorderRadius.circular(theme.shapes.menuRadius * scale),
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: EdgeInsets.all(4 * scale),
-          children: <Widget>[
-            if (title != null && title!.isNotEmpty) ...<Widget>[
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  8 * scale,
-                  5 * scale,
-                  8 * scale,
-                  7 * scale,
-                ),
-                child: Text(
-                  title!,
-                  style: theme.textTheme.body.copyWith(
-                    color: theme.colors.foregroundMuted,
-                    fontSize: 11 * scale,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.only(bottom: 3 * scale),
-                child: SizedBox(
-                  height: scale,
-                  child: ColoredBox(color: theme.colors.borderSubtle),
-                ),
+    final preferredWidth = _preferredWidth(
+      context,
+      theme,
+      scale,
+      hasSelectionMarkers: hasSelectionMarkers,
+      hasLeadingMarkers: hasLeadingMarkers,
+    );
+    return SizedBox(
+      width: preferredWidth,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: 420 * scale),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.menuBackground,
+            border: Border.all(color: theme.colors.borderSubtle),
+            borderRadius: BorderRadius.circular(
+              theme.shapes.menuRadius * scale,
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: const Color(0x66000000),
+                blurRadius: 8 * scale,
+                offset: Offset(0, 3 * scale),
               ),
             ],
-            for (final item in items)
-              if (item.separator)
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: EdgeInsets.all(4 * scale),
+            children: <Widget>[
+              if (title != null && title!.isNotEmpty) ...<Widget>[
                 Padding(
-                  padding: EdgeInsets.symmetric(vertical: 3 * scale),
+                  padding: EdgeInsets.fromLTRB(
+                    8 * scale,
+                    5 * scale,
+                    8 * scale,
+                    7 * scale,
+                  ),
+                  child: Text(
+                    title!,
+                    style: theme.textTheme.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                      fontSize: 11 * scale,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(bottom: 3 * scale),
                   child: SizedBox(
                     height: scale,
                     child: ColoredBox(color: theme.colors.borderSubtle),
                   ),
-                )
-              else
-                _BlenderMenuRow<T>(
-                  item: item,
-                  leading: hasLeadingMarkers
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            if (hasSelectionMarkers)
-                              SizedBox(
-                                width: 15 * scale,
-                                child: item.selected
-                                    ? BlenderIcon(
-                                        BlenderGlyph.check,
-                                        size: 12 * scale,
-                                      )
-                                    : null,
-                              ),
-                            if (item.checked)
-                              _BlenderMenuCheck(enabled: item.enabled)
-                            else if (item.icon != null)
-                              SizedBox(
-                                width: 16 * scale,
-                                height: 16 * scale,
-                                child: item.icon!,
-                              ),
-                          ],
-                        )
-                      : null,
-                  leadingWidth: hasLeadingMarkers
-                      ? (hasSelectionMarkers ? 35 * scale : 18 * scale)
-                      : 0,
-                  onSelected: onSelected,
                 ),
-          ],
+              ],
+              for (final item in items)
+                if (item.separator)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 3 * scale),
+                    child: SizedBox(
+                      height: scale,
+                      child: ColoredBox(color: theme.colors.borderSubtle),
+                    ),
+                  )
+                else
+                  _BlenderMenuRow<T>(
+                    item: item,
+                    leading: hasLeadingMarkers
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              if (hasSelectionMarkers)
+                                SizedBox(
+                                  width: 15 * scale,
+                                  child: item.selected
+                                      ? BlenderIcon(
+                                          BlenderGlyph.check,
+                                          size: 12 * scale,
+                                        )
+                                      : null,
+                                ),
+                              if (item.checked)
+                                _BlenderMenuCheck(enabled: item.enabled)
+                              else if (item.icon != null)
+                                SizedBox(
+                                  width: 16 * scale,
+                                  height: 16 * scale,
+                                  child: item.icon!,
+                                ),
+                            ],
+                          )
+                        : null,
+                    leadingWidth: hasLeadingMarkers
+                        ? (hasSelectionMarkers ? 35 * scale : 18 * scale)
+                        : 0,
+                    onSelected: onSelected,
+                  ),
+            ],
+          ),
         ),
       ),
     );
@@ -394,7 +486,8 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
   Widget _buildContent(BuildContext context) {
     final theme = BlenderTheme.of(context);
     final scale = theme.density.interfaceScale;
-    final highlighted = widget.item.selected || _hovered || _submenuOpen;
+    final selected = widget.item.selected;
+    final hovered = _hovered || _submenuOpen;
     final foreground = widget.item.enabled
         ? theme.colors.foreground
         : theme.colors.foregroundDisabled;
@@ -403,10 +496,14 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
       onExit: (_) => setState(() => _hovered = false),
       child: Container(
         key: ValueKey<String>('menu-row-${widget.item.label}'),
-        height: 28 * scale,
+        height: theme.density.controlHeight,
         padding: EdgeInsets.symmetric(horizontal: 7 * scale),
         decoration: BoxDecoration(
-          color: highlighted ? theme.colors.menuSelection : null,
+          color: selected
+              ? theme.colors.menuSelection
+              : hovered
+              ? theme.colors.surfaceRaised
+              : null,
           borderRadius: BorderRadius.circular(2),
         ),
         child: Row(
@@ -496,8 +593,101 @@ class _BlenderMenuRowState<T> extends State<_BlenderMenuRow<T>> {
   }
 }
 
+/// Coordinates sibling pulldowns so an open Blender-style menu follows hover.
+///
+/// Nested submenus use their own popovers and are deliberately outside this
+/// peer group. [BlenderToolbar] installs a menu bar automatically.
+class BlenderMenuBar extends StatefulWidget {
+  const BlenderMenuBar({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<BlenderMenuBar> createState() => _BlenderMenuBarState();
+}
+
+class _BlenderMenuBarState extends State<BlenderMenuBar> {
+  final _coordinator = _BlenderMenuBarCoordinator();
+
+  @override
+  Widget build(BuildContext context) {
+    return _BlenderMenuBarScope(coordinator: _coordinator, child: widget.child);
+  }
+}
+
+class _BlenderMenuBarScope extends InheritedWidget {
+  const _BlenderMenuBarScope({required this.coordinator, required super.child});
+
+  final _BlenderMenuBarCoordinator coordinator;
+
+  static _BlenderMenuBarCoordinator? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_BlenderMenuBarScope>()
+        ?.coordinator;
+  }
+
+  @override
+  bool updateShouldNotify(_BlenderMenuBarScope oldWidget) =>
+      coordinator != oldWidget.coordinator;
+}
+
+class _BlenderMenuBarEntry {
+  _BlenderMenuBarEntry({
+    required this.bounds,
+    required this.show,
+    required this.hide,
+  });
+
+  final Rect? Function() bounds;
+  final VoidCallback show;
+  final VoidCallback hide;
+}
+
+class _BlenderMenuBarCoordinator {
+  final List<_BlenderMenuBarEntry> _entries = <_BlenderMenuBarEntry>[];
+  _BlenderMenuBarEntry? _active;
+  _BlenderMenuBarEntry? _switchingTo;
+
+  void register(_BlenderMenuBarEntry entry) => _entries.add(entry);
+
+  void unregister(_BlenderMenuBarEntry entry) {
+    _entries.remove(entry);
+    if (identical(_active, entry)) _active = null;
+    if (identical(_switchingTo, entry)) _switchingTo = null;
+  }
+
+  void setOpen(_BlenderMenuBarEntry entry, bool open) {
+    if (open) {
+      _active = entry;
+      if (identical(_switchingTo, entry)) _switchingTo = null;
+    } else if (identical(_active, entry)) {
+      _active = null;
+    }
+  }
+
+  void handleOverlayHover(Offset position) {
+    final active = _active;
+    if (active == null) return;
+    _BlenderMenuBarEntry? target;
+    for (final entry in _entries) {
+      if (!identical(entry, active) &&
+          (entry.bounds()?.contains(position) ?? false)) {
+        target = entry;
+        break;
+      }
+    }
+    if (target == null || identical(_switchingTo, target)) return;
+    _switchingTo = target;
+    active.hide();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!identical(_switchingTo, target)) return;
+      target!.show();
+    });
+  }
+}
+
 /// A Blender-style pulldown label that opens a compact anchored menu.
-class BlenderMenuButton<T> extends StatelessWidget {
+class BlenderMenuButton<T> extends StatefulWidget {
   const BlenderMenuButton({
     super.key,
     required this.label,
@@ -514,22 +704,82 @@ class BlenderMenuButton<T> extends StatelessWidget {
   final BlenderButtonVariant variant;
 
   @override
+  State<BlenderMenuButton<T>> createState() => _BlenderMenuButtonState<T>();
+}
+
+class _BlenderMenuButtonState<T> extends State<BlenderMenuButton<T>> {
+  final _anchorKey = GlobalKey();
+  final _popoverKey = GlobalKey<_BlenderPopoverState>();
+  late final _BlenderMenuBarEntry _menuBarEntry = _BlenderMenuBarEntry(
+    bounds: _globalBounds,
+    show: _show,
+    hide: _hide,
+  );
+  _BlenderMenuBarCoordinator? _coordinator;
+  bool _open = false;
+
+  Rect? _globalBounds() {
+    if (!widget.enabled) return null;
+    final renderObject = _anchorKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.attached) return null;
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
+
+  void _show() => _popoverKey.currentState?._show();
+
+  void _hide() => _popoverKey.currentState?._hide();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final coordinator = _BlenderMenuBarScope.maybeOf(context);
+    if (identical(coordinator, _coordinator)) return;
+    _coordinator?.unregister(_menuBarEntry);
+    _coordinator = coordinator;
+    _coordinator?.register(_menuBarEntry);
+  }
+
+  @override
+  void dispose() {
+    _coordinator?.unregister(_menuBarEntry);
+    super.dispose();
+  }
+
+  void _handleOpenChanged(bool open) {
+    if (mounted && _open != open) setState(() => _open = open);
+    _coordinator?.setOpen(_menuBarEntry, open);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final button = BlenderButton(
-      label: label,
-      variant: variant,
-      enabled: enabled,
+      label: widget.label,
+      variant: widget.variant,
+      enabled: widget.enabled,
+      selected: _open,
+      showBorder: widget.variant != BlenderButtonVariant.menuTrigger,
+      padding: widget.variant == BlenderButtonVariant.menuTrigger
+          ? EdgeInsets.symmetric(
+              horizontal: BlenderTheme.of(context).density.spacing * 1.5,
+            )
+          : null,
       // The popover owns the activation; this callback keeps the pulldown
       // visually enabled while allowing the outer gesture to receive taps.
-      onPressed: enabled ? () {} : null,
+      onPressed: widget.enabled ? () {} : null,
     );
-    if (!enabled) return button;
+    if (!widget.enabled) return KeyedSubtree(key: _anchorKey, child: button);
     return BlenderPopover(
-      child: IgnorePointer(child: button),
+      key: _popoverKey,
+      onOpenChanged: _handleOpenChanged,
+      onOverlayHover: _coordinator?.handleOverlayHover,
+      child: KeyedSubtree(
+        key: _anchorKey,
+        child: IgnorePointer(child: button),
+      ),
       popover: (context, close) => BlenderMenu<T>(
-        items: items,
+        items: widget.items,
         onSelected: (item) {
-          onSelected?.call(item.value);
+          widget.onSelected?.call(item.value);
           close();
         },
       ),

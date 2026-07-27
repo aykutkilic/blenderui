@@ -96,7 +96,7 @@ class _BlenderToolbarState extends State<BlenderToolbar> {
     // Blender headers use the themed header surface (`#303030` in the default
     // dark theme), not the darker editor body behind them.
     final background = widget.background ?? theme.colors.surfaceElevated;
-    final content = widget.scrollable
+    final toolbarContent = widget.scrollable
         ? _blenderHeaderScrollSurface(
             context,
             SingleChildScrollView(
@@ -106,6 +106,7 @@ class _BlenderToolbarState extends State<BlenderToolbar> {
             ),
           )
         : _content(context);
+    final content = BlenderMenuBar(child: toolbarContent);
     return Container(
       height: widget.height ?? theme.density.headerHeight,
       padding: EdgeInsets.symmetric(horizontal: theme.density.panelPadding),

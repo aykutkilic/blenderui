@@ -343,6 +343,7 @@ class BlenderOutliner<T> extends StatelessWidget {
                 child: BlenderDropdown<BlenderOutlinerDisplayMode>(
                   value: displayMode,
                   compact: true,
+                  iconOnly: true,
                   items: <BlenderMenuItem<BlenderOutlinerDisplayMode>>[
                     for (final mode in BlenderOutlinerDisplayMode.values)
                       BlenderMenuItem<BlenderOutlinerDisplayMode>(
