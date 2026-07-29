@@ -4,15 +4,22 @@ class BlenderTextEditor extends StatefulWidget {
   const BlenderTextEditor({
     super.key,
     this.text = '',
+    this.controller,
+    this.focusNode,
     this.onChanged,
     this.readOnly = false,
     this.sidebar,
     this.sidebarWidth = 240,
     this.footer,
     this.title = 'Text Editor',
-  });
+  }) : assert(
+         controller == null || text == '',
+         'text only initializes an internally owned controller.',
+       );
 
   final String text;
+  final TextEditingController? controller;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final bool readOnly;
   final Widget? sidebar;
@@ -25,35 +32,101 @@ class BlenderTextEditor extends StatefulWidget {
 }
 
 class _BlenderTextEditorState extends State<BlenderTextEditor> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  late bool _ownsController;
+  late bool _ownsFocusNode;
+  late int _lineCount;
+  final ScrollController _editorScrollController = ScrollController();
+  final ScrollController _gutterScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.text);
-    _focusNode = FocusNode();
+    _attachController();
+    _attachFocusNode();
+    _editorScrollController.addListener(_synchronizeGutter);
+  }
+
+  void _attachController() {
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? TextEditingController(text: widget.text);
+    _lineCount = _countLines(_controller.text);
+    _controller.addListener(_handleControllerChanged);
+  }
+
+  void _detachController() {
+    _controller.removeListener(_handleControllerChanged);
+    if (_ownsController) _controller.dispose();
+  }
+
+  void _attachFocusNode() {
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
+  }
+
+  void _detachFocusNode() {
+    if (_ownsFocusNode) _focusNode.dispose();
+  }
+
+  void _handleControllerChanged() {
+    final nextLineCount = _countLines(_controller.text);
+    if (nextLineCount == _lineCount || !mounted) return;
+    setState(() => _lineCount = nextLineCount);
+  }
+
+  int _countLines(String text) => '\n'.allMatches(text).length + 1;
+
+  void _synchronizeGutter() {
+    if (!_editorScrollController.hasClients ||
+        !_gutterScrollController.hasClients) {
+      return;
+    }
+    final target = _editorScrollController.offset
+        .clamp(0.0, _gutterScrollController.position.maxScrollExtent)
+        .toDouble();
+    if ((_gutterScrollController.offset - target).abs() < .5) return;
+    _gutterScrollController.jumpTo(target);
   }
 
   @override
   void didUpdateWidget(BlenderTextEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_focusNode.hasFocus && oldWidget.text != widget.text) {
+    if (!identical(oldWidget.controller, widget.controller)) {
+      _detachController();
+      _attachController();
+    }
+    if (!identical(oldWidget.focusNode, widget.focusNode)) {
+      _detachFocusNode();
+      _attachFocusNode();
+    }
+    if (widget.controller == null &&
+        !_focusNode.hasFocus &&
+        oldWidget.text != widget.text) {
       _controller.text = widget.text;
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
+    _editorScrollController
+      ..removeListener(_synchronizeGutter)
+      ..dispose();
+    _gutterScrollController.dispose();
+    _detachController();
+    _detachFocusNode();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    final lineCount = '\n'.allMatches(_controller.text).length + 1;
+    final editorStyle = theme.textTheme.body.copyWith(
+      color: theme.colors.foreground,
+      fontFamily: 'monospace',
+    );
+    final lineHeight =
+        (editorStyle.fontSize ?? 13) * (editorStyle.height ?? 1.0);
     final body = Column(
       children: <Widget>[
         Expanded(
@@ -62,18 +135,21 @@ class _BlenderTextEditorState extends State<BlenderTextEditor> {
             children: <Widget>[
               Container(
                 width: 42,
-                padding: const EdgeInsets.only(top: 8, right: 8),
                 color: theme.colors.textField,
                 child: DefaultTextStyle(
                   style: theme.textTheme.caption.copyWith(
                     color: theme.colors.foregroundMuted,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      for (var line = 1; line <= lineCount; line++)
-                        SizedBox(height: 18, child: Text('$line')),
-                    ],
+                  child: ListView.builder(
+                    controller: _gutterScrollController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 8, right: 8),
+                    itemCount: _lineCount,
+                    itemExtent: lineHeight,
+                    itemBuilder: (context, index) => Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('${index + 1}'),
+                    ),
                   ),
                 ),
               ),
@@ -84,17 +160,12 @@ class _BlenderTextEditorState extends State<BlenderTextEditor> {
                   child: EditableText(
                     controller: _controller,
                     focusNode: _focusNode,
-                    style: theme.textTheme.body.copyWith(
-                      color: theme.colors.foreground,
-                      fontFamily: 'monospace',
-                    ),
+                    scrollController: _editorScrollController,
+                    style: editorStyle,
                     cursorColor: theme.colors.cursor,
                     backgroundCursorColor: theme.colors.foregroundMuted,
                     selectionColor: theme.colors.selection,
-                    onChanged: (value) {
-                      setState(() {});
-                      widget.onChanged?.call(value);
-                    },
+                    onChanged: widget.onChanged,
                     readOnly: widget.readOnly,
                     maxLines: null,
                     expands: true,

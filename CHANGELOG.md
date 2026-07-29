@@ -60,6 +60,9 @@
 
 ## Unreleased
 
+- Added caller-owned controller and focus-node support to `BlenderTextEditor`
+  and synchronized its line gutter with long-document scrolling.
+
 - Reorganized the repository into `docs/`, `examples/blenderui`,
   `examples/components`, `examples/daw`, and `packages/blender_ui_daw`, with
   independent example manifests and updated CI/documentation paths.
