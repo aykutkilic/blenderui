@@ -1,5 +1,8 @@
 part of '../editors.dart';
 
+/// The explicit target position for a hierarchical tree drag.
+enum BlenderTreeDropPlacement { before, inside, after }
+
 class BlenderTreeNode<T> {
   const BlenderTreeNode({
     required this.id,
@@ -9,6 +12,8 @@ class BlenderTreeNode<T> {
     this.hasChildren = false,
     this.icon,
     this.iconColor,
+    this.thumbnail,
+    this.tagColor,
     this.initiallyExpanded = false,
     this.selectable = true,
     this.visible = true,
@@ -21,6 +26,8 @@ class BlenderTreeNode<T> {
     this.dragData,
     this.canAcceptDrop,
     this.onAcceptDrop,
+    this.canAcceptDropAt,
+    this.onAcceptDropAt,
     this.onDragEntered,
     this.onDragExited,
     this.onContextMenuRequested,
@@ -36,6 +43,14 @@ class BlenderTreeNode<T> {
   final bool hasChildren;
   final BlenderGlyph? icon;
   final Color? iconColor;
+
+  /// Optional compact visual representation displayed before the type icon.
+  /// Kept at the shared-tree boundary so document, asset, and node editors
+  /// can all use thumbnails without rebuilding row geometry.
+  final Widget? thumbnail;
+
+  /// A non-semantic row-edge color, useful for layer tags and review states.
+  final Color? tagColor;
   final bool initiallyExpanded;
   final bool selectable;
   final bool visible;
@@ -52,6 +67,17 @@ class BlenderTreeNode<T> {
   final Object? dragData;
   final bool Function(Object data)? canAcceptDrop;
   final FutureOr<void> Function(Object data)? onAcceptDrop;
+
+  /// Placement-aware counterparts for trees whose reordering must distinguish
+  /// sibling insertion from nesting. Existing consumers can keep using the
+  /// simpler whole-row callbacks above.
+  final bool Function(Object data, BlenderTreeDropPlacement placement)?
+  canAcceptDropAt;
+  final FutureOr<void> Function(
+    Object data,
+    BlenderTreeDropPlacement placement,
+  )?
+  onAcceptDropAt;
   final ValueChanged<Object>? onDragEntered;
   final VoidCallback? onDragExited;
   final ValueChanged<Offset>? onContextMenuRequested;
@@ -75,6 +101,7 @@ class BlenderTree<T> extends StatefulWidget {
     this.onLockChanged,
     this.contextMenuItemsBuilder,
     this.onContextMenuSelected,
+    this.contextMenuFooterBuilder,
     this.expandedIds,
     this.onExpandedChanged,
   });
@@ -100,6 +127,8 @@ class BlenderTree<T> extends StatefulWidget {
   final List<BlenderMenuItem<String>> Function(BlenderTreeNode<T>)?
   contextMenuItemsBuilder;
   final void Function(BlenderTreeNode<T>, String)? onContextMenuSelected;
+  final Widget? Function(BlenderTreeNode<T>, VoidCallback close)?
+  contextMenuFooterBuilder;
 
   /// Optional externally-owned expansion state. Supplying this lets an
   /// application restore a data tree lazily without treating its visual
@@ -123,6 +152,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
   String? _keyboardNodeId;
   String? _lastTappedNodeId;
   Duration? _lastTapTime;
+  final Map<String, BlenderTreeDropPlacement> _dropPlacementByNodeId = {};
 
   @override
   void initState() {
@@ -451,6 +481,20 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                                               : null,
                                         ),
                                       if (showNodeIcon &&
+                                          node.thumbnail != null) ...<Widget>[
+                                        SizedBox(
+                                          width: 22,
+                                          height: 18,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                            child: node.thumbnail!,
+                                          ),
+                                        ),
+                                        SizedBox(width: theme.density.spacing),
+                                      ],
+                                      if (showNodeIcon &&
                                           node.icon != null) ...<Widget>[
                                         BlenderIcon(
                                           node.icon!,
@@ -519,7 +563,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                                       if (showTrailing && widget.showVisibility)
                                         BlenderIconButton(
                                           glyph: BlenderGlyph.eye,
-                                          selected: false,
+                                          selected: node.visible,
                                           onPressed:
                                               widget.onVisibilityChanged == null
                                               ? null
@@ -535,7 +579,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                                       if (showTrailing && widget.showLock)
                                         BlenderIconButton(
                                           glyph: BlenderGlyph.lock,
-                                          selected: false,
+                                          selected: node.locked,
                                           onPressed:
                                               widget.onLockChanged == null
                                               ? null
@@ -562,6 +606,16 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                               ),
                             ),
                           ),
+                          if (node.tagColor != null)
+                            Positioned(
+                              top: 0,
+                              bottom: 0,
+                              right: 0,
+                              width: 3,
+                              child: IgnorePointer(
+                                child: ColoredBox(color: node.tagColor!),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -590,33 +644,66 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                     },
                     child: row,
                   );
-                  if (node.canAcceptDrop != null && node.onAcceptDrop != null) {
+                  if ((node.canAcceptDrop != null &&
+                          node.onAcceptDrop != null) ||
+                      (node.canAcceptDropAt != null &&
+                          node.onAcceptDropAt != null)) {
                     final dragTargetChild = row;
                     row = DragTarget<Object>(
                       onWillAcceptWithDetails: (details) {
-                        final accepted = node.canAcceptDrop!(details.data);
+                        final accepted =
+                            node.canAcceptDropAt?.call(
+                              details.data,
+                              BlenderTreeDropPlacement.inside,
+                            ) ??
+                            node.canAcceptDrop!(details.data);
                         if (accepted) node.onDragEntered?.call(details.data);
                         return accepted;
                       },
-                      onLeave: (_) => node.onDragExited?.call(),
+                      onMove: (details) {
+                        if (node.onAcceptDropAt == null) return;
+                        final box = context.findRenderObject() as RenderBox?;
+                        if (box == null || !box.hasSize) return;
+                        final y = box.globalToLocal(details.offset).dy;
+                        final placement = y < box.size.height * .25
+                            ? BlenderTreeDropPlacement.before
+                            : y > box.size.height * .75
+                            ? BlenderTreeDropPlacement.after
+                            : BlenderTreeDropPlacement.inside;
+                        if (_dropPlacementByNodeId[node.id] != placement) {
+                          setState(
+                            () => _dropPlacementByNodeId[node.id] = placement,
+                          );
+                        }
+                      },
+                      onLeave: (_) {
+                        _dropPlacementByNodeId.remove(node.id);
+                        node.onDragExited?.call();
+                      },
                       onAcceptWithDetails: (details) {
+                        final placement =
+                            _dropPlacementByNodeId.remove(node.id) ??
+                            BlenderTreeDropPlacement.inside;
                         node.onDragExited?.call();
                         unawaited(
-                          Future<void>.sync(
-                            () => node.onAcceptDrop!(details.data),
-                          ),
+                          Future<void>.sync(() {
+                            if (node.onAcceptDropAt != null) {
+                              return node.onAcceptDropAt!(
+                                details.data,
+                                placement,
+                              );
+                            }
+                            return node.onAcceptDrop!(details.data);
+                          }),
                         );
                       },
                       builder: (context, candidates, rejected) => DecoratedBox(
                         decoration: candidates.isEmpty
                             ? const BoxDecoration()
-                            : BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: theme.colors.accent,
-                                    width: 2,
-                                  ),
-                                ),
+                            : _dropDecoration(
+                                _dropPlacementByNodeId[node.id] ??
+                                    BlenderTreeDropPlacement.inside,
+                                theme.colors.accent,
                               ),
                         child: dragTargetChild,
                       ),
@@ -646,6 +733,10 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                       },
                       onSelected: (item) =>
                           widget.onContextMenuSelected?.call(node, item),
+                      footerBuilder: widget.contextMenuFooterBuilder == null
+                          ? null
+                          : (context, close) =>
+                                widget.contextMenuFooterBuilder!(node, close),
                       child: row,
                     );
                   }
@@ -683,6 +774,24 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
         ..addAll(widget.expandedIds!.where(ids.contains));
     }
   }
+}
+
+BoxDecoration _dropDecoration(
+  BlenderTreeDropPlacement placement,
+  Color accent,
+) {
+  const width = 2.0;
+  final side = BorderSide(color: accent, width: width);
+  return BoxDecoration(
+    border: switch (placement) {
+      BlenderTreeDropPlacement.before => Border(top: side),
+      BlenderTreeDropPlacement.after => Border(bottom: side),
+      BlenderTreeDropPlacement.inside => Border.all(
+        color: accent,
+        width: width,
+      ),
+    },
+  );
 }
 
 class _BlenderCollapsedTreeSummary extends StatelessWidget {

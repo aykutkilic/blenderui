@@ -52,7 +52,7 @@ class BlenderToolShelf extends StatelessWidget {
         glyph: tool.glyph,
         selected: index == selectedIndex,
         enabled: tool.enabled,
-        onPressed: tool.options.isEmpty ? () => onChanged(index) : null,
+        onPressed: () => onChanged(index),
         tooltip: tool.options.isEmpty ? tool.tooltip : null,
         size: (buttonExtent - 2) * densityScale,
         iconSize: iconSize * densityScale,
@@ -66,7 +66,13 @@ class BlenderToolShelf extends StatelessWidget {
                 targetAnchor: Alignment.centerRight,
                 followerAnchor: Alignment.centerLeft,
                 offset: const Offset(4, 0),
-                child: IgnorePointer(child: button),
+                // Blender tool groups activate the primary tool on a normal
+                // click and reveal their related tools on press-and-hold.
+                // Keep both paths on the shared shelf so editor integrations
+                // do not each invent a different flyout gesture.
+                openOnTap: false,
+                openOnLongPress: tool.enabled,
+                child: button,
                 popover: (context, close) => _BlenderToolOptionMenu(
                   options: tool.options,
                   selectedIndex: tool.selectedOption,
@@ -251,6 +257,7 @@ class BlenderToolOption {
     this.shortcut,
     this.description,
     this.enabled = true,
+    this.value,
   });
 
   final String label;
@@ -258,6 +265,8 @@ class BlenderToolOption {
   final String? shortcut;
   final String? description;
   final bool enabled;
+  /// Optional application-owned identity returned with the selected option.
+  final Object? value;
 }
 
 class BlenderToolDefinition {

@@ -226,58 +226,6 @@ class BlenderViewportShell extends StatelessWidget {
   }
 }
 
-/// The compact selection-operation strip shown below Blender's 3D header.
-class BlenderViewportSelectionModeBar extends StatelessWidget {
-  const BlenderViewportSelectionModeBar({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = BlenderTheme.of(context);
-    final toolbarScale = math.min(theme.density.controlHeight / 20, 1.25);
-    const modes = <(String, BlenderGlyph, String)>[
-      ('Set', BlenderGlyph.selectBox, 'Set Selection'),
-      ('Extend', BlenderGlyph.selectExtend, 'Extend Selection'),
-      ('Subtract', BlenderGlyph.selectSubtract, 'Subtract Selection'),
-      ('Difference', BlenderGlyph.selectDifference, 'Difference Selection'),
-      ('Intersect', BlenderGlyph.selectIntersect, 'Intersect Selection'),
-    ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.surface.withAlpha(244),
-        border: Border.all(color: theme.colors.editorBorder),
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final mode in modes)
-            BlenderIconButton(
-              key: ValueKey<String>(
-                'viewport-selection-${mode.$1.toLowerCase()}',
-              ),
-              glyph: mode.$2,
-              selected: value == mode.$1,
-              onPressed: () => onChanged(mode.$1),
-              tooltip: mode.$3,
-              // This strip belongs to View3D toolbar chrome, not to compact
-              // property forms. Blender uses one 32 px toolbar icon unit.
-              size: 32 * toolbarScale,
-              iconSize: 20 * toolbarScale,
-              scaleWithDensity: false,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Blender-shaped navigation buttons that sit below the axis gizmo.
 class BlenderViewportNavigationControls extends StatelessWidget {
   const BlenderViewportNavigationControls({

@@ -97,6 +97,7 @@ Future<void> _showBlenderMenuOverlay<T>({
   required ValueChanged<T>? onSelected,
   T? selectedValue,
   String? title,
+  BlenderMenuFooterBuilder? footerBuilder,
 }) {
   return showGeneralDialog<void>(
     context: context,
@@ -118,6 +119,10 @@ Future<void> _showBlenderMenuOverlay<T>({
                 ),
                 child: BlenderMenu<T>(
                   title: title,
+                  footer: footerBuilder?.call(
+                    dialogContext,
+                    () => Navigator.of(dialogContext).pop(),
+                  ),
                   items: selectedValue == null
                       ? items
                       : <BlenderMenuItem<T>>[
@@ -149,6 +154,7 @@ Future<void> showBlenderContextMenu<T>({
   required List<BlenderMenuItem<T>> items,
   ValueChanged<T>? onSelected,
   String? title,
+  BlenderMenuFooterBuilder? footerBuilder,
 }) async {
   if (items.isEmpty) return;
   final overlay = Overlay.maybeOf(context);
@@ -161,6 +167,7 @@ Future<void> showBlenderContextMenu<T>({
     items: items,
     onSelected: onSelected,
     title: title,
+    footerBuilder: footerBuilder,
   );
 }
 
@@ -271,11 +278,13 @@ class BlenderMenu<T> extends StatelessWidget {
     required this.items,
     required this.onSelected,
     this.title,
+    this.footer,
   });
 
   final List<BlenderMenuItem<T>> items;
   final ValueChanged<BlenderMenuItem<T>> onSelected;
   final String? title;
+  final Widget? footer;
 
   double _preferredWidth(
     BuildContext context,
@@ -434,6 +443,16 @@ class BlenderMenu<T> extends StatelessWidget {
                         : 0,
                     onSelected: onSelected,
                   ),
+              if (footer != null) ...<Widget>[
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 3 * scale),
+                  child: SizedBox(
+                    height: scale,
+                    child: ColoredBox(color: theme.colors.borderSubtle),
+                  ),
+                ),
+                footer!,
+              ],
             ],
           ),
         ),
@@ -787,6 +806,9 @@ class _BlenderMenuButtonState<T> extends State<BlenderMenuButton<T>> {
   }
 }
 
+typedef BlenderMenuFooterBuilder =
+    Widget? Function(BuildContext context, VoidCallback close);
+
 class BlenderContextMenu<T> extends StatelessWidget {
   const BlenderContextMenu({
     super.key,
@@ -796,6 +818,7 @@ class BlenderContextMenu<T> extends StatelessWidget {
     this.title,
     this.onOpenChanged,
     this.onContextRequested,
+    this.footerBuilder,
     this.includeLongPress = true,
   });
 
@@ -805,6 +828,7 @@ class BlenderContextMenu<T> extends StatelessWidget {
   final String? title;
   final ValueChanged<bool>? onOpenChanged;
   final ValueChanged<Offset>? onContextRequested;
+  final BlenderMenuFooterBuilder? footerBuilder;
   final bool includeLongPress;
 
   Future<void> _show(BuildContext context, Offset globalPosition) async {
@@ -818,6 +842,7 @@ class BlenderContextMenu<T> extends StatelessWidget {
         items: items,
         onSelected: onSelected,
         title: title,
+        footerBuilder: footerBuilder,
       );
     } finally {
       onOpenChanged?.call(false);

@@ -216,7 +216,8 @@ export 'src/editors.dart'
         BlenderTimelineModel,
         BlenderTimelineTrack,
         BlenderTree,
-        BlenderTreeNode;
+        BlenderTreeNode,
+        BlenderTreeDropPlacement;
 export 'src/editor_templates.dart'
     show
         BlenderModifierDescriptor,
@@ -507,7 +508,6 @@ export 'src/viewport.dart'
     show
         BlenderViewportNavigationControls,
         BlenderViewportOrientationGizmo,
-        BlenderViewportSelectionModeBar,
         BlenderViewportSidebarRail,
         BlenderViewportSidebarTab,
         BlenderViewportController,

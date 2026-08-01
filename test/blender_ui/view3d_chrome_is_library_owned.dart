@@ -55,6 +55,27 @@ void registerView3dChromeIsLibraryOwnedTests() {
     expect(selectedTool, 2);
   });
 
+  testWidgets('tool groups open related tools on press and hold', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        const BlenderView3dToolShelf(
+          selectedIndex: 0,
+          onChanged: _ignoreToolSelection,
+        ),
+      ),
+    );
+
+    final selectButton = find
+        .descendant(
+          of: find.byType(BlenderView3dToolShelf),
+          matching: find.byType(BlenderIconButton),
+        )
+        .first;
+    await tester.longPress(selectButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Select Box'), findsOneWidget);
+  });
+
   testWidgets('floating View3D tool shelf scrolls in a short pane', (
     tester,
   ) async {

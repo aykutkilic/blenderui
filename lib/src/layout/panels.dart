@@ -17,6 +17,7 @@ class BlenderPanel extends StatelessWidget {
     this.initiallyExpanded = true,
     this.expanded,
     this.onExpansionChanged,
+    this.shrinkWrap = false,
   });
 
   final String? title;
@@ -34,6 +35,9 @@ class BlenderPanel extends StatelessWidget {
   final bool? expanded;
   final ValueChanged<bool>? onExpansionChanged;
 
+  /// Lets bounded transient surfaces size themselves to their content.
+  final bool shrinkWrap;
+
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
@@ -47,7 +51,7 @@ class BlenderPanel extends StatelessWidget {
     if (!collapsible) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final body = constraints.hasBoundedHeight
+          final body = constraints.hasBoundedHeight && !shrinkWrap
               ? Flexible(child: content)
               : content;
           return ClipRRect(
@@ -59,6 +63,7 @@ class BlenderPanel extends StatelessWidget {
                 borderRadius: BorderRadius.circular(theme.shapes.panelRadius),
               ),
               child: Column(
+                mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   BlenderPanelHeader(

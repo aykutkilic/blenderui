@@ -330,11 +330,14 @@ class BlenderPopover extends StatefulWidget {
     required this.child,
     required this.popover,
     this.offset = const Offset(0, 4),
-    this.targetAnchor = Alignment.bottomLeft,
-    this.followerAnchor = Alignment.topLeft,
+    this.targetAnchor = Alignment.bottomCenter,
+    this.followerAnchor = Alignment.topCenter,
     this.onOpenChanged,
     this.onOverlayHover,
+    this.refreshListenable,
     this.openOnHover = false,
+    this.openOnTap = true,
+    this.openOnLongPress = false,
     this.hoverDelay = const Duration(milliseconds: 200),
   });
 
@@ -345,7 +348,17 @@ class BlenderPopover extends StatefulWidget {
   final Alignment followerAnchor;
   final ValueChanged<bool>? onOpenChanged;
   final ValueChanged<Offset>? onOverlayHover;
+
+  /// Rebuilds an open popover when external state changes without requiring
+  /// its anchor's entire route to rebuild.
+  final Listenable? refreshListenable;
   final bool openOnHover;
+
+  /// Whether tapping the anchor toggles the popover.
+  final bool openOnTap;
+
+  /// Whether a press-and-hold on the anchor opens the popover.
+  final bool openOnLongPress;
   final Duration hoverDelay;
 
   @override
@@ -355,7 +368,24 @@ class BlenderPopover extends StatefulWidget {
 class _BlenderPopoverState extends State<BlenderPopover> {
   RenderBox? _targetRenderObject;
   Timer? _hoverTimer;
+  StateSetter? _popoverSetState;
   bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.refreshListenable?.addListener(_schedulePopoverRefresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant BlenderPopover oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshListenable != widget.refreshListenable) {
+      oldWidget.refreshListenable?.removeListener(_schedulePopoverRefresh);
+      widget.refreshListenable?.addListener(_schedulePopoverRefresh);
+    }
+    _schedulePopoverRefresh();
+  }
 
   Future<void> _show() async {
     if (_open) return;
@@ -372,46 +402,67 @@ class _BlenderPopoverState extends State<BlenderPopover> {
       barrierColor: const Color(0x00000000),
       transitionDuration: const Duration(milliseconds: 80),
       pageBuilder: (dialogContext, animation, secondaryAnimation) =>
-          InheritedTheme.captureAll(
-            context,
-            Stack(
-              children: <Widget>[
-                Positioned.fill(
-                  child: MouseRegion(
-                    onHover: widget.onOverlayHover == null
-                        ? null
-                        : (event) => widget.onOverlayHover!(event.position),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => Navigator.of(dialogContext).pop(),
+          StatefulBuilder(
+            builder: (dialogContext, setPopoverState) {
+              _popoverSetState = setPopoverState;
+              return InheritedTheme.captureAll(
+                context,
+                Stack(
+                  children: <Widget>[
+                    Positioned.fill(
+                      child: MouseRegion(
+                        onHover: widget.onOverlayHover == null
+                            ? null
+                            : (event) => widget.onOverlayHover!(event.position),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => Navigator.of(dialogContext).pop(),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                CustomSingleChildLayout(
-                  delegate: _BlenderPopoverPositionDelegate(
-                    target: Rect.fromLTWH(
-                      origin.dx,
-                      origin.dy,
-                      renderObject.size.width,
-                      renderObject.size.height,
+                    CustomSingleChildLayout(
+                      delegate: _BlenderPopoverPositionDelegate(
+                        target: Rect.fromLTWH(
+                          origin.dx,
+                          origin.dy,
+                          renderObject.size.width,
+                          renderObject.size.height,
+                        ),
+                        offset: widget.offset,
+                        targetAnchor: widget.targetAnchor,
+                        followerAnchor: widget.followerAnchor,
+                      ),
+                      child: _buildPopoverContent(dialogContext),
                     ),
-                    offset: widget.offset,
-                    targetAnchor: widget.targetAnchor,
-                    followerAnchor: widget.followerAnchor,
-                  ),
-                  child: widget.popover(
-                    dialogContext,
-                    () => Navigator.of(dialogContext).pop(),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
     );
     if (mounted) {
+      _popoverSetState = null;
       setState(() => _open = false);
       widget.onOpenChanged?.call(false);
     }
+  }
+
+  void _schedulePopoverRefresh() {
+    if (!_open) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _open) _popoverSetState?.call(() {});
+    });
+  }
+
+  Widget _buildPopoverContent(BuildContext dialogContext) {
+    Widget buildContent(BuildContext context) =>
+        widget.popover(dialogContext, () => Navigator.of(dialogContext).pop());
+    final refreshListenable = widget.refreshListenable;
+    if (refreshListenable == null) return buildContent(dialogContext);
+    return ListenableBuilder(
+      listenable: refreshListenable,
+      builder: (context, child) => buildContent(context),
+    );
   }
 
   void _hide() {
@@ -432,6 +483,7 @@ class _BlenderPopoverState extends State<BlenderPopover> {
   @override
   void dispose() {
     _cancelHoverShow();
+    widget.refreshListenable?.removeListener(_schedulePopoverRefresh);
     super.dispose();
   }
 
@@ -444,7 +496,8 @@ class _BlenderPopoverState extends State<BlenderPopover> {
         onExit: (_) => _cancelHoverShow(),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: _open ? _hide : _show,
+          onTap: widget.openOnTap ? (_open ? _hide : _show) : null,
+          onLongPress: widget.openOnLongPress ? _show : null,
           child: widget.child,
         ),
       ),

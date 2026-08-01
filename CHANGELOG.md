@@ -1,5 +1,10 @@
 # Changelog
 
+- Removed the outline from shared popover panels and their pointers to match
+  Blender's borderless floating menu surface.
+- Centered shared popovers on their triggers by default so the panel pointer
+  identifies the invoking control consistently across applications.
+
 - Added a reusable list-row wrapper and DAW typed device drag protocol, exact
   effect-chain insertion, compact bypass/VU cards, and six native built-ins.
 
