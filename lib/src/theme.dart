@@ -378,6 +378,22 @@ class BlenderTextTheme {
     );
   }
 
+  /// Rebinds semantic text colors while preserving typography and effects.
+  ///
+  /// Applications commonly provide one typography base theme while the
+  /// active Blender palette changes at runtime. Explicit colors on the base
+  /// styles must follow that palette instead of remaining tied to its
+  /// original brightness.
+  BlenderTextTheme withColors(BlenderColorScheme colors) {
+    return copyWith(
+      body: body.copyWith(color: colors.foreground),
+      label: label.copyWith(color: colors.foreground),
+      caption: caption.copyWith(color: colors.foregroundMuted),
+      heading: heading.copyWith(color: colors.foreground),
+      panelTitle: panelTitle.copyWith(color: colors.foreground),
+    );
+  }
+
   BlenderTextTheme scaled(double factor) {
     TextStyle scale(TextStyle style) =>
         style.copyWith(fontSize: (style.fontSize ?? 14) * factor);

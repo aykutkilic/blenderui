@@ -43,11 +43,14 @@ class _BlenderInterfaceThemeState extends State<BlenderInterfaceTheme> {
 
   BlenderThemeData _resolveTheme() {
     final activeTheme = widget.themeService?.activeTheme;
+    final colors = activeTheme?.colors ?? widget.baseTheme.colors;
+    final themedBase = widget.baseTheme.copyWith(
+      colors: colors,
+      textTheme: widget.baseTheme.textTheme.withColors(colors),
+    );
     return activeTheme == null
-        ? widget.baseTheme.withInterfacePreferences(widget.preferences.value)
-        : widget.baseTheme
-              .copyWith(colors: activeTheme.colors)
-              .withInterfaceMetrics(widget.preferences.value);
+        ? themedBase.withInterfacePreferences(widget.preferences.value)
+        : themedBase.withInterfaceMetrics(widget.preferences.value);
   }
 
   @override
