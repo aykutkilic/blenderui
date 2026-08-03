@@ -502,7 +502,10 @@ class BlenderIconThemeData {
   const BlenderIconThemeData({
     this.color,
     this.size = 16,
-    this.renderer = BlenderIconRenderer.materialSymbols,
+    // BlenderUI's semantic catalog has a native vector renderer designed for
+    // the compact, high-contrast silhouettes used by blenderapp. Keep
+    // Material Symbols opt-in for hosts that explicitly prefer it.
+    this.renderer = BlenderIconRenderer.blenderVector,
     this.fill = 0,
     this.weight = 400,
     this.grade = -25,

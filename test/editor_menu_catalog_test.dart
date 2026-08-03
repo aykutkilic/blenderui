@@ -34,6 +34,28 @@ void main() {
     expect(selected, 'Mute');
   });
 
+  test('View menu commands receive their shared semantic icons', () {
+    final menu = BlenderEditorMenuCatalog.build(
+      const <String>['View'],
+      menuItems: const <String, List<String>>{
+        'View': <String>['Toolbar', 'Sidebar', 'Frame Selected', 'Playback'],
+      },
+    ).single;
+
+    expect(menu.items.every((item) => item.icon is BlenderIcon), isTrue);
+  });
+
+  test('non-View command menus keep their host-owned icon treatment', () {
+    final menu = BlenderEditorMenuCatalog.build(
+      const <String>['Select'],
+      menuItems: const <String, List<String>>{
+        'Select': <String>['All'],
+      },
+    ).single;
+
+    expect(menu.items.single.icon, isNull);
+  });
+
   testWidgets('utility header owns source menu families', (tester) async {
     Future<List<String>> pumpHeader(
       BlenderEditorType editorType, {

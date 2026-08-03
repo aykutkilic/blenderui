@@ -303,6 +303,28 @@ class BlenderEditorHeaderMenu {
 /// prevents each application shell from recreating Blender's fallback menu
 /// anatomy and selection wiring.
 abstract final class BlenderEditorMenuCatalog {
+  /// Shared semantic icons for View-menu commands. Keeping this mapping here
+  /// makes every editor header consistent without forcing applications to
+  /// duplicate widgets beside their command labels.
+  static Widget? _viewMenuIcon(String label) => switch (label) {
+    'Toolbar' || 'Show Region Toolbar' => const BlenderIcon(BlenderGlyph.tool),
+    'Sidebar' || 'Show Region UI' => const BlenderIcon(BlenderGlyph.properties),
+    'Tool Header' || 'Show Tool Header' => const BlenderIcon(BlenderGlyph.menu),
+    'Asset Shelf' => const BlenderIcon(BlenderGlyph.assetManager),
+    'HUD' || 'Show Region HUD' => const BlenderIcon(BlenderGlyph.info),
+    'Channels' ||
+    'Show Region Channels' => const BlenderIcon(BlenderGlyph.outliner),
+    'Camera' || 'Viewpoint' => const BlenderIcon(BlenderGlyph.camera),
+    'Navigation' => const BlenderIcon(BlenderGlyph.pan),
+    'Align View' => const BlenderIcon(BlenderGlyph.transform),
+    'Frame Selected' => const BlenderIcon(BlenderGlyph.selectBox),
+    'Frame All' || 'View All' => const BlenderIcon(BlenderGlyph.grid),
+    'Local View' => const BlenderIcon(BlenderGlyph.eye),
+    'View Regions' || 'Area' => const BlenderIcon(BlenderGlyph.split),
+    'Playback' => const BlenderIcon(BlenderGlyph.play),
+    _ => null,
+  };
+
   static List<BlenderMenuDescriptor<String>> build(
     List<String> labels, {
     Map<String, List<String>> menuItems = const <String, List<String>>{},
@@ -319,7 +341,11 @@ abstract final class BlenderEditorMenuCatalog {
             menuDescriptors[label] ??
             <BlenderMenuItem<String>>[
               for (final item in menuItems[label] ?? <String>['$label Options'])
-                BlenderMenuItem<String>(value: item, label: item),
+                BlenderMenuItem<String>(
+                  value: item,
+                  label: item,
+                  icon: label == 'View' ? _viewMenuIcon(item) : null,
+                ),
             ],
         onSelected: onSelected,
       ),
