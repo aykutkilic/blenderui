@@ -649,6 +649,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                       (node.canAcceptDropAt != null &&
                           node.onAcceptDropAt != null)) {
                     final dragTargetChild = row;
+                    RenderBox? dragTargetBox;
                     row = DragTarget<Object>(
                       onWillAcceptWithDetails: (details) {
                         final accepted =
@@ -662,7 +663,7 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                       },
                       onMove: (details) {
                         if (node.onAcceptDropAt == null) return;
-                        final box = context.findRenderObject() as RenderBox?;
+                        final box = dragTargetBox;
                         if (box == null || !box.hasSize) return;
                         final y = box.globalToLocal(details.offset).dy;
                         final placement = y < box.size.height * .25
@@ -697,16 +698,22 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                           }),
                         );
                       },
-                      builder: (context, candidates, rejected) => DecoratedBox(
-                        decoration: candidates.isEmpty
-                            ? const BoxDecoration()
-                            : _dropDecoration(
-                                _dropPlacementByNodeId[node.id] ??
-                                    BlenderTreeDropPlacement.inside,
-                                theme.colors.accent,
-                              ),
-                        child: dragTargetChild,
-                      ),
+                      builder: (context, candidates, rejected) {
+                        final renderObject = context.findRenderObject();
+                        if (renderObject is RenderBox) {
+                          dragTargetBox = renderObject;
+                        }
+                        return DecoratedBox(
+                          decoration: candidates.isEmpty
+                              ? const BoxDecoration()
+                              : _dropDecoration(
+                                  _dropPlacementByNodeId[node.id] ??
+                                      BlenderTreeDropPlacement.inside,
+                                  theme.colors.accent,
+                                ),
+                          child: dragTargetChild,
+                        );
+                      },
                     );
                   }
                   if (node.dragData != null) {

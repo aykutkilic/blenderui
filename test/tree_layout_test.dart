@@ -75,4 +75,57 @@ void main() {
     );
     expect(summary.right, lessThanOrEqualTo(viewport.right - 8));
   });
+
+  testWidgets('placement-aware drops measure the row instead of its sliver', (
+    tester,
+  ) async {
+    BlenderTreeDropPlacement? acceptedPlacement;
+    var selectedIds = <String>{};
+    await tester.pumpWidget(
+      BlenderApp(
+        home: SizedBox(
+          width: 240,
+          height: 100,
+          child: StatefulBuilder(
+            builder: (context, setState) => BlenderTree<String>(
+              roots: <BlenderTreeNode<String>>[
+                const BlenderTreeNode<String>(
+                  id: 'source',
+                  label: 'Source',
+                  dragData: 'source',
+                ),
+                BlenderTreeNode<String>(
+                  id: 'target',
+                  label: 'Target',
+                  dragData: 'target',
+                  canAcceptDropAt: (data, placement) => data == 'source',
+                  onAcceptDropAt: (data, placement) {
+                    acceptedPlacement = placement;
+                  },
+                ),
+              ],
+              selectedIds: selectedIds,
+              onSelectionChanged: (value) =>
+                  setState(() => selectedIds = value),
+              contextMenuItemsBuilder: (node) =>
+                  const <BlenderMenuItem<String>>[
+                    BlenderMenuItem<String>(value: 'rename', label: 'Rename'),
+                  ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Source')),
+    );
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(acceptedPlacement, BlenderTreeDropPlacement.inside);
+  });
 }
