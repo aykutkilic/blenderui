@@ -221,6 +221,30 @@ class _BlenderIconPainter extends CustomPainter {
   }
 }
 
+/// A tintable PNG extracted from the approved generated icon sheet.
+class BlenderGeneratedIcon extends StatelessWidget {
+  const BlenderGeneratedIcon(this.name, {super.key, this.size, this.color});
+
+  final String name;
+  final double? size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconTheme = BlenderTheme.of(context).iconTheme;
+    final effectiveSize = size ?? iconTheme.size;
+    return Image.asset(
+      'assets/icons/gemini/$name.png',
+      package: 'blender_ui',
+      width: effectiveSize,
+      height: effectiveSize,
+      color:
+          color ?? iconTheme.color ?? DefaultTextStyle.of(context).style.color,
+      filterQuality: FilterQuality.high,
+    );
+  }
+}
+
 class _BlenderIconPaintContext {
   _BlenderIconPaintContext(this.canvas, this.size, this.color)
     : paint = Paint()

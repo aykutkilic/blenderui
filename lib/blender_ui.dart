@@ -248,7 +248,7 @@ export 'src/editor_chrome.dart'
         BlenderEditorPlaybackSettings,
         BlenderEditorSnappingSettings,
         BlenderUtilityEditorHeader;
-export 'src/icons.dart' show BlenderGlyph, BlenderIcon;
+export 'src/icons.dart' show BlenderGeneratedIcon, BlenderGlyph, BlenderIcon;
 export 'src/layout.dart'
     show
         BlenderAreaHeader,

@@ -16,13 +16,30 @@ class BlenderGreasePencilToolShelf extends StatelessWidget {
   final bool floating;
 
   static const List<BlenderToolDefinition> tools = <BlenderToolDefinition>[
-    BlenderToolDefinition(glyph: BlenderGlyph.greasepencil, tooltip: 'Draw'),
-    BlenderToolDefinition(glyph: BlenderGlyph.deleteIcon, tooltip: 'Erase'),
-    BlenderToolDefinition(glyph: BlenderGlyph.color, tooltip: 'Fill'),
-    BlenderToolDefinition(glyph: BlenderGlyph.eyedropper, tooltip: 'Tint'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.greasepencil,
+      tooltip: 'Draw',
+      assetName: 'draw',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.deleteIcon,
+      tooltip: 'Erase',
+      assetName: 'erase',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.color,
+      tooltip: 'Fill',
+      assetName: 'fill',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.eyedropper,
+      tooltip: 'Tint',
+      assetName: 'tint',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.plus,
       tooltip: 'Primitives',
+      assetName: 'primitives',
       groupBreakBefore: true,
       options: <BlenderToolOption>[
         BlenderToolOption(label: 'Box', glyph: BlenderGlyph.selectBox),
@@ -36,13 +53,19 @@ class BlenderGreasePencilToolShelf extends StatelessWidget {
     BlenderToolDefinition(
       glyph: BlenderGlyph.action,
       tooltip: 'Interpolate',
+      assetName: 'interpolate',
       groupBreakBefore: true,
     ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.eyedropper,
       tooltip: 'Eyedropper',
+      assetName: 'sample_eyedropper',
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.deleteIcon, tooltip: 'Trim'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.deleteIcon,
+      tooltip: 'Trim',
+      assetName: 'trim',
+    ),
   ];
 
   static const List<BlenderGreasePencilTool> _toolValues =

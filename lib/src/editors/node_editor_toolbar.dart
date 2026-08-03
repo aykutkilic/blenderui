@@ -21,6 +21,7 @@ class BlenderNodeToolShelf extends StatelessWidget {
     BlenderToolDefinition(
       glyph: BlenderGlyph.pointer,
       tooltip: 'Select',
+      assetName: 'select_tweak',
       options: <BlenderToolOption>[
         BlenderToolOption(
           label: 'Tweak',
@@ -46,24 +47,32 @@ class BlenderNodeToolShelf extends StatelessWidget {
         ),
       ],
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.pan, tooltip: 'Move View'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.pan,
+      tooltip: 'Move View',
+      assetName: 'pan_move_view',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.link,
       tooltip: 'Cut Links',
+      assetName: 'cut_links',
       groupBreakBefore: true,
     ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.linkBroken,
       tooltip: 'Mute Links',
+      assetName: 'mute_links',
     ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.tool,
       tooltip: 'Annotate',
+      assetName: 'annotate',
       groupBreakBefore: true,
     ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.plus,
       tooltip: 'Add Node',
+      assetName: 'add_node',
       groupBreakBefore: true,
     ),
   ];

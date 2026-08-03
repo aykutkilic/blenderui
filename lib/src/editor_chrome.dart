@@ -307,20 +307,21 @@ abstract final class BlenderEditorMenuCatalog {
   /// makes every editor header consistent without forcing applications to
   /// duplicate widgets beside their command labels.
   static Widget? _viewMenuIcon(String label) => switch (label) {
-    'Toolbar' || 'Show Region Toolbar' => const BlenderIcon(BlenderGlyph.tool),
-    'Sidebar' || 'Show Region UI' => const BlenderIcon(BlenderGlyph.properties),
-    'Tool Header' || 'Show Tool Header' => const BlenderIcon(BlenderGlyph.menu),
-    'Asset Shelf' => const BlenderIcon(BlenderGlyph.assetManager),
-    'HUD' || 'Show Region HUD' => const BlenderIcon(BlenderGlyph.info),
+    'Toolbar' || 'Show Region Toolbar' => const BlenderGeneratedIcon('toolbar'),
+    'Sidebar' || 'Show Region UI' => const BlenderGeneratedIcon('sidebar'),
+    'Tool Header' ||
+    'Show Tool Header' => const BlenderGeneratedIcon('tool_header'),
+    'Asset Shelf' => const BlenderGeneratedIcon('asset_shelf'),
+    'HUD' || 'Show Region HUD' => const BlenderGeneratedIcon('hud'),
     'Channels' ||
-    'Show Region Channels' => const BlenderIcon(BlenderGlyph.outliner),
-    'Camera' || 'Viewpoint' => const BlenderIcon(BlenderGlyph.camera),
-    'Navigation' => const BlenderIcon(BlenderGlyph.pan),
-    'Align View' => const BlenderIcon(BlenderGlyph.transform),
-    'Frame Selected' => const BlenderIcon(BlenderGlyph.selectBox),
-    'Frame All' || 'View All' => const BlenderIcon(BlenderGlyph.grid),
-    'Local View' => const BlenderIcon(BlenderGlyph.eye),
-    'View Regions' || 'Area' => const BlenderIcon(BlenderGlyph.split),
+    'Show Region Channels' => const BlenderGeneratedIcon('channels'),
+    'Camera' || 'Viewpoint' => const BlenderGeneratedIcon('camera_viewpoint'),
+    'Navigation' => const BlenderGeneratedIcon('navigation'),
+    'Align View' => const BlenderGeneratedIcon('align_view'),
+    'Frame Selected' => const BlenderGeneratedIcon('frame_selected'),
+    'Frame All' || 'View All' => const BlenderGeneratedIcon('frame_all'),
+    'Local View' => const BlenderGeneratedIcon('local_view'),
+    'View Regions' || 'Area' => const BlenderGeneratedIcon('view_regions'),
     'Playback' => const BlenderIcon(BlenderGlyph.play),
     _ => null,
   };

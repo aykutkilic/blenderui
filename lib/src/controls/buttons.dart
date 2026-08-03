@@ -128,7 +128,8 @@ class _BlenderButtonState extends State<BlenderButton> {
         : widget.selected
         ? selectedForeground
         : normalForeground;
-    final buttonHeight = widget.height ??
+    final buttonHeight =
+        widget.height ??
         (widget.variant == BlenderButtonVariant.tab
             ? theme.density.rowHeight
             : theme.density.controlHeight);
@@ -137,7 +138,8 @@ class _BlenderButtonState extends State<BlenderButton> {
         (widget.variant == BlenderButtonVariant.tab
             ? EdgeInsets.symmetric(horizontal: theme.density.spacing * 2.5)
             : EdgeInsets.symmetric(horizontal: theme.density.spacing * 2));
-    final buttonRadius = widget.borderRadius ??
+    final buttonRadius =
+        widget.borderRadius ??
         (widget.variant == BlenderButtonVariant.tab
             ? theme.shapes.tabRadius
             : theme.shapes.controlRadius);
@@ -279,6 +281,7 @@ class BlenderIconButton extends StatelessWidget {
   const BlenderIconButton({
     super.key,
     required this.glyph,
+    this.icon,
     this.onPressed,
     this.tooltip,
     this.selected = false,
@@ -293,6 +296,7 @@ class BlenderIconButton extends StatelessWidget {
   });
 
   final BlenderGlyph glyph;
+  final Widget? icon;
   final VoidCallback? onPressed;
   final String? tooltip;
   final bool selected;
@@ -323,7 +327,7 @@ class BlenderIconButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       showBorder: showBorder,
       borderRadius: borderRadius,
-      leading: BlenderIcon(glyph, size: iconSize * densityScale),
+      leading: icon ?? BlenderIcon(glyph, size: iconSize * densityScale),
     );
     if (tooltip != null) {
       result = BlenderTooltip(message: tooltip!, child: result);

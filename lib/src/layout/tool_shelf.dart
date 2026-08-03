@@ -53,6 +53,13 @@ class BlenderToolShelf extends StatelessWidget {
         children: <Widget>[
           BlenderIconButton(
             glyph: tool.glyph,
+            icon: tool.assetName == null
+                ? null
+                : BlenderGeneratedIcon(
+                    tool.assetName!,
+                    size:
+                        math.max(iconSize, buttonExtent * 0.82) * densityScale,
+                  ),
             selected: index == selectedIndex,
             enabled: tool.enabled,
             onPressed: () => onChanged(index),
@@ -113,10 +120,7 @@ class BlenderToolShelf extends StatelessWidget {
           child: interactive,
         );
       }
-      return SizedBox(
-        height: buttonExtent * densityScale,
-        child: interactive,
-      );
+      return SizedBox(height: buttonExtent * densityScale, child: interactive);
     }
 
     final groups = <List<Widget>>[];
@@ -142,10 +146,7 @@ class BlenderToolShelf extends StatelessWidget {
             ),
             child: SizedBox(
               width: double.infinity,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: children,
-              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: children),
             ),
           );
           final grouped = <Widget>[
@@ -155,10 +156,7 @@ class BlenderToolShelf extends StatelessWidget {
             ],
           ];
           if (!constraints.hasBoundedHeight) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: grouped,
-            );
+            return Column(mainAxisSize: MainAxisSize.min, children: grouped);
           }
           return ScrollConfiguration(
             behavior: ScrollConfiguration.of(
@@ -207,6 +205,7 @@ class BlenderView3dToolShelf extends StatelessWidget {
     BlenderToolDefinition(
       glyph: BlenderGlyph.pointer,
       tooltip: 'Select tool',
+      assetName: 'select_tweak',
       options: <BlenderToolOption>[
         BlenderToolOption(
           label: 'Tweak',
@@ -234,23 +233,42 @@ class BlenderView3dToolShelf extends StatelessWidget {
         ),
       ],
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.radio, tooltip: '3D Cursor'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.radio,
+      tooltip: '3D Cursor',
+      assetName: 'cursor_3d',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.transform,
       tooltip: 'Move tool',
+      assetName: 'move',
       groupBreakBefore: true,
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.rotate, tooltip: 'Rotate tool'),
-    BlenderToolDefinition(glyph: BlenderGlyph.scale, tooltip: 'Scale tool'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.rotate,
+      tooltip: 'Rotate tool',
+      assetName: 'rotate',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.scale,
+      tooltip: 'Scale tool',
+      assetName: 'scale',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.tool,
       tooltip: 'Annotate',
+      assetName: 'annotate',
       groupBreakBefore: true,
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.grid, tooltip: 'Measure'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.grid,
+      tooltip: 'Measure',
+      assetName: 'measure',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.plus,
       tooltip: 'Add Cube',
+      assetName: 'add_cube',
       groupBreakBefore: true,
     ),
   ];
@@ -294,6 +312,7 @@ class BlenderToolDefinition {
   const BlenderToolDefinition({
     required this.glyph,
     required this.tooltip,
+    this.assetName,
     this.enabled = true,
     this.options = const <BlenderToolOption>[],
     this.selectedOption = 0,
@@ -302,6 +321,7 @@ class BlenderToolDefinition {
 
   final BlenderGlyph glyph;
   final String tooltip;
+  final String? assetName;
   final bool enabled;
   final List<BlenderToolOption> options;
   final int selectedOption;

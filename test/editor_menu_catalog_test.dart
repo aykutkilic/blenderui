@@ -42,7 +42,11 @@ void main() {
       },
     ).single;
 
-    expect(menu.items.every((item) => item.icon is BlenderIcon), isTrue);
+    expect(
+      menu.items.take(3).every((item) => item.icon is BlenderGeneratedIcon),
+      isTrue,
+    );
+    expect(menu.items.last.icon, isA<BlenderIcon>());
   });
 
   test('non-View command menus keep their host-owned icon treatment', () {

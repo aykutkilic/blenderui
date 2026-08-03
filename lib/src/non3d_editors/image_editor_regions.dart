@@ -94,10 +94,15 @@ class BlenderImageEditorToolShelf extends StatelessWidget {
   final double width;
 
   static const List<BlenderToolDefinition> viewTools = <BlenderToolDefinition>[
-    BlenderToolDefinition(glyph: BlenderGlyph.eyedropper, tooltip: 'Sample'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.eyedropper,
+      tooltip: 'Sample',
+      assetName: 'sample_eyedropper',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.tool,
       tooltip: 'Annotate',
+      assetName: 'annotate',
       groupBreakBefore: true,
     ),
   ];
@@ -106,6 +111,7 @@ class BlenderImageEditorToolShelf extends StatelessWidget {
     BlenderToolDefinition(
       glyph: BlenderGlyph.pointer,
       tooltip: 'Select',
+      assetName: 'select_tweak',
       options: <BlenderToolOption>[
         BlenderToolOption(label: 'Tweak', glyph: BlenderGlyph.pointer),
         BlenderToolOption(label: 'Select Box', glyph: BlenderGlyph.selectBox),
@@ -113,15 +119,32 @@ class BlenderImageEditorToolShelf extends StatelessWidget {
         BlenderToolOption(label: 'Select Lasso', glyph: BlenderGlyph.pointer),
       ],
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.radio, tooltip: 'Cursor'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.radio,
+      tooltip: 'Cursor',
+      assetName: 'cursor',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.transform,
       tooltip: 'Move',
+      assetName: 'move',
       groupBreakBefore: true,
     ),
-    BlenderToolDefinition(glyph: BlenderGlyph.rotate, tooltip: 'Rotate'),
-    BlenderToolDefinition(glyph: BlenderGlyph.scale, tooltip: 'Scale'),
-    BlenderToolDefinition(glyph: BlenderGlyph.gizmo, tooltip: 'Transform'),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.rotate,
+      tooltip: 'Rotate',
+      assetName: 'rotate',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.scale,
+      tooltip: 'Scale',
+      assetName: 'scale',
+    ),
+    BlenderToolDefinition(
+      glyph: BlenderGlyph.gizmo,
+      tooltip: 'Transform',
+      assetName: 'transform',
+    ),
     BlenderToolDefinition(
       glyph: BlenderGlyph.tool,
       tooltip: 'Annotate',
