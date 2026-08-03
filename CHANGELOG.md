@@ -1,5 +1,10 @@
 # Changelog
 
+- Updated `BlenderToolShelf` to use Blender-style separated rounded groups,
+  borderless square tool buttons, and larger active-tool icons. The shared
+  shelf now renders the same geometry in blenderui consumers and the CWords
+  Page Editor.
+
 - Removed the outline from shared popover panels and their pointers to match
   Blender's borderless floating menu surface.
 - Centered shared popovers on their triggers by default so the panel pointer

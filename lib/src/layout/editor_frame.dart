@@ -63,48 +63,88 @@ class _BlenderEditorFrameState extends State<BlenderEditorFrame> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        decoration: BoxDecoration(
-          color: widget.backgroundColor ?? theme.colors.surface,
-          border: Border(
-            top: widget.showTopBorder
-                ? BorderSide(
-                    color: _hovered
-                        ? theme.colors.editorOutlineActive
-                        : theme.colors.editorOutline,
-                  )
-                : BorderSide.none,
-            right: BorderSide(
-              color: _hovered
-                  ? theme.colors.editorOutlineActive
-                  : theme.colors.editorOutline,
-            ),
-            bottom: BorderSide(
-              color: _hovered
-                  ? theme.colors.editorOutlineActive
-                  : theme.colors.editorOutline,
-            ),
-            left: widget.showLeftBorder
-                ? BorderSide(
-                    color: _hovered
-                        ? theme.colors.editorOutlineActive
-                        : theme.colors.editorOutline,
-                  )
-                : BorderSide.none,
-          ),
-          borderRadius: widget.squareTopCorners
-              ? BorderRadius.vertical(
-                  bottom: Radius.circular(
-                    widget.borderRadius ?? theme.shapes.panelRadius,
-                  ),
-                )
-              : BorderRadius.circular(
-                  widget.borderRadius ?? theme.shapes.panelRadius,
-                ),
-        ),
+      child: _BlenderEditorFrameSurface(
         child: widget.child,
+        backgroundColor: widget.backgroundColor ?? theme.colors.surface,
+        idleOutline: theme.colors.editorOutline,
+        activeOutline: theme.colors.editorOutlineActive,
+        hovered: _hovered,
+        showLeftBorder: widget.showLeftBorder,
+        showTopBorder: widget.showTopBorder,
+        borderRadius: widget.borderRadius ?? theme.shapes.panelRadius,
+        squareTopCorners: widget.squareTopCorners,
       ),
+    );
+  }
+}
+
+/// Keeps an attached editor's quiet seams selective while making its active
+/// hover outline a complete frame. The active outline is painted as an overlay
+/// so it neither shifts the editor's content nor depends on adjacent chrome.
+class _BlenderEditorFrameSurface extends StatelessWidget {
+  const _BlenderEditorFrameSurface({
+    required this.child,
+    required this.backgroundColor,
+    required this.idleOutline,
+    required this.activeOutline,
+    required this.hovered,
+    required this.showLeftBorder,
+    required this.showTopBorder,
+    required this.borderRadius,
+    required this.squareTopCorners,
+  });
+
+  final Widget child;
+  final Color backgroundColor;
+  final Color idleOutline;
+  final Color activeOutline;
+  final bool hovered;
+  final bool showLeftBorder;
+  final bool showTopBorder;
+  final double borderRadius;
+  final bool squareTopCorners;
+
+  BorderRadius get _radius => squareTopCorners
+      ? BorderRadius.vertical(bottom: Radius.circular(borderRadius))
+      : BorderRadius.circular(borderRadius);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.passthrough,
+      children: <Widget>[
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            border: Border(
+              top: showTopBorder
+                  ? BorderSide(color: idleOutline)
+                  : BorderSide.none,
+              right: BorderSide(color: idleOutline),
+              bottom: BorderSide(color: idleOutline),
+              left: showLeftBorder
+                  ? BorderSide(color: idleOutline)
+                  : BorderSide.none,
+            ),
+            borderRadius: _radius,
+          ),
+          child: child,
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 100),
+              opacity: hovered ? 1 : 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: activeOutline),
+                  borderRadius: _radius,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

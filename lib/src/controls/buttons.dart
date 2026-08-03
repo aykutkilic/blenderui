@@ -41,8 +41,10 @@ class BlenderButton extends StatefulWidget {
     this.checked = false,
     this.variant = BlenderButtonVariant.regular,
     this.width,
+    this.height,
     this.padding,
     this.showBorder = true,
+    this.borderRadius,
   });
 
   final String label;
@@ -60,8 +62,10 @@ class BlenderButton extends StatefulWidget {
   final bool checked;
   final BlenderButtonVariant variant;
   final double? width;
+  final double? height;
   final EdgeInsets? padding;
   final bool showBorder;
+  final double? borderRadius;
 
   @override
   State<BlenderButton> createState() => _BlenderButtonState();
@@ -124,17 +128,19 @@ class _BlenderButtonState extends State<BlenderButton> {
         : widget.selected
         ? selectedForeground
         : normalForeground;
-    final buttonHeight = widget.variant == BlenderButtonVariant.tab
-        ? theme.density.rowHeight
-        : theme.density.controlHeight;
+    final buttonHeight = widget.height ??
+        (widget.variant == BlenderButtonVariant.tab
+            ? theme.density.rowHeight
+            : theme.density.controlHeight);
     final buttonPadding =
         widget.padding ??
         (widget.variant == BlenderButtonVariant.tab
             ? EdgeInsets.symmetric(horizontal: theme.density.spacing * 2.5)
             : EdgeInsets.symmetric(horizontal: theme.density.spacing * 2));
-    final buttonRadius = widget.variant == BlenderButtonVariant.tab
-        ? theme.shapes.tabRadius
-        : theme.shapes.controlRadius;
+    final buttonRadius = widget.borderRadius ??
+        (widget.variant == BlenderButtonVariant.tab
+            ? theme.shapes.tabRadius
+            : theme.shapes.controlRadius);
 
     return SizedBox(
       width: widget.width,
@@ -278,9 +284,12 @@ class BlenderIconButton extends StatelessWidget {
     this.selected = false,
     this.enabled = true,
     this.size = 28,
+    this.height,
     this.iconSize = 15,
     this.scaleWithDensity = true,
     this.variant = BlenderButtonVariant.toolbar,
+    this.showBorder = true,
+    this.borderRadius,
   });
 
   final BlenderGlyph glyph;
@@ -289,9 +298,12 @@ class BlenderIconButton extends StatelessWidget {
   final bool selected;
   final bool enabled;
   final double size;
+  final double? height;
   final double iconSize;
   final bool scaleWithDensity;
   final BlenderButtonVariant variant;
+  final bool showBorder;
+  final double? borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -301,11 +313,16 @@ class BlenderIconButton extends StatelessWidget {
     Widget result = BlenderButton(
       label: '',
       width: size * densityScale,
+      height: height == null
+          ? null
+          : height! * (scaleWithDensity ? densityScale : 1.0),
       onPressed: onPressed,
       enabled: enabled,
       selected: selected,
       variant: variant,
       padding: EdgeInsets.zero,
+      showBorder: showBorder,
+      borderRadius: borderRadius,
       leading: BlenderIcon(glyph, size: iconSize * densityScale),
     );
     if (tooltip != null) {
@@ -363,12 +380,16 @@ class BlenderToggle extends StatelessWidget {
           ),
           if (label != null) ...<Widget>[
             SizedBox(width: theme.density.spacing),
-            Text(
-              label!,
-              style: theme.textTheme.label.copyWith(
-                color: active
-                    ? theme.colors.foreground
-                    : theme.colors.foregroundDisabled,
+            Flexible(
+              child: Text(
+                label!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.label.copyWith(
+                  color: active
+                      ? theme.colors.foreground
+                      : theme.colors.foregroundDisabled,
+                ),
               ),
             ),
           ],

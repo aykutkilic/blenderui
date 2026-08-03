@@ -48,15 +48,34 @@ class BlenderToolShelf extends StatelessWidget {
     final densityScale = math.min(theme.density.controlHeight / 20, 1.25);
     Widget buildTool(int index) {
       final tool = tools[index];
-      final button = BlenderIconButton(
-        glyph: tool.glyph,
-        selected: index == selectedIndex,
-        enabled: tool.enabled,
-        onPressed: () => onChanged(index),
-        tooltip: tool.options.isEmpty ? tool.tooltip : null,
-        size: (buttonExtent - 2) * densityScale,
-        iconSize: iconSize * densityScale,
-        scaleWithDensity: false,
+      final button = Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          BlenderIconButton(
+            glyph: tool.glyph,
+            selected: index == selectedIndex,
+            enabled: tool.enabled,
+            onPressed: () => onChanged(index),
+            tooltip: tool.options.isEmpty ? tool.tooltip : null,
+            size: buttonExtent * densityScale,
+            height: buttonExtent * densityScale,
+            iconSize: math.max(iconSize, buttonExtent * 0.82) * densityScale,
+            scaleWithDensity: false,
+            showBorder: false,
+            borderRadius: 0,
+          ),
+          if (tool.options.isNotEmpty)
+            Positioned(
+              right: 2 * densityScale,
+              bottom: 2 * densityScale,
+              child: IgnorePointer(
+                child: BlenderIcon(
+                  BlenderGlyph.chevronDown,
+                  size: 8 * densityScale,
+                ),
+              ),
+            ),
+        ],
       );
       Widget interactive = tool.options.isEmpty
           ? button
@@ -94,66 +113,67 @@ class BlenderToolShelf extends StatelessWidget {
           child: interactive,
         );
       }
-      return Padding(
-        padding: EdgeInsets.only(
-          top: tool.groupBreakBefore
-              ? 6 * densityScale
-              : (index == 0 ? 0 : buttonSpacing * densityScale),
-        ),
-        child: SizedBox(
-          height: buttonExtent * densityScale,
-          child: interactive,
-        ),
+      return SizedBox(
+        height: buttonExtent * densityScale,
+        child: interactive,
       );
+    }
+
+    final groups = <List<Widget>>[];
+    for (var index = 0; index < tools.length; index++) {
+      if (index == 0 || tools[index].groupBreakBefore) {
+        groups.add(<Widget>[]);
+      }
+      groups.last.add(buildTool(index));
     }
 
     // Floating shelves are normally tall enough to show their complete tool
     // taxonomy, but docked areas can become shorter than that during window or
     // pane resizing. Keep the same compact appearance while allowing the shelf
     // itself to scroll instead of overflowing its editor.
-    final shelf = DecoratedBox(
-      decoration: BoxDecoration(
-        color: floating
-            ? theme.colors.surface.withAlpha(244)
-            : theme.colors.surface,
-        border: Border.all(color: theme.colors.editorBorder),
-        borderRadius: floating ? BorderRadius.circular(5) : BorderRadius.zero,
-      ),
-      child: SizedBox(
-        width: width * densityScale,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: floating ? 2 * densityScale : 0,
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (!constraints.hasBoundedHeight) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (!floating) SizedBox(height: 4 * densityScale),
-                    for (var index = 0; index < tools.length; index++)
-                      buildTool(index),
-                    if (!floating) SizedBox(height: 4 * densityScale),
-                  ],
-                );
-              }
-              return ScrollConfiguration(
-                behavior: ScrollConfiguration.of(
-                  context,
-                ).copyWith(scrollbars: false),
-                child: ListView.builder(
-                  primary: false,
-                  padding: EdgeInsets.symmetric(
-                    vertical: floating ? 0 : 4 * densityScale,
-                  ),
-                  itemCount: tools.length,
-                  itemBuilder: (context, index) => buildTool(index),
-                ),
-              );
-            },
-          ),
-        ),
+    final shelf = SizedBox(
+      width: width * densityScale,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          Widget group(List<Widget> children) => DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colors.surface.withAlpha(244),
+              borderRadius: BorderRadius.circular(6 * densityScale),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: children,
+              ),
+            ),
+          );
+          final grouped = <Widget>[
+            for (var index = 0; index < groups.length; index++) ...[
+              if (index > 0) SizedBox(height: 6 * densityScale),
+              group(groups[index]),
+            ],
+          ];
+          if (!constraints.hasBoundedHeight) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: grouped,
+            );
+          }
+          return ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(scrollbars: false),
+            child: ListView.builder(
+              primary: false,
+              padding: EdgeInsets.symmetric(
+                vertical: floating ? 0 : 4 * densityScale,
+              ),
+              itemCount: grouped.length,
+              itemBuilder: (context, index) => grouped[index],
+            ),
+          );
+        },
       ),
     );
     return shelf;
@@ -265,6 +285,7 @@ class BlenderToolOption {
   final String? shortcut;
   final String? description;
   final bool enabled;
+
   /// Optional application-owned identity returned with the selected option.
   final Object? value;
 }
@@ -301,26 +322,27 @@ class _BlenderToolOptionMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
-    return SizedBox(
-      width: 260,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colors.menuBackground,
-          border: Border.all(color: theme.colors.borderSubtle),
-          borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < options.length; index++)
-                _BlenderToolOptionRow(
-                  option: options[index],
-                  selected: index == selectedIndex,
-                  onSelected: () => onSelected(options[index]),
-                ),
-            ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 680),
+      child: SizedBox(
+        width: 260,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.menuBackground,
+            border: Border.all(color: theme.colors.borderSubtle),
+            borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: options.length,
+              itemBuilder: (context, index) => _BlenderToolOptionRow(
+                option: options[index],
+                selected: index == selectedIndex,
+                onSelected: () => onSelected(options[index]),
+              ),
+            ),
           ),
         ),
       ),
