@@ -97,6 +97,26 @@ void registerMultiColumnMenuReusesCompactEditorMenuTests() {
     expect(tester.getSize(narrowSurface).height, greaterThan(120));
   });
 
+  testWidgets('editor type menu follows its tallest category', (tester) async {
+    await tester.pumpWidget(
+      BlenderApp(
+        home: Center(
+          child: BlenderEditorTypeSelector(
+            value: BlenderEditorType.properties,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(BlenderEditorTypeSelector));
+    await tester.pumpAndSettle();
+
+    final menu = find.byType(BlenderMultiColumnMenu<BlenderEditorType>);
+    expect(menu, findsOneWidget);
+    expect(tester.getSize(menu).height, lessThan(280));
+  });
+
   testWidgets('BlenderApp supplies the themed default text foreground', (
     tester,
   ) async {

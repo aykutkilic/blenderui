@@ -267,29 +267,26 @@ class _BlenderEditorTypeMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 280,
-      child: BlenderMultiColumnMenu<BlenderEditorType>(
-        groups: <BlenderMultiColumnMenuGroup<BlenderEditorType>>[
-          for (final category in _categories)
-            BlenderMultiColumnMenuGroup<BlenderEditorType>(
-              id: category.title,
-              title: category.title,
-              items: <BlenderMultiColumnMenuItem<BlenderEditorType>>[
-                for (final item in category.items)
-                  BlenderMultiColumnMenuItem<BlenderEditorType>(
-                    id: item.name,
-                    value: item,
-                    label: item.label,
-                    glyph: item.glyph,
-                    trailingLabel: item.shortcut,
-                  ),
-              ],
-            ),
-        ],
-        selected: selected,
-        onSelected: onSelected,
-      ),
+    return BlenderMultiColumnMenu<BlenderEditorType>(
+      groups: <BlenderMultiColumnMenuGroup<BlenderEditorType>>[
+        for (final category in _categories)
+          BlenderMultiColumnMenuGroup<BlenderEditorType>(
+            id: category.title,
+            title: category.title,
+            items: <BlenderMultiColumnMenuItem<BlenderEditorType>>[
+              for (final item in category.items)
+                BlenderMultiColumnMenuItem<BlenderEditorType>(
+                  id: item.name,
+                  value: item,
+                  label: item.label,
+                  glyph: item.glyph,
+                  trailingLabel: item.shortcut,
+                ),
+            ],
+          ),
+      ],
+      selected: selected,
+      onSelected: onSelected,
     );
   }
 }
