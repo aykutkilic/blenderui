@@ -246,6 +246,10 @@ void main() {
     await tester.tap(viewMenu);
     await tester.pumpAndSettle();
     expect(find.text('View Action'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(BlenderMenu<String>)).dx,
+      closeTo(tester.getTopLeft(viewMenu).dx, 0.01),
+    );
     viewButton = tester.widget<BlenderButton>(
       find.descendant(of: viewMenu, matching: find.byType(BlenderButton)),
     );

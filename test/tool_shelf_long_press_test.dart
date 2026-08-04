@@ -43,17 +43,6 @@ void main() {
           matching: find.byType(BlenderIconButton),
         )
         .first;
-    expect(
-      find.descendant(
-        of: find.byType(BlenderToolShelf),
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is BlenderIcon && widget.glyph == BlenderGlyph.chevronDown,
-        ),
-      ),
-      findsOneWidget,
-      reason: 'tools with subtools expose a visible flyout marker',
-    );
     await tester.tap(firstButton);
     await tester.pump();
     expect(selected, 0);

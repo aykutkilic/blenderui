@@ -178,6 +178,26 @@ class BlenderIcon extends StatelessWidget {
         iconTheme.color ??
         DefaultTextStyle.of(context).style.color ??
         const Color(0xFFE6E6E6);
+    final assetPath = iconTheme.assetForGlyph?.call(glyph.name);
+    if (assetPath != null) {
+      return Image.asset(
+        assetPath,
+        width: effectiveSize,
+        height: effectiveSize,
+        color: iconTheme.tintAssetGlyphs ? effectiveColor : null,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) =>
+            _renderBuiltIn(iconTheme, effectiveSize, effectiveColor),
+      );
+    }
+    return _renderBuiltIn(iconTheme, effectiveSize, effectiveColor);
+  }
+
+  Widget _renderBuiltIn(
+    BlenderIconThemeData iconTheme,
+    double effectiveSize,
+    Color effectiveColor,
+  ) {
     if (iconTheme.renderer == BlenderIconRenderer.blenderVector) {
       return CustomPaint(
         size: Size.square(effectiveSize),

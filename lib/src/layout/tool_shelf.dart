@@ -64,22 +64,22 @@ class BlenderToolShelf extends StatelessWidget {
             enabled: tool.enabled,
             onPressed: () => onChanged(index),
             tooltip: tool.options.isEmpty ? tool.tooltip : null,
-            size: buttonExtent * densityScale,
+            // blenderapp toolbar items occupy the full toolbar column. The
+            // icon keeps the compact row height, but the selected fill must
+            // not leave artificial gutters either side of it.
+            size: width * densityScale,
             height: buttonExtent * densityScale,
             iconSize: math.max(iconSize, buttonExtent * 0.82) * densityScale,
             scaleWithDensity: false,
             showBorder: false,
-            borderRadius: 0,
+            borderRadius: theme.shapes.controlRadius * densityScale,
           ),
           if (tool.options.isNotEmpty)
             Positioned(
-              right: 2 * densityScale,
-              bottom: 2 * densityScale,
+              right: 0,
+              bottom: 0,
               child: IgnorePointer(
-                child: BlenderIcon(
-                  BlenderGlyph.chevronDown,
-                  size: 8 * densityScale,
-                ),
+                child: _BlenderToolHoldIndicator(size: 8 * densityScale),
               ),
             ),
         ],
@@ -176,6 +176,47 @@ class BlenderToolShelf extends StatelessWidget {
     );
     return shelf;
   }
+}
+
+/// Blender's tool buttons use a folded corner, not a disclosure chevron, to
+/// indicate that a press-and-hold gesture opens related tools.
+class _BlenderToolHoldIndicator extends StatelessWidget {
+  const _BlenderToolHoldIndicator({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BlenderTheme.of(context);
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _BlenderToolHoldIndicatorPainter(
+        color: theme.colors.foregroundMuted.withValues(alpha: 0.55),
+      ),
+    );
+  }
+}
+
+class _BlenderToolHoldIndicatorPainter extends CustomPainter {
+  const _BlenderToolHoldIndicatorPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width, 0)
+        ..lineTo(size.width, size.height)
+        ..lineTo(0, size.height)
+        ..close(),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BlenderToolHoldIndicatorPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Blender's standard Object Mode tool ordering for a 3D viewport.

@@ -510,6 +510,8 @@ class BlenderIconThemeData {
     this.weight = 400,
     this.grade = -25,
     this.opticalSize = 20,
+    this.assetForGlyph,
+    this.tintAssetGlyphs = true,
   });
 
   final Color? color;
@@ -520,6 +522,18 @@ class BlenderIconThemeData {
   final double grade;
   final double opticalSize;
 
+  /// Optional host-owned asset path for a semantic glyph name.
+  ///
+  /// A host can replace a shared glyph family without forking BlenderUI or
+  /// changing every [BlenderIcon] call site. Returning null retains the
+  /// configured native renderer.
+  final String? Function(String glyphName)? assetForGlyph;
+
+  /// Whether resolved icon assets should receive the requested foreground tint.
+  ///
+  /// Hosts using a full-colour raster family set this to false.
+  final bool tintAssetGlyphs;
+
   BlenderIconThemeData copyWith({
     Color? color,
     double? size,
@@ -528,6 +542,8 @@ class BlenderIconThemeData {
     double? weight,
     double? grade,
     double? opticalSize,
+    String? Function(String glyphName)? assetForGlyph,
+    bool? tintAssetGlyphs,
   }) {
     return BlenderIconThemeData(
       color: color ?? this.color,
@@ -537,6 +553,8 @@ class BlenderIconThemeData {
       weight: weight ?? this.weight,
       grade: grade ?? this.grade,
       opticalSize: opticalSize ?? this.opticalSize,
+      assetForGlyph: assetForGlyph ?? this.assetForGlyph,
+      tintAssetGlyphs: tintAssetGlyphs ?? this.tintAssetGlyphs,
     );
   }
 }

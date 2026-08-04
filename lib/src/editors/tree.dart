@@ -104,6 +104,7 @@ class BlenderTree<T> extends StatefulWidget {
     this.contextMenuFooterBuilder,
     this.expandedIds,
     this.onExpandedChanged,
+    this.revealedIds = const <String>{},
   });
 
   final List<BlenderTreeNode<T>> roots;
@@ -139,6 +140,14 @@ class BlenderTree<T> extends StatefulWidget {
   /// provided so callers can persist it directly.
   final ValueChanged<Set<String>>? onExpandedChanged;
 
+  /// Rows that should be brought into view after the tree has rebuilt.
+  ///
+  /// The owner remains responsible for expanding any ancestors through
+  /// [expandedIds]; this hook only scrolls an already-visible target into the
+  /// viewport. It makes cross-editor selection synchronization possible
+  /// without exposing this widget's private scroll controller.
+  final Set<String> revealedIds;
+
   @override
   State<BlenderTree<T>> createState() => _BlenderTreeState<T>();
 }
@@ -167,6 +176,40 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
             initiallyExpanded: (node) => node.initiallyExpanded,
           )
         : <String>{...widget.expandedIds!};
+  }
+
+  void _scrollToRevealedRow({bool retryWhenHidden = true}) {
+    if (!_scrollController.hasClients || widget.revealedIds.isEmpty) return;
+    final visible = BlenderTreeState.flatten<BlenderTreeNode<T>>(
+      widget.roots,
+      idOf: (node) => node.id,
+      childrenOf: (node) => node.children,
+      expanded: _expanded,
+    );
+    final index = visible.indexWhere(
+      (entry) => widget.revealedIds.contains(entry.value.id),
+    );
+    if (index < 0) {
+      if (retryWhenHidden) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToRevealedRow(retryWhenHidden: false);
+        });
+      }
+      return;
+    }
+    final rowHeight =
+        widget.rowHeight ?? BlenderTheme.of(context).density.rowHeight;
+    final rowStart = index * rowHeight;
+    final rowEnd = rowStart + rowHeight;
+    final viewportStart = _scrollController.position.pixels;
+    final viewportEnd =
+        viewportStart + _scrollController.position.viewportDimension;
+    if (rowStart >= viewportStart && rowEnd <= viewportEnd) return;
+    _scrollController.animateTo(
+      rowStart.clamp(0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+    );
   }
 
   void _toggleExpanded(String id) {
@@ -779,6 +822,11 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
       _expanded
         ..clear()
         ..addAll(widget.expandedIds!.where(ids.contains));
+    }
+    if (!setEquals(widget.revealedIds, oldWidget.revealedIds)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToRevealedRow();
+      });
     }
   }
 }

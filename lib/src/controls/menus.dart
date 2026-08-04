@@ -789,6 +789,11 @@ class _BlenderMenuButtonState<T> extends State<BlenderMenuButton<T>> {
     if (!widget.enabled) return KeyedSubtree(key: _anchorKey, child: button);
     return BlenderPopover(
       key: _popoverKey,
+      // Blender menus begin at the trigger's leading edge. Center anchoring
+      // makes a narrow application-menu label open a menu on both sides of
+      // the label, unlike Blender's File/Edit/Window pulldowns.
+      targetAnchor: Alignment.bottomLeft,
+      followerAnchor: Alignment.topLeft,
       onOpenChanged: _handleOpenChanged,
       onOverlayHover: _coordinator?.handleOverlayHover,
       child: KeyedSubtree(
