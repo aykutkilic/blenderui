@@ -336,6 +336,7 @@ class BlenderToolOption {
     this.shortcut,
     this.description,
     this.enabled = true,
+    this.group,
     this.value,
   });
 
@@ -344,6 +345,9 @@ class BlenderToolOption {
   final String? shortcut;
   final String? description;
   final bool enabled;
+
+  /// Optional category title used by multi-column option flyouts.
+  final String? group;
 
   /// Optional application-owned identity returned with the selected option.
   final Object? value;
@@ -383,29 +387,70 @@ class _BlenderToolOptionMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = BlenderTheme.of(context);
+    final groups = <String, List<BlenderToolOption>>{};
+    for (final option in options) {
+      final group = option.group;
+      if (group == null) continue;
+      groups.putIfAbsent(group, () => <BlenderToolOption>[]).add(option);
+    }
+    final useColumns =
+        groups.length > 1 &&
+        groups.values.fold<int>(0, (count, group) => count + group.length) ==
+            options.length;
+    final selected = selectedIndex >= 0 && selectedIndex < options.length
+        ? options[selectedIndex]
+        : null;
+    final columnMenu = useColumns
+        ? BlenderMultiColumnMenu<BlenderToolOption>(
+            groups: <BlenderMultiColumnMenuGroup<BlenderToolOption>>[
+              for (final entry in groups.entries)
+                BlenderMultiColumnMenuGroup<BlenderToolOption>(
+                  id: entry.key,
+                  title: entry.key,
+                  items: <BlenderMultiColumnMenuItem<BlenderToolOption>>[
+                    for (final option in entry.value)
+                      BlenderMultiColumnMenuItem<BlenderToolOption>(
+                        id: option.label,
+                        value: option,
+                        label: option.label,
+                        glyph: option.glyph,
+                        trailingLabel: option.shortcut,
+                        enabled: option.enabled,
+                      ),
+                  ],
+                ),
+            ],
+            selected: selected,
+            onSelected: onSelected,
+            maxWidth: 820,
+            minimumColumnWidth: 160,
+          )
+        : null;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 680),
       child: SizedBox(
-        width: 260,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: theme.colors.menuBackground,
-            border: Border.all(color: theme.colors.borderSubtle),
-            borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: options.length,
-              itemBuilder: (context, index) => _BlenderToolOptionRow(
-                option: options[index],
-                selected: index == selectedIndex,
-                onSelected: () => onSelected(options[index]),
+        width: useColumns ? null : 260,
+        child: useColumns
+            ? columnMenu
+            : DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.menuBackground,
+                  border: Border.all(color: theme.colors.borderSubtle),
+                  borderRadius: BorderRadius.circular(theme.shapes.menuRadius),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) => _BlenderToolOptionRow(
+                      option: options[index],
+                      selected: index == selectedIndex,
+                      onSelected: () => onSelected(options[index]),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
