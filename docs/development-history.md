@@ -4,6 +4,25 @@ This is the retained milestone record for BlenderUI. Superseded, task-by-task
 parity notes were removed on 2026-07-17; their lasting architectural decisions
 live in [the decision records](decisions/).
 
+## 2026-08-16 — Hardened shared interface update and interaction boundaries
+
+- Added typed raster/SVG icon asset resolution to the shared icon theme. This
+  keeps the host's semantic glyph mapping centralized while allowing SVG
+  assets to follow the requested foreground tint and preserving full-colour
+  raster artwork.
+- Made checkbox, radio, toggle, and Properties boolean labels activate their
+  associated value, with explicit hit-test behavior for the full label area.
+  Added a configurable Properties-tab icon size for compact host surfaces.
+- Kept button action registries and interface-theme notifier sources stable
+  during ordinary rebuilds; genuine theme-source replacements are applied
+  after the current frame so active overlays are not dirtied while Flutter is
+  building.
+- Closed menu routes before running selection callbacks, preventing commands
+  that open a dialog from having that new dialog closed by deferred menu
+  cleanup. Focused widget tests cover these lifecycle and route-order cases.
+- Guarded delayed tooltip insertion against a disposed owner, preserving the
+  overlay lifecycle boundary when pointer timers outlive a widget.
+
 ## 2026-07-27 — Matched viewport sidebar region behavior
 
 - Added a configurable vertical inset to `BlenderViewportShell` so docked

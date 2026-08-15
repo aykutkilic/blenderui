@@ -70,6 +70,28 @@
 
 ## Unreleased
 
+- Add typed raster/SVG icon asset resolution. SVG assets can receive the
+  requested foreground tint while full-colour raster assets retain their
+  native appearance.
+
+- Make checkbox, radio, and toggle labels activate their controls, including
+  boolean labels rendered beside controls in shared Properties rows.
+
+- Allow Properties-tab hosts to tune their icon size, and guard tooltip
+  timers against inserting overlays after their owning widget has disposed.
+
+- Keep each `BlenderButton` action registry stable across rebuilds so focused
+  buttons and live overlays are not notified while Flutter is building.
+
+- Keep `BlenderInterfaceTheme`'s merged preference/theme source stable across
+  ordinary parent rebuilds and defer genuine source changes until after the
+  frame, preventing inherited-theme and active-overlay notifications during
+  Flutter's build phase.
+
+- Dismiss application menu routes before invoking selected callbacks, so a
+  callback that opens a dialog cannot have that new route popped by delayed
+  menu cleanup.
+
 - Added caller-owned controller and focus-node support to `BlenderTextEditor`
   and synchronized its line gutter with long-document scrolling.
 
