@@ -136,6 +136,7 @@ class BlenderPropertyTabs extends StatefulWidget {
     // between the tab and the Properties content. Callers can still opt into
     // a smaller tile when building a deliberately padded custom rail.
     this.tileSize = 36,
+    this.iconSize = 15,
     this.visibleTabIds,
     this.onVisibilityChanged,
   });
@@ -145,6 +146,7 @@ class BlenderPropertyTabs extends StatefulWidget {
   final ValueChanged<int> onChanged;
   final double width;
   final double tileSize;
+  final double iconSize;
   final Set<String>? visibleTabIds;
   final ValueChanged<Set<String>>? onVisibilityChanged;
 
@@ -270,6 +272,7 @@ class _BlenderPropertyTabsState extends State<BlenderPropertyTabs> {
                                     size: tileSize
                                         .clamp(1, width - 1)
                                         .toDouble(),
+                                    iconSize: widget.iconSize,
                                     onPressed: () => widget.onChanged(index),
                                   ),
                               ],
@@ -349,12 +352,14 @@ class _BlenderPropertyTabButton extends StatefulWidget {
     required this.tab,
     required this.selected,
     required this.size,
+    required this.iconSize,
     required this.onPressed,
   });
 
   final BlenderPropertyTab tab;
   final bool selected;
   final double size;
+  final double iconSize;
   final VoidCallback onPressed;
 
   @override
@@ -402,7 +407,7 @@ class _BlenderPropertyTabButtonState extends State<_BlenderPropertyTabButton> {
                 child: Center(
                   child: BlenderIcon(
                     widget.tab.glyph,
-                    size: 15 * scale,
+                    size: widget.iconSize * scale,
                     color: _propertyTabIconColor(
                       theme.colors,
                       widget.tab.glyph,

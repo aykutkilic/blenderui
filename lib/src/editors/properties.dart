@@ -46,6 +46,13 @@ class BlenderPropertyDescriptor<T> {
   Widget buildEditor(BuildContext context) {
     return editorBuilder(context, value, onChanged ?? (_) {});
   }
+
+  /// Returns the action used by a value-column boolean label, when this
+  /// descriptor owns a mutable boolean callback.
+  VoidCallback? get booleanLabelTap {
+    if (value is! bool || onChanged == null) return null;
+    return () => onChanged!((!(value as bool)) as T);
+  }
 }
 
 class BlenderPropertyGroup {
@@ -91,6 +98,7 @@ class BlenderPropertyRow extends StatelessWidget {
     this.state = BlenderPropertyState.normal,
     this.onKeyframe,
     this.onReset,
+    this.onLabelTap,
     this.labelPlacement = BlenderPropertyLabelPlacement.splitColumn,
   });
 
@@ -100,6 +108,7 @@ class BlenderPropertyRow extends StatelessWidget {
   final BlenderPropertyState state;
   final VoidCallback? onKeyframe;
   final VoidCallback? onReset;
+  final VoidCallback? onLabelTap;
   final BlenderPropertyLabelPlacement labelPlacement;
 
   @override
@@ -138,6 +147,7 @@ class BlenderPropertyRow extends StatelessWidget {
                   showLabel:
                       labelPlacement ==
                       BlenderPropertyLabelPlacement.valueColumn,
+                  onLabelTap: onLabelTap,
                 ),
               ),
               if (!compact && onKeyframe != null)
@@ -200,11 +210,13 @@ class _BlenderPropertyValueColumn extends StatelessWidget {
     required this.label,
     required this.editor,
     required this.showLabel,
+    this.onLabelTap,
   });
 
   final String label;
   final Widget editor;
   final bool showLabel;
+  final VoidCallback? onLabelTap;
 
   @override
   Widget build(BuildContext context) {
@@ -215,10 +227,14 @@ class _BlenderPropertyValueColumn extends StatelessWidget {
         editor,
         SizedBox(width: theme.density.spacing),
         Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.label,
-            overflow: TextOverflow.ellipsis,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onLabelTap,
+            child: Text(
+              label,
+              style: theme.textTheme.label,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       ],
@@ -414,6 +430,7 @@ class _BlenderPropertiesEditorState extends State<BlenderPropertiesEditor> {
       labelPlacement: property.effectiveLabelPlacement,
       onKeyframe: property.onKeyframe,
       onReset: property.onReset,
+      onLabelTap: property.enabled ? property.booleanLabelTap : null,
       editor: property.buildEditor(context),
     );
     final items = widget.contextMenuItemsBuilder?.call(property);

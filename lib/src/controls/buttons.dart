@@ -75,6 +75,14 @@ class _BlenderButtonState extends State<BlenderButton> {
   bool _hovered = false;
   bool _focused = false;
   bool _pressed = false;
+  late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
+    ActivateIntent: CallbackAction<ActivateIntent>(
+      onInvoke: (_) {
+        _invoke();
+        return null;
+      },
+    ),
+  };
 
   bool get _enabled => widget.enabled && widget.onPressed != null;
 
@@ -157,14 +165,7 @@ class _BlenderButtonState extends State<BlenderButton> {
             SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
             SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
           },
-          actions: <Type, Action<Intent>>{
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                _invoke();
-                return null;
-              },
-            ),
-          },
+          actions: _actions,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _enabled ? _invoke : null,
@@ -355,6 +356,7 @@ class BlenderToggle extends StatelessWidget {
     final theme = BlenderTheme.of(context);
     final active = enabled && onChanged != null;
     final child = GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: active ? () => onChanged!(!value) : null,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -429,6 +431,7 @@ class BlenderCheckbox extends StatelessWidget {
     final theme = BlenderTheme.of(context);
     final active = enabled && onChanged != null;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: active ? () => onChanged!(!value) : null,
       child: Semantics(
         checked: value,
@@ -496,6 +499,7 @@ class BlenderRadio<T> extends StatelessWidget {
     final selected = value == groupValue;
     final active = enabled && onChanged != null;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: active ? () => onChanged!(value) : null,
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -67,9 +67,49 @@ Widget _propertiesHarness() {
 }
 
 void main() {
-  testWidgets('number fields render units as muted hints', (tester) async {
+  testWidgets('boolean property labels activate their controls', (
+    tester,
+  ) async {
+    var value = false;
     await tester.pumpWidget(
       BlenderApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => SizedBox(
+            width: 320,
+            child: BlenderPropertiesEditor(
+              groups: <BlenderPropertyGroup>[
+                BlenderPropertyGroup(
+                  id: 'puzzle',
+                  title: 'Puzzle',
+                  properties: <BlenderPropertyDescriptor<dynamic>>[
+                    BlenderPropertyDescriptor<bool>(
+                      id: 'show-solution',
+                      label: 'Show Solution',
+                      value: value,
+                      onChanged: (next) => setState(() => value = next),
+                      editorBuilder: (context, current, onChanged) =>
+                          BlenderCheckbox(
+                            value: current,
+                            onChanged: onChanged,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show Solution'));
+    await tester.pump();
+    expect(value, isTrue);
+  });
+
+  testWidgets('number fields render units as muted hints', (tester) async {
+    await tester.pumpWidget(
+      const BlenderApp(
         home: SizedBox(
           width: 160,
           child: BlenderNumberField(

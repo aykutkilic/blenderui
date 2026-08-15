@@ -11,7 +11,7 @@ class _BlenderTooltipState extends State<BlenderTooltip> {
   Timer? _showTimer;
 
   void _show() {
-    if (_entry != null) return;
+    if (!mounted || _entry != null) return;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     final theme = BlenderTheme.of(context);
