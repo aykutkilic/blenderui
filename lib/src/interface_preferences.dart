@@ -35,8 +35,10 @@ class BlenderInterfaceTheme extends StatefulWidget {
 
 class _BlenderInterfaceThemeState extends State<BlenderInterfaceTheme> {
   late BlenderThemeController _themeController;
+  late Listenable _source;
+  int _scheduledUpdateId = 0;
 
-  Listenable get _source => Listenable.merge(<Listenable>[
+  Listenable _createSource() => Listenable.merge(<Listenable>[
     widget.preferences,
     if (widget.themeService != null) widget.themeService!,
   ]);
@@ -56,6 +58,7 @@ class _BlenderInterfaceThemeState extends State<BlenderInterfaceTheme> {
   @override
   void initState() {
     super.initState();
+    _source = _createSource();
     _themeController = BlenderThemeController(
       source: _source,
       resolve: _resolveTheme,
@@ -65,11 +68,27 @@ class _BlenderInterfaceThemeState extends State<BlenderInterfaceTheme> {
   @override
   void didUpdateWidget(BlenderInterfaceTheme oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _themeController.update(source: _source, resolve: _resolveTheme);
+    if (identical(widget.preferences, oldWidget.preferences) &&
+        identical(widget.themeService, oldWidget.themeService) &&
+        widget.baseTheme == oldWidget.baseTheme) {
+      return;
+    }
+
+    // InheritedNotifier listeners can include active overlay routes. Notifying
+    // them synchronously from didUpdateWidget marks those routes dirty while
+    // Flutter is still building this subtree. Apply genuine configuration
+    // changes after the frame; ordinary parent rebuilds keep the stable source.
+    final updateId = ++_scheduledUpdateId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || updateId != _scheduledUpdateId) return;
+      _source = _createSource();
+      _themeController.update(source: _source, resolve: _resolveTheme);
+    });
   }
 
   @override
   void dispose() {
+    _scheduledUpdateId++;
     _themeController.dispose();
     super.dispose();
   }

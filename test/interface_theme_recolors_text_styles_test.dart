@@ -47,4 +47,71 @@ void main() {
       const BlenderColorScheme.light().foregroundMuted,
     );
   });
+
+  testWidgets('parent rebuild does not notify inherited theme during build', (
+    tester,
+  ) async {
+    final preferences = BlenderInterfacePreferencesService();
+    final rebuild = ValueNotifier<int>(0);
+    addTearDown(preferences.dispose);
+    addTearDown(rebuild.dispose);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ValueListenableBuilder<int>(
+          valueListenable: rebuild,
+          builder: (context, value, child) => BlenderInterfaceTheme(
+            preferences: preferences,
+            child: Overlay(
+              initialEntries: <OverlayEntry>[
+                OverlayEntry(
+                  builder: (context) => Text(
+                    'frame-$value',
+                    style: BlenderTheme.of(context).textTheme.body,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    rebuild.value = 1;
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(Overlay), findsOneWidget);
+  });
+
+  testWidgets('button keeps its Actions registry stable across rebuilds', (
+    tester,
+  ) async {
+    final rebuild = ValueNotifier<int>(0);
+    var presses = 0;
+    addTearDown(rebuild.dispose);
+
+    await tester.pumpWidget(
+      BlenderApp(
+        home: ValueListenableBuilder<int>(
+          valueListenable: rebuild,
+          builder: (context, value, child) => Center(
+            child: BlenderButton(
+              key: const ValueKey<String>('stable-button'),
+              label: 'Run $value',
+              onPressed: () => presses++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    rebuild.value = 1;
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey<String>('stable-button')));
+    expect(presses, 1);
+  });
 }

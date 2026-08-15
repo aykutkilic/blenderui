@@ -132,8 +132,11 @@ Future<void> _showBlenderMenuOverlay<T>({
                             ),
                         ],
                   onSelected: (item) {
-                    onSelected?.call(item.value);
                     Navigator.of(dialogContext).pop();
+                    // Remove the menu route before dispatching. A selection
+                    // may synchronously open another route; popping after the
+                    // callback would close that new dialog instead.
+                    onSelected?.call(item.value);
                   },
                 ),
               ),
@@ -803,8 +806,9 @@ class _BlenderMenuButtonState<T> extends State<BlenderMenuButton<T>> {
       popover: (context, close) => BlenderMenu<T>(
         items: widget.items,
         onSelected: (item) {
-          widget.onSelected?.call(item.value);
           close();
+          // Keep dialog-opening commands above the dismissed menu route.
+          widget.onSelected?.call(item.value);
         },
       ),
     );
