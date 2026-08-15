@@ -497,6 +497,24 @@ class BlenderShapeTheme {
 
 enum BlenderIconRenderer { materialSymbols, blenderVector }
 
+enum BlenderIconAssetKind { raster, svg }
+
+@immutable
+class BlenderIconAsset {
+  const BlenderIconAsset.raster(this.path, {this.package, this.tint = false})
+    : kind = BlenderIconAssetKind.raster;
+
+  const BlenderIconAsset.svg(this.path, {this.package, this.tint = true})
+    : kind = BlenderIconAssetKind.svg;
+
+  final String path;
+  final String? package;
+  final BlenderIconAssetKind kind;
+  final bool tint;
+}
+
+typedef BlenderIconAssetResolver = BlenderIconAsset? Function(String glyphName);
+
 @immutable
 class BlenderIconThemeData {
   const BlenderIconThemeData({
@@ -522,12 +540,12 @@ class BlenderIconThemeData {
   final double grade;
   final double opticalSize;
 
-  /// Optional host-owned asset path for a semantic glyph name.
+  /// Optional host-owned asset for a semantic glyph name.
   ///
   /// A host can replace a shared glyph family without forking BlenderUI or
   /// changing every [BlenderIcon] call site. Returning null retains the
   /// configured native renderer.
-  final String? Function(String glyphName)? assetForGlyph;
+  final BlenderIconAssetResolver? assetForGlyph;
 
   /// Whether resolved icon assets should receive the requested foreground tint.
   ///
@@ -542,7 +560,7 @@ class BlenderIconThemeData {
     double? weight,
     double? grade,
     double? opticalSize,
-    String? Function(String glyphName)? assetForGlyph,
+    BlenderIconAssetResolver? assetForGlyph,
     bool? tintAssetGlyphs,
   }) {
     return BlenderIconThemeData(

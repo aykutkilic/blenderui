@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 
 import 'theme.dart';
@@ -178,13 +179,28 @@ class BlenderIcon extends StatelessWidget {
         iconTheme.color ??
         DefaultTextStyle.of(context).style.color ??
         const Color(0xFFE6E6E6);
-    final assetPath = iconTheme.assetForGlyph?.call(glyph.name);
-    if (assetPath != null) {
+    final asset = iconTheme.assetForGlyph?.call(glyph.name);
+    if (asset != null) {
+      if (asset.kind == BlenderIconAssetKind.svg) {
+        return SvgPicture.asset(
+          asset.path,
+          package: asset.package,
+          width: effectiveSize,
+          height: effectiveSize,
+          colorFilter: asset.tint && iconTheme.tintAssetGlyphs
+              ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+              : null,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              _renderBuiltIn(iconTheme, effectiveSize, effectiveColor),
+        );
+      }
       return Image.asset(
-        assetPath,
+        asset.path,
+        package: asset.package,
         width: effectiveSize,
         height: effectiveSize,
-        color: iconTheme.tintAssetGlyphs ? effectiveColor : null,
+        color: asset.tint && iconTheme.tintAssetGlyphs ? effectiveColor : null,
         filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stackTrace) =>
             _renderBuiltIn(iconTheme, effectiveSize, effectiveColor),
