@@ -50,8 +50,20 @@ class BlenderTextField extends StatefulWidget {
   State<BlenderTextField> createState() => _BlenderTextFieldState();
 }
 
-class _BlenderTextFieldState extends State<BlenderTextField> {
+class _BlenderTextFieldState extends State<BlenderTextField>
+    implements TextSelectionGestureDetectorBuilderDelegate {
+  final GlobalKey<EditableTextState> _editableTextKey =
+      GlobalKey<EditableTextState>();
   FocusNode? _internalFocusNode;
+
+  @override
+  GlobalKey<EditableTextState> get editableTextKey => _editableTextKey;
+
+  @override
+  bool get forcePressEnabled => false;
+
+  @override
+  bool get selectionEnabled => widget.enabled && !widget.readOnly;
 
   @override
   void initState() {
@@ -81,6 +93,7 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
     final theme = BlenderTheme.of(context);
     final node = widget.focusNode ?? _internalFocusNode!;
     final field = EditableText(
+      key: _editableTextKey,
       controller: widget.controller,
       focusNode: node,
       style: theme.textTheme.body.copyWith(
@@ -100,7 +113,15 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
       keyboardType: widget.keyboardType,
       obscureText: widget.obscureText,
       obscuringCharacter: widget.obscuringCharacter,
+      // TextSelectionGestureDetectorBuilder owns tap, word-selection, and
+      // drag gestures below. Leaving RenderEditable's legacy recognizers
+      // active would win the gesture arena on the first click and prevent
+      // desktop double-click word selection from reaching the builder.
+      rendererIgnoresPointer: true,
     );
+    final gestureDetector = TextSelectionGestureDetectorBuilder(
+      delegate: this,
+    ).buildGestureDetector(child: field);
     return Semantics(
       textField: true,
       label: widget.label ?? widget.placeholder,
@@ -162,7 +183,7 @@ class _BlenderTextFieldState extends State<BlenderTextField> {
                               ),
                             ),
                           ),
-                        field,
+                        gestureDetector,
                       ],
                     ),
                   ),
