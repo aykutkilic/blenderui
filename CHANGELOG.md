@@ -72,7 +72,9 @@
 
 - Add a reusable, host-owned `BlenderObjectPicker<T>` for pointer properties,
   with Blender-style inline search, typed icons, unresolved-reference display,
-  clear behavior, and an optional modal eyedropper activation callback.
+  clear behavior, an explicit empty filtered result, and an optional modal
+  eyedropper activation callback. Shared trees now report row hover and accept
+  externally owned transient highlights for cross-editor object sampling.
 
 - Add typed raster/SVG icon asset resolution. SVG assets can receive the
   requested foreground tint while full-colour raster assets retain their

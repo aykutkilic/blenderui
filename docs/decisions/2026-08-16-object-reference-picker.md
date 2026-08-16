@@ -14,6 +14,12 @@ active eyedropper affordance. Hosts own the object catalog, persisted value,
 and modal sampling because only the embedding application can resolve an
 Outliner or viewport click to a domain object.
 
+The search popup remains available when the host catalog or current filter is
+empty and renders `No results found`; an empty collection must not make the
+field appear inert. `BlenderTree` separately exposes transient row hover and
+external highlighting so a host can synchronize an eyedropper candidate
+without turning hover into durable selection.
+
 ## Source evidence
 
 blenderapp's `interface_layout.cc` configures pointer properties as searchable
@@ -30,3 +36,5 @@ Blender's RNA or editor model.
   them; a missing catalog item is never silently presented as `null`.
 - Eyedropper activation is a callback, not a platform or document-model
   assumption in the library.
+- Tree hover/highlight is reusable presentation state; compatibility and
+  cross-editor candidate ownership remain host responsibilities.
