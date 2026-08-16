@@ -1,4 +1,5 @@
 import 'package:blender_ui/blender_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -127,5 +128,45 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(acceptedPlacement, BlenderTreeDropPlacement.inside);
+  });
+
+  testWidgets('tree reports hover and paints external transient highlights', (
+    tester,
+  ) async {
+    BlenderTreeNode<String>? hovered;
+    await tester.pumpWidget(
+      BlenderApp(
+        home: SizedBox(
+          width: 240,
+          height: 100,
+          child: BlenderTree<String>(
+            roots: const <BlenderTreeNode<String>>[
+              BlenderTreeNode<String>(
+                id: 'target',
+                label: 'Target',
+                value: 'target',
+              ),
+            ],
+            highlightedIds: const <String>{'target'},
+            onHovered: (node) => hovered = node,
+          ),
+        ),
+      ),
+    );
+
+    final row = find.byKey(const ValueKey<String>('tree-row-target'));
+    final decoration = tester.widget<DecoratedBox>(row).decoration;
+    expect((decoration as BoxDecoration).border, isNotNull);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(400, 300));
+    await mouse.moveTo(tester.getCenter(row));
+    await tester.pump();
+    expect(hovered?.value, 'target');
+
+    await mouse.moveTo(const Offset(400, 300));
+    await tester.pump();
+    expect(hovered, isNull);
+    await mouse.removePointer();
   });
 }

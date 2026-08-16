@@ -92,6 +92,7 @@ class BlenderTree<T> extends StatefulWidget {
     this.onSelected,
     this.onSelectionChanged,
     this.onActivated,
+    this.onHovered,
     this.contextMenuTitleBuilder,
     this.rowHeight,
     this.indent = 16,
@@ -105,6 +106,7 @@ class BlenderTree<T> extends StatefulWidget {
     this.expandedIds,
     this.onExpandedChanged,
     this.revealedIds = const <String>{},
+    this.highlightedIds = const <String>{},
   });
 
   final List<BlenderTreeNode<T>> roots;
@@ -118,6 +120,12 @@ class BlenderTree<T> extends StatefulWidget {
 
   /// Called when a selectable row is double-clicked.
   final ValueChanged<BlenderTreeNode<T>>? onActivated;
+
+  /// Reports the row under the pointer, or null when the pointer leaves it.
+  ///
+  /// Hosts use this for transient cross-editor highlighting such as Blender's
+  /// object eyedropper without conflating hover with durable selection.
+  final ValueChanged<BlenderTreeNode<T>?>? onHovered;
   final String Function(BlenderTreeNode<T>)? contextMenuTitleBuilder;
   final double? rowHeight;
   final double indent;
@@ -147,6 +155,12 @@ class BlenderTree<T> extends StatefulWidget {
   /// viewport. It makes cross-editor selection synchronization possible
   /// without exposing this widget's private scroll controller.
   final Set<String> revealedIds;
+
+  /// Rows emphasized by an external transient interaction.
+  ///
+  /// This is separate from [selectedIds]: highlighting an eyedropper candidate
+  /// must not mutate the application's ordinary selection.
+  final Set<String> highlightedIds;
 
   @override
   State<BlenderTree<T>> createState() => _BlenderTreeState<T>();
@@ -422,6 +436,8 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                   final hasChildren =
                       node.children.isNotEmpty || node.hasChildren;
                   final selected = _selectedIds.contains(node.id);
+                  final hovered = _hoveredNodeId == node.id;
+                  final highlighted = widget.highlightedIds.contains(node.id);
                   final alternate = index.isOdd;
                   final contextMenuItems =
                       widget.contextMenuItemsBuilder?.call(node) ??
@@ -443,10 +459,16 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                       decoration: BoxDecoration(
                         color: selected
                             ? theme.colors.selection
+                            : highlighted
+                            ? theme.colors.accent.withValues(alpha: 0.32)
+                            : hovered
+                            ? theme.colors.buttonHover
                             : alternate
                             ? const Color(0x04FFFFFF)
                             : null,
-                        border: node.dropTarget
+                        border: highlighted
+                            ? Border.all(color: theme.colors.accent)
+                            : node.dropTarget
                             ? Border(
                                 bottom: BorderSide(
                                   color: theme.colors.accent,
@@ -679,10 +701,14 @@ class _BlenderTreeState<T> extends State<BlenderTree<T>> {
                     );
                   }
                   row = MouseRegion(
-                    onEnter: (_) => setState(() => _hoveredNodeId = node.id),
+                    onEnter: (_) {
+                      setState(() => _hoveredNodeId = node.id);
+                      widget.onHovered?.call(node);
+                    },
                     onExit: (_) {
                       if (_hoveredNodeId == node.id) {
                         setState(() => _hoveredNodeId = null);
+                        widget.onHovered?.call(null);
                       }
                     },
                     child: row,

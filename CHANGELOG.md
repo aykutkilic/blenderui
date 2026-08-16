@@ -70,6 +70,10 @@
 
 ## Unreleased
 
+- Add a reusable, host-owned `BlenderObjectPicker<T>` for pointer properties,
+  with Blender-style inline search, typed icons, unresolved-reference display,
+  clear behavior, and an optional modal eyedropper activation callback.
+
 - Add typed raster/SVG icon asset resolution. SVG assets can receive the
   requested foreground tint while full-colour raster assets retain their
   native appearance.

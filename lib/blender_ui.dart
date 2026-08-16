@@ -366,6 +366,8 @@ export 'src/property_templates.dart'
     show
         BlenderAttributeOption,
         BlenderAttributeSearch,
+        BlenderObjectPicker,
+        BlenderObjectPickerOption,
         BlenderColorManagement,
         BlenderColorManagementSettings,
         BlenderCurveProfile,

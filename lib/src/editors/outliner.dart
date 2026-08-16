@@ -81,6 +81,7 @@ class BlenderOutliner<T> extends StatelessWidget {
     this.onSelected,
     this.onSelectionChanged,
     this.onActivated,
+    this.onHovered,
     this.contextMenuTitleBuilder,
     this.contextMenuItemsBuilder,
     this.onContextMenuSelected,
@@ -129,6 +130,7 @@ class BlenderOutliner<T> extends StatelessWidget {
     this.onEditorTypeChanged,
     this.expandedIds,
     this.onExpandedChanged,
+    this.highlightedIds = const <String>{},
   });
 
   final List<BlenderTreeNode<T>> roots;
@@ -137,6 +139,7 @@ class BlenderOutliner<T> extends StatelessWidget {
   final ValueChanged<BlenderTreeNode<T>>? onSelected;
   final ValueChanged<Set<String>>? onSelectionChanged;
   final ValueChanged<BlenderTreeNode<T>>? onActivated;
+  final ValueChanged<BlenderTreeNode<T>?>? onHovered;
   final String Function(BlenderTreeNode<T>)? contextMenuTitleBuilder;
   final List<BlenderMenuItem<String>> Function(BlenderTreeNode<T>)?
   contextMenuItemsBuilder;
@@ -179,6 +182,7 @@ class BlenderOutliner<T> extends StatelessWidget {
   final ValueChanged<BlenderEditorType>? onEditorTypeChanged;
   final Set<String>? expandedIds;
   final ValueChanged<Set<String>>? onExpandedChanged;
+  final Set<String> highlightedIds;
 
   List<Widget> _buildSourceHeaderControls() {
     final controls = <Widget>[];
@@ -384,6 +388,7 @@ class BlenderOutliner<T> extends StatelessWidget {
               onSelected: onSelected,
               onSelectionChanged: onSelectionChanged,
               onActivated: onActivated,
+              onHovered: onHovered,
               contextMenuTitleBuilder: contextMenuTitleBuilder,
               contextMenuItemsBuilder: contextMenuItemsBuilder,
               onContextMenuSelected: onContextMenuSelected,
@@ -393,6 +398,7 @@ class BlenderOutliner<T> extends StatelessWidget {
               onLockChanged: onLockChanged,
               expandedIds: expandedIds,
               onExpandedChanged: onExpandedChanged,
+              highlightedIds: highlightedIds,
             ),
           ),
         ],
